@@ -1,0 +1,32 @@
+{
+  "name": "nodered-mcp-server",
+  "version": "0.1.0",
+  "description": "MCP server for controlling Node-RED instances via the Admin API",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start:stdio": "node index.js --transport=stdio",
+    "start:http": "node index.js --transport=http",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [
+    "mcp",
+    "node-red",
+    "model-context-protocol",
+    "automation"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "express": "^5.1.0",
+    "zod": "^3.25.20",
+    "dotenv": "^16.5.0"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
