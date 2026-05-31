@@ -57,7 +57,6 @@ async function main() {
 
   // Create Node-RED client and MCP server
   const nodeRedClient = createNodeRedClient(baseUrl, authManager);
-  const mcpServer = createMcpServer(nodeRedClient);
 
   // Start the selected transport
   const port = process.env.MCP_HTTP_PORT
@@ -65,7 +64,7 @@ async function main() {
     : args.port;
 
   if (args.transport === 'http') {
-    await startHttpTransport(mcpServer, port);
+    await startHttpTransport(() => createMcpServer(nodeRedClient), port);
   } else if (args.transport === 'stdio') {
     await startStdioTransport(mcpServer);
   } else {
