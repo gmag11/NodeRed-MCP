@@ -1,5 +1,6 @@
-## ADDED Requirements
-
+## Purpose
+Core MCP Server implementation and configuration details.
+## Requirements
 ### Requirement: Transport selection via CLI argument
 The system SHALL start in `stdio` or `http` mode based on the `--transport=<mode>` argument passed to the process. If not specified, it SHALL default to `stdio`. In `http` mode, it SHALL accept `--port=<number>` (default `3000`).
 
@@ -20,7 +21,7 @@ The server SHALL register all available MCP tools centrally and independently of
 
 #### Scenario: Tools available in stdio
 - **WHEN** an MCP client connects via stdio
-- **THEN** it can invoke all registered tools (e.g., `get-flows`)
+- **THEN** it can invoke all registered tools (e.g., `get-flows`, `get-flow-nodes`, `get-flow-diagram`, `get-config-nodes`)
 
 #### Scenario: Tools available in HTTP
 - **WHEN** an MCP client connects via Streamable HTTP
@@ -36,3 +37,4 @@ The system SHALL read Node-RED configuration from environment variables at start
 #### Scenario: Minimum configuration without auth
 - **WHEN** only `NODERED_URL` is defined
 - **THEN** the client operates without authentication headers
+
