@@ -4,7 +4,7 @@ services:
     ports:
       - "1880:1880"
     volumes:
-      - ./nodered_data:/data
+      - ../nodered_data:/data
     restart: unless-stopped
 
   nodered-mcp:
