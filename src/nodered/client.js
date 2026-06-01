@@ -81,7 +81,54 @@ export function createNodeRedClient(baseUrl, authManager) {
     });
   }
 
-  return { request };
+  /**
+   * Make a request to the Node-RED Admin API and return the raw response body as text.
+   * Useful for endpoints that return HTML (e.g. GET /nodes with Accept: text/html).
+   *
+   * @param {string} method - HTTP method (GET, POST, PUT, DELETE)
+   * @param {string} path - API path (e.g., '/nodes')
+   * @returns {Promise<string>} Raw response body as a string
+   */
+  async function requestText(method, path) {
+    const url = `${baseUrl}${path}`;
+    const headers = {
+      'Node-RED-API-Version': 'v2',
+    };
+
+    const authHeader = authManager.getAuthHeader();
+    if (authHeader) {
+      headers['Authorization'] = authHeader;
+    }
+
+    let res = await fetch(url, { method, headers });
+
+    if (res.status === 401) {
+      await authManager.reauthenticate();
+      const authHeader2 = authManager.getAuthHeader();
+      if (authHeader2) {
+        headers['Authorization'] = authHeader2;
+      }
+      res = await fetch(url, { method, headers });
+
+      if (!res.ok) {
+        const retryBody = await safeReadBody(res);
+        throw new Error(
+          `Node-RED API error after re-auth: ${method} ${path} returned ${res.status}` +
+          (retryBody ? ` — ${retryBody}` : '')
+        );
+      }
+    } else if (!res.ok) {
+      const errorBody = await safeReadBody(res);
+      throw new Error(
+        `Node-RED API error: ${method} ${path} returned ${res.status}` +
+        (errorBody ? ` — ${errorBody}` : '')
+      );
+    }
+
+    return res.text();
+  }
+
+  return { request, requestText };
 }
 
 /**

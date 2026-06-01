@@ -12,6 +12,8 @@ import { handleGetFlowNodes } from './tools/get-flow-nodes.js';
 import { handleGetFlowDiagram } from './tools/get-flow-diagram.js';
 import { handleGetConfigNodes } from './tools/get-config-nodes.js';
 import { handleGetNodeDetail } from './tools/get-node-detail.js';
+import { handleGetPaletteNodes } from './tools/get-palette-nodes.js';
+import { handleGetNodeTypeDetail } from './tools/get-node-type-detail.js';
 
 /**
  * Create a configured MCP server with all tools registered.
@@ -103,6 +105,34 @@ export function createMcpServer(nodeRedClient) {
       nodeId: z.string().describe('ID of the node to retrieve'),
     },
     async (params) => handleGetNodeDetail(nodeRedClient, params),
+  );
+
+  // Register: get-palette-nodes
+  server.tool(
+    'get-palette-nodes',
+    'Get a paginated list of all node types available in the Node-RED palette. ' +
+    'Returns each type name, its module, version, category, and enabled state. ' +
+    'Results are sorted alphabetically by type name. ' +
+    'Use page and pageSize to iterate through large palettes. ' +
+    'Use this to discover what node types are installed before building or auditing flows.',
+    {
+      page: z.number().int().min(1).optional().default(1).describe('Page number (1-based, default 1)'),
+      pageSize: z.number().int().min(1).max(200).optional().default(50).describe('Items per page (default 50, max 200)'),
+    },
+    async (params) => handleGetPaletteNodes(nodeRedClient, params),
+  );
+
+  // Register: get-node-type-detail
+  server.tool(
+    'get-node-type-detail',
+    'Get detailed information about a specific Node-RED node type from the palette. ' +
+    'Returns the type name, module, version, category, description, enabled state, ' +
+    'and a list of configurable parameters with their types and default values. ' +
+    'Use this to understand what properties a node type accepts before using it in a flow.',
+    {
+      type: z.string().describe('The node type name to look up (e.g. "inject", "function", "http in")'),
+    },
+    async (params) => handleGetNodeTypeDetail(nodeRedClient, params),
   );
 
   return server;

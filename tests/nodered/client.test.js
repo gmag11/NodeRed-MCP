@@ -134,4 +134,74 @@ describe('createNodeRedClient', () => {
         .rejects.toThrow(/re-auth.*GET.*\/flows.*401/);
     });
   });
+
+  describe('requestText', () => {
+    it('returns raw response body as a string on 200', async () => {
+      const html = '<html>nodes help</html>';
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: async () => html,
+      });
+
+      const result = await client.requestText('GET', '/nodes');
+      expect(result).toBe(html);
+    });
+
+    it('includes Authorization and Node-RED-API-Version headers', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: async () => '',
+      });
+
+      await client.requestText('GET', '/nodes');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:1880/nodes',
+        expect.objectContaining({
+          method: 'GET',
+          headers: expect.objectContaining({
+            'Node-RED-API-Version': 'v2',
+            'Authorization': 'Bearer test-token',
+          }),
+        }),
+      );
+    });
+
+    it('does not include Accept: application/json header', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: async () => '',
+      });
+
+      await client.requestText('GET', '/nodes');
+
+      const callHeaders = mockFetch.mock.calls[0][1].headers;
+      expect(callHeaders).not.toHaveProperty('Accept');
+    });
+
+    it('throws on 404 with method, path and status', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        text: async () => 'Not Found',
+      });
+
+      await expect(client.requestText('GET', '/nodes'))
+        .rejects.toThrow(/GET.*\/nodes.*404/);
+    });
+
+    it('retries once on 401 and returns text on success', async () => {
+      const html = '<html>help</html>';
+      mockFetch
+        .mockResolvedValueOnce({ ok: false, status: 401, text: async () => 'Unauthorized' })
+        .mockResolvedValueOnce({ ok: true, status: 200, text: async () => html });
+
+      const result = await client.requestText('GET', '/nodes');
+      expect(result).toBe(html);
+      expect(mockAuthManager.reauthenticate).toHaveBeenCalledOnce();
+    });
+  });
 });

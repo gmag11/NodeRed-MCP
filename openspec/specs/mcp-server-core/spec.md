@@ -21,7 +21,7 @@ The server SHALL register all available MCP tools centrally and independently of
 
 #### Scenario: Tools available in stdio
 - **WHEN** an MCP client connects via stdio
-- **THEN** it can invoke all registered tools (e.g., `get-flows`, `get-flow-nodes`, `get-flow-diagram`, `get-config-nodes`)
+- **THEN** it can invoke all registered tools (e.g., `get-flows`, `get-flow-nodes`, `get-flow-diagram`, `get-config-nodes`, `get-node-detail`, `get-palette-nodes`, `get-node-type-detail`)
 
 #### Scenario: Tools available in HTTP
 - **WHEN** an MCP client connects via Streamable HTTP
