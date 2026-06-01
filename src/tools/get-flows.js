@@ -39,6 +39,8 @@ export function transformFlows(rawResponse) {
       label: flow.label || flow.name || '',
       type: flow.type,
       disabled: flow.disabled || false,
+      locked: flow.locked || false,
+      info: flow.info || '',
       nodeCount: children.length,
       nodeTypes: uniqueTypes,
     };

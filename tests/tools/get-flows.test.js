@@ -37,6 +37,8 @@ describe('transformFlows', () => {
         label: 'Flow 1',
         type: 'tab',
         disabled: false,
+        locked: false,
+        info: '',
         nodeCount: 5,
         nodeTypes: ['inject', 'function', 'debug'],
       },
@@ -59,6 +61,8 @@ describe('transformFlows', () => {
         label: 'My Subflow',
         type: 'subflow',
         disabled: false,
+        locked: false,
+        info: '',
         nodeCount: 2,
         nodeTypes: ['http request', 'function'],
       },
@@ -109,10 +113,46 @@ describe('transformFlows', () => {
         label: 'Empty Flow',
         type: 'tab',
         disabled: false,
+        locked: false,
+        info: '',
         nodeCount: 0,
         nodeTypes: [],
       },
     ]);
+  });
+
+  it('includes locked: true when tab is locked', () => {
+    const result = transformFlows({
+      rev: '1',
+      flows: [
+        { id: 'tab1', type: 'tab', label: 'Locked Flow', disabled: false, locked: true, info: '' },
+      ],
+    });
+
+    expect(result[0].locked).toBe(true);
+  });
+
+  it('includes info text when tab has a description', () => {
+    const result = transformFlows({
+      rev: '1',
+      flows: [
+        { id: 'tab1', type: 'tab', label: 'Flow 1', disabled: false, info: 'Handles webhooks' },
+      ],
+    });
+
+    expect(result[0].info).toBe('Handles webhooks');
+  });
+
+  it('defaults locked to false and info to empty string when absent', () => {
+    const result = transformFlows({
+      rev: '1',
+      flows: [
+        { id: 'tab1', type: 'tab', label: 'Flow 1', disabled: false },
+      ],
+    });
+
+    expect(result[0].locked).toBe(false);
+    expect(result[0].info).toBe('');
   });
 
   it('handles mixed tabs and subflows', () => {
