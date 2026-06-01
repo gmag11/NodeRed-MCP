@@ -11,6 +11,7 @@ import { handleGetFlows } from './tools/get-flows.js';
 import { handleGetFlowNodes } from './tools/get-flow-nodes.js';
 import { handleGetFlowDiagram } from './tools/get-flow-diagram.js';
 import { handleGetConfigNodes } from './tools/get-config-nodes.js';
+import { handleGetNodeDetail } from './tools/get-node-detail.js';
 
 /**
  * Create a configured MCP server with all tools registered.
@@ -89,6 +90,19 @@ export function createMcpServer(nodeRedClient) {
       limit: z.number().int().min(1).max(200).optional().default(50).describe('Max config nodes to return (default 50, max 200)'),
     },
     async (params) => handleGetConfigNodes(nodeRedClient, params),
+  );
+
+  // Register: get-node-detail
+  server.tool(
+    'get-node-detail',
+    'Get the full detail of a single Node-RED node by its ID. ' +
+    'Returns all node fields including large text fields (func, template, format, html, css) ' +
+    'that are intentionally excluded from get-flow-nodes to save context. ' +
+    'Use this when you need to read the actual logic or content of a specific node (e.g. a function node\'s JavaScript code or a template node\'s markup).',
+    {
+      nodeId: z.string().describe('ID of the node to retrieve'),
+    },
+    async (params) => handleGetNodeDetail(nodeRedClient, params),
   );
 
   return server;
