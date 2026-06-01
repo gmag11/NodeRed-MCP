@@ -14,6 +14,9 @@ import { handleGetConfigNodes } from './tools/get-config-nodes.js';
 import { handleGetNodeDetail } from './tools/get-node-detail.js';
 import { handleGetPaletteNodes } from './tools/get-palette-nodes.js';
 import { handleGetNodeTypeDetail } from './tools/get-node-type-detail.js';
+import { handleCreateFlow } from './tools/create-flow.js';
+import { handleDeleteFlow } from './tools/delete-flow.js';
+import { handleUpdateFlow } from './tools/update-flow.js';
 
 /**
  * Create a configured MCP server with all tools registered.
@@ -133,6 +136,61 @@ export function createMcpServer(nodeRedClient) {
       type: z.string().describe('The node type name to look up (e.g. "inject", "function", "http in")'),
     },
     async (params) => handleGetNodeTypeDetail(nodeRedClient, params),
+  );
+
+  // Register: create-flow
+  server.tool(
+    'create-flow',
+    'Create a new Node-RED flow tab with the given label and optional properties. ' +
+    'Returns the new flow\'s ID and the full current state as returned by Node-RED. ' +
+    'Use this to add a new empty flow tab before creating nodes inside it.',
+    {
+      label: z.string().describe('Display label for the new flow tab'),
+      disabled: z.boolean().optional().describe('Whether the flow is disabled (default false)'),
+      info: z.string().optional().describe('Description or notes for the flow (default empty string)'),
+      env: z.array(z.object({
+        name: z.string().describe('Environment variable name'),
+        value: z.string().describe('Environment variable value'),
+        type: z.string().describe('Environment variable type (e.g. "str", "num", "bool")'),
+      })).optional().describe('Flow-level environment variables (default empty array)'),
+    },
+    async (params) => handleCreateFlow(nodeRedClient, params),
+  );
+
+  // Register: delete-flow
+  server.tool(
+    'delete-flow',
+    'Delete an existing Node-RED flow tab by ID. ' +
+    'Fetches the full flow state (including all its nodes) before deletion and returns it as previousState. ' +
+    'Use previousState to undo the deletion if needed. ' +
+    'Refuses to delete a locked flow.',
+    {
+      flowId: z.string().describe('ID of the flow tab to delete'),
+    },
+    async (params) => handleDeleteFlow(nodeRedClient, params),
+  );
+
+  // Register: update-flow
+  server.tool(
+    'update-flow',
+    'Update metadata fields (label, disabled, info, env) of an existing Node-RED flow tab. ' +
+    'Nodes inside the flow are left unchanged. ' +
+    'Returns previousState and currentState for review or undo. ' +
+    'Refuses to update a locked flow.',
+    {
+      flowId: z.string().describe('ID of the flow tab to update'),
+      updates: z.object({
+        label: z.string().optional().describe('New display label'),
+        disabled: z.boolean().optional().describe('New enabled/disabled state'),
+        info: z.string().optional().describe('New description or notes'),
+        env: z.array(z.object({
+          name: z.string().describe('Environment variable name'),
+          value: z.string().describe('Environment variable value'),
+          type: z.string().describe('Environment variable type (e.g. "str", "num", "bool")'),
+        })).optional().describe('Replacement flow-level environment variables'),
+      }).describe('Fields to update — at least one field is required'),
+    },
+    async (params) => handleUpdateFlow(nodeRedClient, params),
   );
 
   return server;

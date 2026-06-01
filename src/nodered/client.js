@@ -42,7 +42,7 @@ export function createNodeRedClient(baseUrl, authManager) {
         );
       }
 
-      return retryRes.json();
+      return retryRes.status === 204 ? null : retryRes.json();
     }
 
     if (!res.ok) {
@@ -53,7 +53,7 @@ export function createNodeRedClient(baseUrl, authManager) {
       );
     }
 
-    return res.json();
+    return res.status === 204 ? null : res.json();
   }
 
   /**
