@@ -66,4 +66,4 @@
 ## 5. Integration Verification
 
 - [x] 5.1 Run the full test suite (`npm test`) and verify all new and existing tests pass
-- [ ] 5.2 Start the MCP server locally and verify `update-node`, `connect-nodes`, `disconnect-nodes` appear in the tool list
+- [x] 5.2 Start the MCP server locally and verify `update-node`, `connect-nodes`, `disconnect-nodes` appear in the tool list

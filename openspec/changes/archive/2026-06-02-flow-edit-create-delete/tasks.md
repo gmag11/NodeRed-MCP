@@ -46,5 +46,5 @@
 ## 3. Integration Verification
 
 - [x] 3.1 Run the full test suite (`npm test`) and verify all new and existing tests pass
-- [ ] 3.2 Start the MCP server locally and verify `create-node` and `delete-node` appear in the tool list
-- [ ] 3.3 Manually test end-to-end: use `get-palette-nodes` to find a type → `create-node` → `connect-nodes` → verify in Node-RED UI
+- [x] 3.2 Start the MCP server locally and verify `create-node` and `delete-node` appear in the tool list
+- [x] 3.3 Manually test end-to-end: use `get-palette-nodes` to find a type → `create-node` → `connect-nodes` → verify in Node-RED UI
