@@ -19,7 +19,9 @@ export function applyNodeUpdate(rawResponse, nodeId, properties) {
   // Reject wires in properties — wiring is managed by connect/disconnect tools
   if (Object.prototype.hasOwnProperty.call(properties, 'wires')) {
     throw new Error(
-      "Cannot set 'wires' via update-node. Use connect-nodes or disconnect-nodes to manage wiring.",
+      "Cannot set 'wires' via update-node. " +
+      "To add a connection: call connect-nodes with { fromNodeId, toNodeId, outputPort }. " +
+      "To remove a connection: call disconnect-nodes with { fromNodeId, toNodeId, outputPort }.",
     );
   }
 
