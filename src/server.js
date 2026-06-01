@@ -17,6 +17,11 @@ import { handleGetNodeTypeDetail } from './tools/get-node-type-detail.js';
 import { handleCreateFlow } from './tools/create-flow.js';
 import { handleDeleteFlow } from './tools/delete-flow.js';
 import { handleUpdateFlow } from './tools/update-flow.js';
+import { handleUpdateNode } from './tools/update-node.js';
+import { handleConnectNodes } from './tools/connect-nodes.js';
+import { handleDisconnectNodes } from './tools/disconnect-nodes.js';
+import { handleCreateNode } from './tools/create-node.js';
+import { handleDeleteNode } from './tools/delete-node.js';
 
 /**
  * Create a configured MCP server with all tools registered.
@@ -191,6 +196,91 @@ export function createMcpServer(nodeRedClient) {
       }).describe('Fields to update — at least one field is required'),
     },
     async (params) => handleUpdateFlow(nodeRedClient, params),
+  );
+
+  // Register: update-node
+  server.tool(
+    'update-node',
+    'Shallow-merge a properties object onto an existing Node-RED node\'s configuration and deploy immediately. ' +
+    'IMPORTANT: Do NOT include `wires` in properties — wiring is managed exclusively by connect-nodes and disconnect-nodes. ' +
+    'To wire a node after creating it: call connect-nodes with fromNodeId and toNodeId. ' +
+    'Fields in properties overwrite the matching node fields; fields not mentioned are preserved. ' +
+    'Returns previousState and currentState for review or undo. ' +
+    'Refuses to update a node in a locked flow.',
+    {
+      nodeId: z.string().describe('ID of the node to update'),
+      properties: z.record(z.unknown()).describe('Properties to shallow-merge onto the node — must NOT include wires; use connect-nodes to add connections'),
+    },
+    async (params) => handleUpdateNode(nodeRedClient, params),
+  );
+
+  // Register: connect-nodes
+  server.tool(
+    'connect-nodes',
+    'Add a wire from a node output port to a target node and deploy immediately. ' +
+    'Idempotent — if the wire already exists, returns success without re-deploying. ' +
+    'Pads the source node\'s wires array if the requested output port does not exist yet. ' +
+    'Returns previousWires and currentWires for the source node. ' +
+    'Use this after create-node to connect the new node into the flow. ' +
+    'Refuses to wire nodes in a locked flow.',
+    {
+      fromNodeId: z.string().describe('ID of the source node'),
+      outputPort: z.number().int().min(0).optional().default(0).describe('Output port index (0-based, default 0)'),
+      toNodeId: z.string().describe('ID of the target node to wire to'),
+    },
+    async (params) => handleConnectNodes(nodeRedClient, params),
+  );
+
+  // Register: disconnect-nodes
+  server.tool(
+    'disconnect-nodes',
+    'Remove a wire from a node output port to a target node and deploy immediately. ' +
+    'Returns an error if the wire does not exist. ' +
+    'Returns previousWires and currentWires for the source node. ' +
+    'Use this when inserting a node between two existing nodes: disconnect the old wire first, then connect via the new node. ' +
+    'Refuses to modify nodes in a locked flow.',
+    {
+      fromNodeId: z.string().describe('ID of the source node'),
+      outputPort: z.number().int().min(0).optional().default(0).describe('Output port index (0-based, default 0)'),
+      toNodeId: z.string().describe('ID of the target node whose wire to remove'),
+    },
+    async (params) => handleDisconnectNodes(nodeRedClient, params),
+  );
+
+  // Register: create-node
+  server.tool(
+    'create-node',
+    'Create a new node of any installed palette type inside a specified Node-RED flow and deploy immediately. ' +
+    'Generates a unique ID for the node. ' +
+    'Use the optional `properties` object to set type-specific configuration fields (e.g. func, url, method). ' +
+    'The `id`, `z`, and `wires` fields in `properties` are silently ignored — the tool controls them. ' +
+    'Returns nodeId and currentState. ' +
+    'IMPORTANT — after creating a node, you MUST wire it manually using connect-nodes and disconnect-nodes. ' +
+    'Creating a node does NOT connect it to anything. ' +
+    'To INSERT a node between A and B: (1) create-node to get newId, (2) disconnect-nodes A→B, (3) connect-nodes A→newId, (4) connect-nodes newId→B. ' +
+    'Skipping steps 2-4 will leave the new node isolated and the original flow broken. ' +
+    'Refuses to create in a locked flow.',
+    {
+      type: z.string().describe('Palette node type to create (e.g. "function", "debug", "http in")'),
+      flowId: z.string().describe('ID of the flow tab or subflow to place the node in'),
+      properties: z.record(z.unknown()).optional().describe('Type-specific configuration fields to set on the new node'),
+      x: z.number().optional().default(200).describe('X canvas position (default 200)'),
+      y: z.number().optional().default(200).describe('Y canvas position (default 200)'),
+    },
+    async (params) => handleCreateNode(nodeRedClient, params),
+  );
+
+  // Register: delete-node
+  server.tool(
+    'delete-node',
+    'Remove an existing node from a Node-RED flow by its ID and deploy immediately. ' +
+    'Node-RED automatically cleans up any dangling wire references to the deleted node on deploy. ' +
+    'Returns nodeId and previousState (the full node object before deletion) for review or recovery. ' +
+    'Refuses to delete a node in a locked flow.',
+    {
+      nodeId: z.string().describe('ID of the node to delete'),
+    },
+    async (params) => handleDeleteNode(nodeRedClient, params),
   );
 
   return server;

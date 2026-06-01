@@ -13,7 +13,7 @@
  *
  * @param {string} baseUrl - Node-RED instance URL
  * @param {import('./auth.js').AuthManager} authManager
- * @returns {{ request: (method: string, path: string, body?: any) => Promise<any> }}
+ * @returns {{ request: (method: string, path: string, body?: any, extraHeaders?: object) => Promise<any>, requestText: (method: string, path: string) => Promise<string>, putFlows: (flowsPayload: any, deployType?: string) => Promise<any> }}
  */
 export function createNodeRedClient(baseUrl, authManager) {
   /**
@@ -24,15 +24,15 @@ export function createNodeRedClient(baseUrl, authManager) {
    * @param {any} [body] - Request body (will be JSON-serialized)
    * @returns {Promise<any>} Parsed JSON response
    */
-  async function request(method, path, body) {
+  async function request(method, path, body, extraHeaders) {
     const url = `${baseUrl}${path}`;
 
-    const res = await doFetch(method, url, body);
+    const res = await doFetch(method, url, body, extraHeaders);
 
     // Handle 401: invalidate token, re-authenticate, retry once
     if (res.status === 401) {
       await authManager.reauthenticate();
-      const retryRes = await doFetch(method, url, body);
+      const retryRes = await doFetch(method, url, body, extraHeaders);
 
       if (!retryRes.ok) {
         const retryBody = await safeReadBody(retryRes);
@@ -59,7 +59,7 @@ export function createNodeRedClient(baseUrl, authManager) {
   /**
    * Internal fetch helper that builds the correct headers.
    */
-  async function doFetch(method, url, body) {
+  async function doFetch(method, url, body, extraHeaders) {
     const headers = {
       'Node-RED-API-Version': 'v2',
       'Accept': 'application/json',
@@ -74,10 +74,27 @@ export function createNodeRedClient(baseUrl, authManager) {
       headers['Content-Type'] = 'application/json';
     }
 
+    if (extraHeaders) {
+      Object.assign(headers, extraHeaders);
+    }
+
     return fetch(url, {
       method,
       headers,
       body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+  }
+
+  /**
+   * Deploy the full flows payload to Node-RED using PUT /flows.
+   *
+   * @param {object} flowsPayload - The flows payload (must include `rev` from GET /flows)
+   * @param {string} [deployType='flows'] - Value for the `Node-RED-Deployment-Type` header
+   * @returns {Promise<any>} Parsed JSON response
+   */
+  async function putFlows(flowsPayload, deployType = 'flows') {
+    return request('POST', '/flows', flowsPayload, {
+      'Node-RED-Deployment-Type': deployType,
     });
   }
 
@@ -128,7 +145,7 @@ export function createNodeRedClient(baseUrl, authManager) {
     return res.text();
   }
 
-  return { request, requestText };
+  return { request, requestText, putFlows };
 }
 
 /**
