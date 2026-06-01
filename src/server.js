@@ -17,6 +17,9 @@ import { handleGetNodeTypeDetail } from './tools/get-node-type-detail.js';
 import { handleCreateFlow } from './tools/create-flow.js';
 import { handleDeleteFlow } from './tools/delete-flow.js';
 import { handleUpdateFlow } from './tools/update-flow.js';
+import { handleUpdateNode } from './tools/update-node.js';
+import { handleConnectNodes } from './tools/connect-nodes.js';
+import { handleDisconnectNodes } from './tools/disconnect-nodes.js';
 
 /**
  * Create a configured MCP server with all tools registered.
@@ -191,6 +194,52 @@ export function createMcpServer(nodeRedClient) {
       }).describe('Fields to update — at least one field is required'),
     },
     async (params) => handleUpdateFlow(nodeRedClient, params),
+  );
+
+  // Register: update-node
+  server.tool(
+    'update-node',
+    'Shallow-merge a properties object onto an existing Node-RED node\'s configuration and deploy immediately. ' +
+    'Fields in properties overwrite the matching node fields; fields not mentioned are preserved. ' +
+    'The `wires` field is explicitly forbidden — use connect-nodes or disconnect-nodes to manage wiring. ' +
+    'Returns previousState and currentState for review or undo. ' +
+    'Refuses to update a node in a locked flow.',
+    {
+      nodeId: z.string().describe('ID of the node to update'),
+      properties: z.record(z.unknown()).describe('Properties to shallow-merge onto the node (wires not allowed)'),
+    },
+    async (params) => handleUpdateNode(nodeRedClient, params),
+  );
+
+  // Register: connect-nodes
+  server.tool(
+    'connect-nodes',
+    'Add a wire from a node output port to a target node and deploy immediately. ' +
+    'Idempotent — if the wire already exists, returns success without re-deploying. ' +
+    'Pads the source node\'s wires array if the requested output port does not exist yet. ' +
+    'Returns previousWires and currentWires for the source node. ' +
+    'Refuses to wire nodes in a locked flow.',
+    {
+      fromNodeId: z.string().describe('ID of the source node'),
+      outputPort: z.number().int().min(0).optional().default(0).describe('Output port index (0-based, default 0)'),
+      toNodeId: z.string().describe('ID of the target node to wire to'),
+    },
+    async (params) => handleConnectNodes(nodeRedClient, params),
+  );
+
+  // Register: disconnect-nodes
+  server.tool(
+    'disconnect-nodes',
+    'Remove a wire from a node output port to a target node and deploy immediately. ' +
+    'Returns an error if the wire does not exist. ' +
+    'Returns previousWires and currentWires for the source node. ' +
+    'Refuses to modify nodes in a locked flow.',
+    {
+      fromNodeId: z.string().describe('ID of the source node'),
+      outputPort: z.number().int().min(0).optional().default(0).describe('Output port index (0-based, default 0)'),
+      toNodeId: z.string().describe('ID of the target node whose wire to remove'),
+    },
+    async (params) => handleDisconnectNodes(nodeRedClient, params),
   );
 
   return server;

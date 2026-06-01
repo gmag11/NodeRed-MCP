@@ -204,4 +204,82 @@ describe('createNodeRedClient', () => {
       expect(mockAuthManager.reauthenticate).toHaveBeenCalledOnce();
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // putFlows
+  // ---------------------------------------------------------------------------
+
+  describe('putFlows', () => {
+    it('sends PUT /flows with Node-RED-Deployment-Type: flows by default', async () => {
+      const payload = { rev: 'abc123', flows: [] };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ rev: 'abc124' }),
+      });
+
+      await client.putFlows(payload);
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:1880/flows',
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({
+            'Node-RED-Deployment-Type': 'flows',
+          }),
+        }),
+      );
+    });
+
+    it('sends a custom deploy type when specified', async () => {
+      const payload = { rev: 'abc123', flows: [] };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ rev: 'abc124' }),
+      });
+
+      await client.putFlows(payload, 'full');
+
+      const callHeaders = mockFetch.mock.calls[0][1].headers;
+      expect(callHeaders['Node-RED-Deployment-Type']).toBe('full');
+    });
+
+    it('includes standard headers alongside deployment type header', async () => {
+      const payload = { rev: 'abc123', flows: [] };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ rev: 'abc124' }),
+      });
+
+      await client.putFlows(payload);
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:1880/flows',
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            'Node-RED-API-Version': 'v2',
+            'Authorization': 'Bearer test-token',
+            'Content-Type': 'application/json',
+            'Node-RED-Deployment-Type': 'flows',
+          }),
+        }),
+      );
+    });
+
+    it('serializes the payload as JSON in the body', async () => {
+      const payload = { rev: 'r1', flows: [{ id: 'n1', type: 'tab' }] };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ rev: 'r2' }),
+      });
+
+      await client.putFlows(payload);
+
+      const callBody = mockFetch.mock.calls[0][1].body;
+      expect(JSON.parse(callBody)).toEqual(payload);
+    });
+  });
 });
