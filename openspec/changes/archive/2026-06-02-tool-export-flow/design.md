@@ -7,7 +7,7 @@ Currently, the MCP server has no tool that exposes raw flow JSON. The existing `
 ## Goals / Non-Goals
 
 **Goals:**
-- Add `export-flow-json` tool that returns raw exportable JSON for a single flow or all flows
+- Add `export-flow` tool that returns raw exportable JSON for a single flow or all flows
 - Support two export modes mirroring the Node-RED UI: `flow` (full flow with tab + children + config nodes) and `nodes` (a selection of nodes by ID + wires between them, trimming external wires)
 - Include referenced config nodes when exporting in `flow` mode
 - Return the JSON as a string (so the LLM can present it to the user or pass it to `import-flow`)

@@ -1,5 +1,5 @@
 /**
- * MCP tool: export-flow-json
+ * MCP tool: export-flow
  *
  * Returns a Node-RED-compatible JSON export for a single flow (by flowId),
  * all flows, or a selected set of nodes (by nodeIds). The returned JSON
@@ -85,7 +85,7 @@ export function trimWires(nodes, allowedIds) {
 }
 
 /**
- * Handler for the export-flow-json MCP tool.
+ * Handler for the export-flow MCP tool.
  *
  * @param {ReturnType<import('../nodered/client.js').createNodeRedClient>} client
  * @param {object} params - Validated input parameters

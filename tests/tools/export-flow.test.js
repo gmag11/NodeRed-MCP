@@ -5,7 +5,7 @@ import {
   collectSelectedNodes,
   trimWires,
   handleExportFlowJson,
-} from '../../src/tools/export-flow-json.js';
+} from '../../src/tools/export-flow.js';
 
 // ---------------------------------------------------------------------------
 // Fixtures

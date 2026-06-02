@@ -1,16 +1,16 @@
-### Requirement: export-flow-json MCP tool
-The system SHALL expose an MCP tool named `export-flow-json` that accepts `exportMode` (optional string, `"flow"` | `"nodes"`, default `"flow"`), `flowId` (optional string), and `nodeIds` (optional array of strings). It SHALL return the selected content as a Node-RED-compatible JSON array string.
+### Requirement: export-flow MCP tool
+The system SHALL expose an MCP tool named `export-flow` that accepts `exportMode` (optional string, `"flow"` | `"nodes"`, default `"flow"`), `flowId` (optional string), and `nodeIds` (optional array of strings). It SHALL return the selected content as a Node-RED-compatible JSON array string.
 
 #### Scenario: Export a single flow by ID (flow mode)
-- **WHEN** `export-flow-json` is invoked with `exportMode: "flow"` and a valid `flowId`
+- **WHEN** `export-flow` is invoked with `exportMode: "flow"` and a valid `flowId`
 - **THEN** the tool returns `{ exportMode: "flow", flowId, label, nodeCount, json }` where `json` is a stringified array of the tab node, all its child nodes, and any referenced config nodes
 
 #### Scenario: Export all flows (flow mode, no flowId)
-- **WHEN** `export-flow-json` is invoked with `exportMode: "flow"` and no `flowId`
+- **WHEN** `export-flow` is invoked with `exportMode: "flow"` and no `flowId`
 - **THEN** the tool returns `{ exportMode: "flow", nodeCount, json }` where `json` is a stringified array of all nodes (tabs, children, config nodes) from the Node-RED instance
 
 #### Scenario: Export selected nodes (nodes mode)
-- **WHEN** `export-flow-json` is invoked with `exportMode: "nodes"` and a non-empty `nodeIds` array
+- **WHEN** `export-flow` is invoked with `exportMode: "nodes"` and a non-empty `nodeIds` array
 - **THEN** the tool returns `{ exportMode: "nodes", nodeCount, json }` where `json` contains only the specified nodes with wires trimmed to exclude targets outside the selection
 
 #### Scenario: Wire trimming in nodes mode

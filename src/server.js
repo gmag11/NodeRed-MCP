@@ -22,7 +22,7 @@ import { handleConnectNodes } from './tools/connect-nodes.js';
 import { handleDisconnectNodes } from './tools/disconnect-nodes.js';
 import { handleCreateNode } from './tools/create-node.js';
 import { handleDeleteNode } from './tools/delete-node.js';
-import { handleExportFlowJson } from './tools/export-flow-json.js';
+import { handleExportFlowJson } from './tools/export-flow.js';
 import { handleImportFlow } from './tools/import-flow.js';
 
 /**
@@ -285,9 +285,9 @@ export function createMcpServer(nodeRedClient) {
     async (params) => handleDeleteNode(nodeRedClient, params),
   );
 
-  // Register: export-flow-json
+  // Register: export-flow
   server.tool(
-    'export-flow-json',
+    'export-flow',
     'Export a Node-RED flow or selection of nodes as a JSON array string that can be passed to import-flow. ' +
     'Two export modes are supported: ' +
     '"flow" (default) exports a full tab — the tab node, all its child nodes, and any referenced config nodes. ' +
@@ -317,7 +317,7 @@ export function createMcpServer(nodeRedClient) {
     'Optional `targetFlowId`: when provided, all non-tab nodes are injected into that existing flow tab ' +
     '(tab nodes in the JSON are discarded and their children are remapped to the target). ' +
     'Returns a summary: `{ imported: { flows, nodes, configNodes }, conflicts, strategy, targetFlowId }`. ' +
-    'Use export-flow-json to obtain the flowJson string from this or another Node-RED instance.',
+    'Use export-flow to obtain the flowJson string from this or another Node-RED instance.',
     {
       flowJson: z.string().describe('Node-RED flow JSON to import — a JSON array string or a JSON object string with a "nodes" array'),
       conflictStrategy: z.enum(['regenerate', 'overwrite']).optional().default('regenerate')
