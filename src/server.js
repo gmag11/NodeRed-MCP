@@ -23,6 +23,7 @@ import { handleDisconnectNodes } from './tools/disconnect-nodes.js';
 import { handleCreateNode } from './tools/create-node.js';
 import { handleDeleteNode } from './tools/delete-node.js';
 import { handleExportFlowJson } from './tools/export-flow-json.js';
+import { handleImportFlow } from './tools/import-flow.js';
 
 /**
  * Create a configured MCP server with all tools registered.
@@ -302,6 +303,29 @@ export function createMcpServer(nodeRedClient) {
         .describe('IDs of nodes to export (nodes mode only). Required when exportMode is "nodes".'),
     },
     async (params) => handleExportFlowJson(nodeRedClient, params),
+  );
+
+  // Register: import-flow
+  server.tool(
+    'import-flow',
+    'Import a Node-RED flow JSON into the running instance and redeploy all flows. ' +
+    'Accepts a JSON array string (Node-RED export format) or a JSON object with a `nodes` array. ' +
+    'WARNING: All flows are redeployed on import, which briefly interrupts any running flows. ' +
+    'Two conflict strategies are supported: ' +
+    '"regenerate" (default) remaps all node IDs to new UUIDs — always safe, creates a duplicate. ' +
+    '"overwrite" replaces existing nodes whose IDs match the imported JSON — use to apply an updated version of a flow. ' +
+    'Optional `targetFlowId`: when provided, all non-tab nodes are injected into that existing flow tab ' +
+    '(tab nodes in the JSON are discarded and their children are remapped to the target). ' +
+    'Returns a summary: `{ imported: { flows, nodes, configNodes }, conflicts, strategy, targetFlowId }`. ' +
+    'Use export-flow-json to obtain the flowJson string from this or another Node-RED instance.',
+    {
+      flowJson: z.string().describe('Node-RED flow JSON to import — a JSON array string or a JSON object string with a "nodes" array'),
+      conflictStrategy: z.enum(['regenerate', 'overwrite']).optional().default('regenerate')
+        .describe('How to handle ID collisions: "regenerate" (default) remaps all IDs to new UUIDs; "overwrite" replaces existing nodes by ID'),
+      targetFlowId: z.string().optional()
+        .describe('If provided, import all non-tab nodes into this existing flow tab (its ID must exist and must not be locked)'),
+    },
+    async (params) => handleImportFlow(nodeRedClient, params),
   );
 
   return server;
