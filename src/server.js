@@ -22,6 +22,7 @@ import { handleConnectNodes } from './tools/connect-nodes.js';
 import { handleDisconnectNodes } from './tools/disconnect-nodes.js';
 import { handleCreateNode } from './tools/create-node.js';
 import { handleDeleteNode } from './tools/delete-node.js';
+import { handleExportFlowJson } from './tools/export-flow-json.js';
 
 /**
  * Create a configured MCP server with all tools registered.
@@ -281,6 +282,26 @@ export function createMcpServer(nodeRedClient) {
       nodeId: z.string().describe('ID of the node to delete'),
     },
     async (params) => handleDeleteNode(nodeRedClient, params),
+  );
+
+  // Register: export-flow-json
+  server.tool(
+    'export-flow-json',
+    'Export a Node-RED flow or selection of nodes as a JSON array string that can be passed to import-flow. ' +
+    'Two export modes are supported: ' +
+    '"flow" (default) exports a full tab — the tab node, all its child nodes, and any referenced config nodes. ' +
+    'If flowId is omitted in flow mode, all nodes in the instance are exported. ' +
+    '"nodes" exports a specific selection of nodes by nodeIds, trimming wires to targets outside the selection. ' +
+    'Use this to back up a flow before editing, share it with the user, or pass it to import-flow to duplicate or migrate a flow.',
+    {
+      exportMode: z.enum(['flow', 'nodes']).optional().default('flow')
+        .describe('Export mode: "flow" (full tab + config nodes) or "nodes" (selected nodes with trimmed wires). Default: "flow"'),
+      flowId: z.string().optional()
+        .describe('ID of the flow tab to export (flow mode only). Omit to export all flows.'),
+      nodeIds: z.array(z.string()).optional()
+        .describe('IDs of nodes to export (nodes mode only). Required when exportMode is "nodes".'),
+    },
+    async (params) => handleExportFlowJson(nodeRedClient, params),
   );
 
   return server;
