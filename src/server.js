@@ -24,6 +24,8 @@ import { handleCreateNode } from './tools/create-node.js';
 import { handleDeleteNode } from './tools/delete-node.js';
 import { handleExportFlowJson } from './tools/export-flow.js';
 import { handleImportFlow } from './tools/import-flow.js';
+import { handleGetContext } from './tools/get-context.js';
+import { handleSetContext } from './tools/set-context.js';
 
 /**
  * Create a configured MCP server with all tools registered.
@@ -326,6 +328,45 @@ export function createMcpServer(nodeRedClient) {
         .describe('If provided, import all non-tab nodes into this existing flow tab (its ID must exist and must not be locked)'),
     },
     async (params) => handleImportFlow(nodeRedClient, params),
+  );
+
+  // Register: get-context
+  server.tool(
+    'get-context',
+    'Read a context variable from a Node-RED node, flow, or global context scope. ' +
+    'Supports reading a single key (returns { scope, id?, key, value }) or all keys in a scope (returns { scope, id?, values }). ' +
+    'Use scope="global" to access global context (no id needed). ' +
+    'Use scope="flow" with a flowId to access flow-scoped context. ' +
+    'Use scope="node" with a nodeId to access node-scoped context. ' +
+    'If key is omitted, all key-value pairs for the scope are returned. ' +
+    'If the key does not exist, value is returned as null (not an error). ' +
+    'WARNING: In-memory context values are lost when Node-RED restarts.',
+    {
+      scope: z.enum(['node', 'flow', 'global']).describe('Context scope to read from'),
+      id: z.string().optional().describe('Node or flow UUID — required when scope is "node" or "flow"'),
+      key: z.string().optional().describe('Context key to read; omit to return all keys in the scope'),
+    },
+    async (params) => handleGetContext(nodeRedClient, params),
+  );
+
+  // Register: set-context
+  server.tool(
+    'set-context',
+    'Write a context variable to a Node-RED node, flow, or global context scope. ' +
+    'Sets a single key to the provided value. ' +
+    'Use scope="global" to write global context (no id needed). ' +
+    'Use scope="flow" with a flowId to write flow-scoped context. ' +
+    'Use scope="node" with a nodeId to write node-scoped context. ' +
+    'Returns { scope, id?, key, value, success: true } on success. ' +
+    'Useful for pre-seeding context values before testing a flow or resetting state between test runs. ' +
+    'WARNING: In-memory context values are lost when Node-RED restarts.',
+    {
+      scope: z.enum(['node', 'flow', 'global']).describe('Context scope to write to'),
+      id: z.string().optional().describe('Node or flow UUID — required when scope is "node" or "flow"'),
+      key: z.string().describe('Context key to set'),
+      value: z.unknown().describe('Value to write (any JSON-serializable value)'),
+    },
+    async (params) => handleSetContext(nodeRedClient, params),
   );
 
   return server;
