@@ -83,6 +83,82 @@ describe('applyDisconnect', () => {
     expect(() => applyDisconnect(rawResponse, 'n1', 0, 'n2'))
       .toThrow("Flow 'flow-1' is locked");
   });
+
+  // --- Clear-port mode ---
+
+  it('clear-port: clears all targets from an output port', () => {
+    // n1 has wires: [['n2'], ['n3']] — two ports
+    const rawResponse = makeFlows();
+    const { previousWires, currentWires } = applyDisconnect(rawResponse, 'n1', 0, null, true);
+
+    expect(previousWires[0]).toContain('n2');
+    expect(previousWires[1]).toContain('n3');
+    expect(currentWires[0]).toEqual([]);
+    expect(currentWires[1]).toContain('n3'); // other port unaffected
+  });
+
+  it('clear-port: no-op on already empty port returns unchanged wires', () => {
+    // n1 wires: [['n2'], ['n3']] — port 5 doesn't exist
+    const rawResponse = makeFlows();
+    const { previousWires, currentWires } = applyDisconnect(rawResponse, 'n1', 5, null, true);
+
+    // Port 5 was already undefined/empty — wires should be structurally identical
+    expect(currentWires[0]).toContain('n2');
+    expect(currentWires[1]).toContain('n3');
+    // Port 0 and 1 unchanged
+    expect(JSON.stringify(previousWires)).toBe(JSON.stringify(currentWires));
+  });
+
+  it('clear-port: other ports unaffected', () => {
+    const rawResponse = makeFlows();
+    const { currentWires } = applyDisconnect(rawResponse, 'n1', 1, null, true);
+
+    expect(currentWires[0]).toContain('n2');
+    expect(currentWires[1]).toEqual([]);
+  });
+
+  // --- Batch mode ---
+
+  it('batch: removes multiple wires across ports', () => {
+    // n1 wires: [['n2'], ['n3']]
+    const rawResponse = makeFlows();
+    const connections = [
+      { outputPort: 0, toNodeId: 'n2' },
+      { outputPort: 1, toNodeId: 'n3' },
+    ];
+    const { previousWires, currentWires } = applyDisconnect(rawResponse, 'n1', 0, null, false, connections);
+
+    expect(previousWires[0]).toContain('n2');
+    expect(previousWires[1]).toContain('n3');
+    expect(currentWires[0]).toEqual([]);
+    expect(currentWires[1]).toEqual([]);
+  });
+
+  it('batch: missing wire throws before any removal', () => {
+    const rawResponse = makeFlows();
+    const connections = [
+      { outputPort: 0, toNodeId: 'n2' },   // valid — exists
+      { outputPort: 1, toNodeId: 'n2' },   // invalid — n2 not on port 1
+    ];
+    expect(() => applyDisconnect(rawResponse, 'n1', 0, null, false, connections))
+      .toThrow("Wire from 'n1'[1] to 'n2' does not exist");
+
+    // Verify port 0 is unchanged (atomic — no partial removal)
+    const n1 = rawResponse.flows[1];
+    expect(n1.wires[0]).toContain('n2');
+    expect(n1.wires[1]).toContain('n3');
+  });
+
+  it('batch: other ports unaffected after partial removal', () => {
+    const rawResponse = makeFlows();
+    const connections = [
+      { outputPort: 0, toNodeId: 'n2' },
+    ];
+    const { currentWires } = applyDisconnect(rawResponse, 'n1', 0, null, false, connections);
+
+    expect(currentWires[0]).toEqual([]);
+    expect(currentWires[1]).toContain('n3');
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -176,5 +252,71 @@ describe('handleDisconnectNodes', () => {
     const updatedN1 = putPayload.flows.find((n) => n.id === 'n1');
     // Port 1 should still contain n3
     expect(updatedN1.wires[1]).toContain('n3');
+  });
+
+  // --- Clear-port mode handler ---
+
+  it('clear-port: response shape includes outputPort and clearPort:true', async () => {
+    const rawResponse = makeFlows();
+    const client = {
+      request: vi.fn().mockResolvedValueOnce(rawResponse),
+      putFlows: vi.fn().mockResolvedValueOnce({}),
+    };
+
+    const result = await handleDisconnectNodes(client, { fromNodeId: 'n1', outputPort: 1, clearPort: true });
+
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.fromNodeId).toBe('n1');
+    expect(parsed.outputPort).toBe(1);
+    expect(parsed.clearPort).toBe(true);
+    expect(parsed.previousWires).toBeDefined();
+    expect(parsed.currentWires).toBeDefined();
+    // Clear-port response must NOT include toNodeId
+    expect(parsed.toNodeId).toBeUndefined();
+    expect(client.putFlows).toHaveBeenCalledOnce();
+  });
+
+  it('clear-port: skips deploy when port is already empty', async () => {
+    // n1 already has empty port 1? No, n1 has [['n2'], ['n3']] — port 1 has n3.
+    // Use a fixture where port 1 is empty
+    const tab = { id: 'flow-1', type: 'tab', label: 'My Flow', locked: false };
+    const n1 = { id: 'n1', type: 'inject', z: 'flow-1', name: 'Inject', wires: [['n2'], []] };
+    const n2 = { id: 'n2', type: 'debug', z: 'flow-1', name: 'Debug', wires: [] };
+    const rawResponse = { rev: 'rev-cp', flows: [tab, n1, n2] };
+    const client = {
+      request: vi.fn().mockResolvedValueOnce(rawResponse),
+      putFlows: vi.fn(),
+    };
+
+    await handleDisconnectNodes(client, { fromNodeId: 'n1', outputPort: 1, clearPort: true });
+
+    expect(client.putFlows).not.toHaveBeenCalled();
+  });
+
+  // --- Batch mode handler ---
+
+  it('batch: response shape includes connections, excludes outputPort/toNodeId', async () => {
+    const rawResponse = makeFlows();
+    const client = {
+      request: vi.fn().mockResolvedValueOnce(rawResponse),
+      putFlows: vi.fn().mockResolvedValueOnce({}),
+    };
+    const connections = [
+      { outputPort: 0, toNodeId: 'n2' },
+      { outputPort: 1, toNodeId: 'n3' },
+    ];
+
+    const result = await handleDisconnectNodes(client, { fromNodeId: 'n1', connections });
+
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.fromNodeId).toBe('n1');
+    expect(parsed.connections).toEqual(connections);
+    expect(parsed.previousWires).toBeDefined();
+    expect(parsed.currentWires).toBeDefined();
+    // Batch response must NOT include outputPort, toNodeId, or clearPort
+    expect(parsed.outputPort).toBeUndefined();
+    expect(parsed.toNodeId).toBeUndefined();
+    expect(parsed.clearPort).toBeUndefined();
+    expect(client.putFlows).toHaveBeenCalledOnce();
   });
 });

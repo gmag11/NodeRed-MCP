@@ -92,6 +92,66 @@ describe('applyConnect', () => {
     expect(() => applyConnect(rawResponse, 'n1', 0, 'n2'))
       .toThrow("Flow 'flow-1' is locked");
   });
+
+  // --- Batch mode ---
+
+  it('batch: wires multiple output ports in a single call', () => {
+    // n3 has wires: [[], []] — two ports initially empty
+    const rawResponse = makeFlows();
+    const connections = [
+      { outputPort: 0, toNodeId: 'n1' },
+      { outputPort: 1, toNodeId: 'n2' },
+    ];
+    const { previousWires, currentWires } = applyConnect(rawResponse, 'n3', 0, null, connections);
+
+    expect(previousWires).toEqual([[], []]);
+    expect(currentWires[0]).toContain('n1');
+    expect(currentWires[1]).toContain('n2');
+  });
+
+  it('batch: is idempotent — does not duplicate existing wires', () => {
+    // n3 starts with n1 already on port 0
+    const rawResponse = makeFlows();
+    rawResponse.flows[3] = { ...rawResponse.flows[3], wires: [['n1'], []] };
+    const connections = [
+      { outputPort: 0, toNodeId: 'n1' }, // already exists
+      { outputPort: 1, toNodeId: 'n2' }, // new
+    ];
+    const { currentWires } = applyConnect(rawResponse, 'n3', 0, null, connections);
+
+    const n1Entries = currentWires[0].filter((id) => id === 'n1');
+    expect(n1Entries).toHaveLength(1);
+    expect(currentWires[1]).toContain('n2');
+  });
+
+  it('batch: target-not-found aborts before any change', () => {
+    const rawResponse = makeFlows();
+    // n3 wires: [[], []] initially (index 3 in flows)
+    const connections = [
+      { outputPort: 0, toNodeId: 'n1' },   // valid
+      { outputPort: 1, toNodeId: 'ghost' }, // does not exist
+    ];
+    expect(() => applyConnect(rawResponse, 'n3', 0, null, connections))
+      .toThrow("Node 'ghost' not found");
+
+    // Verify no changes to the original flows — n3 wires unchanged
+    const n3 = rawResponse.flows[3];
+    expect(n3.wires).toEqual([[], []]);
+  });
+
+  it('batch: pads wires array for output ports beyond current length', () => {
+    // n1 starts with wires: [[]]
+    const rawResponse = makeFlows();
+    const connections = [
+      { outputPort: 2, toNodeId: 'n3' },
+      { outputPort: 0, toNodeId: 'n2' },
+    ];
+    const { currentWires } = applyConnect(rawResponse, 'n1', 0, null, connections);
+
+    expect(currentWires[0]).toContain('n2');
+    expect(currentWires[1]).toEqual([]);
+    expect(currentWires[2]).toContain('n3');
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -179,6 +239,49 @@ describe('handleConnectNodes', () => {
 
     await expect(handleConnectNodes(client, { fromNodeId: 'n1', outputPort: 0, toNodeId: 'n2' }))
       .rejects.toThrow("Flow 'flow-1' is locked");
+    expect(client.putFlows).not.toHaveBeenCalled();
+  });
+
+  // --- Batch mode handler ---
+
+  it('batch: response shape includes connections, excludes outputPort/toNodeId', async () => {
+    const rawResponse = makeFlows();
+    const client = {
+      request: vi.fn().mockResolvedValueOnce(rawResponse),
+      putFlows: vi.fn().mockResolvedValueOnce({}),
+    };
+    const connections = [
+      { outputPort: 0, toNodeId: 'n2' },
+      { outputPort: 1, toNodeId: 'n1' },
+    ];
+
+    const result = await handleConnectNodes(client, { fromNodeId: 'n3', connections });
+
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.fromNodeId).toBe('n3');
+    expect(parsed.connections).toEqual(connections);
+    expect(parsed.previousWires).toBeDefined();
+    expect(parsed.currentWires).toBeDefined();
+    // Batch response must NOT include outputPort or toNodeId
+    expect(parsed.outputPort).toBeUndefined();
+    expect(parsed.toNodeId).toBeUndefined();
+    expect(client.putFlows).toHaveBeenCalledOnce();
+  });
+
+  it('batch: idempotent — skips deploy when all wires already exist', async () => {
+    // n3 already has n2 on port 0
+    const rawResponse = makeFlows();
+    rawResponse.flows[3] = { ...rawResponse.flows[3], wires: [['n2'], []] };
+    const client = {
+      request: vi.fn().mockResolvedValueOnce(rawResponse),
+      putFlows: vi.fn(),
+    };
+    const connections = [
+      { outputPort: 0, toNodeId: 'n2' }, // already wired
+    ];
+
+    await handleConnectNodes(client, { fromNodeId: 'n3', connections });
+
     expect(client.putFlows).not.toHaveBeenCalled();
   });
 });

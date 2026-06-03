@@ -226,11 +226,18 @@ export function createMcpServer(nodeRedClient) {
     'Pads the source node\'s wires array if the requested output port does not exist yet. ' +
     'Returns previousWires and currentWires for the source node. ' +
     'Use this after create-node to connect the new node into the flow. ' +
-    'Refuses to wire nodes in a locked flow.',
+    'Refuses to wire nodes in a locked flow. ' +
+    'BATCH MODE: Provide optional `connections` array with `{ outputPort, toNodeId }` objects to wire multiple ' +
+    'output ports in a single call. When `connections` is provided, `outputPort` and `toNodeId` are ignored. ' +
+    'Example batch: `connections: [{ outputPort: 0, toNodeId: "n1" }, { outputPort: 1, toNodeId: "n2" }]`.',
     {
       fromNodeId: z.string().describe('ID of the source node'),
-      outputPort: z.number().int().min(0).optional().default(0).describe('Output port index (0-based, default 0)'),
-      toNodeId: z.string().describe('ID of the target node to wire to'),
+      outputPort: z.number().int().min(0).optional().default(0).describe('Output port index (0-based, default 0) — ignored when `connections` is provided'),
+      toNodeId: z.string().optional().describe('ID of the target node to wire to — ignored when `connections` is provided'),
+      connections: z.array(z.object({
+        outputPort: z.number().int().min(0).describe('Output port index (0-based)'),
+        toNodeId: z.string().describe('ID of the target node to wire to'),
+      })).optional().describe('Batch mode: wire multiple output ports in one call. When provided, `outputPort` and `toNodeId` are ignored.'),
     },
     async (params) => handleConnectNodes(nodeRedClient, params),
   );
@@ -238,15 +245,26 @@ export function createMcpServer(nodeRedClient) {
   // Register: disconnect-nodes
   server.tool(
     'disconnect-nodes',
-    'Remove a wire from a node output port to a target node and deploy immediately. ' +
-    'Returns an error if the wire does not exist. ' +
+    'Remove wires from a node output port and deploy immediately. ' +
+    'Supports three modes: ' +
+    '(1) SINGLE: provide `toNodeId` to remove one specific wire; ' +
+    '(2) CLEAR-PORT: set `clearPort: true` (omit `toNodeId`) to clear all wires from `outputPort`; ' +
+    '(3) BATCH: provide `connections` array of `{ outputPort, toNodeId }` to remove multiple wires at once. ' +
+    'In single mode, returns an error if the wire does not exist. ' +
+    'In clear-port mode, returns success without deploying if the port is already empty. ' +
+    'In batch mode, validates all wires exist before removing any (atomic). ' +
     'Returns previousWires and currentWires for the source node. ' +
-    'Use this when inserting a node between two existing nodes: disconnect the old wire first, then connect via the new node. ' +
+    'When `connections` is provided, `toNodeId`, `clearPort`, and `outputPort` are ignored. ' +
     'Refuses to modify nodes in a locked flow.',
     {
       fromNodeId: z.string().describe('ID of the source node'),
-      outputPort: z.number().int().min(0).optional().default(0).describe('Output port index (0-based, default 0)'),
-      toNodeId: z.string().describe('ID of the target node whose wire to remove'),
+      outputPort: z.number().int().min(0).optional().default(0).describe('Output port index (0-based, default 0) — ignored when `connections` is provided'),
+      toNodeId: z.string().optional().describe('ID of the target node whose wire to remove — omitted in clear-port mode; ignored when `connections` is provided'),
+      clearPort: z.boolean().optional().default(false).describe('If true and `toNodeId` is omitted, remove ALL wires from `outputPort`. Ignored when `connections` is provided.'),
+      connections: z.array(z.object({
+        outputPort: z.number().int().min(0).describe('Output port index (0-based)'),
+        toNodeId: z.string().describe('ID of the target node to disconnect'),
+      })).optional().describe('Batch mode: remove multiple wires in one call. When provided, `outputPort`, `toNodeId`, and `clearPort` are ignored.'),
     },
     async (params) => handleDisconnectNodes(nodeRedClient, params),
   );
