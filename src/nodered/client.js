@@ -60,6 +60,8 @@ export function createNodeRedClient(baseUrl, authManager) {
    * Internal fetch helper that builds the correct headers.
    */
   async function doFetch(method, url, body, extraHeaders) {
+    console.error(`[NodeRed-MCP] → ${method} ${url}`);
+
     const headers = {
       'Node-RED-API-Version': 'v2',
       'Accept': 'application/json',
@@ -82,6 +84,9 @@ export function createNodeRedClient(baseUrl, authManager) {
       method,
       headers,
       body: body !== undefined ? JSON.stringify(body) : undefined,
+    }).then(res => {
+      console.error(`[NodeRed-MCP] ← ${res.status} ${method} ${url}`);
+      return res;
     });
   }
 

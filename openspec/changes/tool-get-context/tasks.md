@@ -1,7 +1,7 @@
 ## 1. Core Tool Implementation
 
 - [x] 1.1 Create `src/tools/get-context.js` with `handleGetContext(nodeRedClient)` that validates `scope`/`id` and calls `GET /context/{scope}/:id?key=<key>` or `GET /context/global`
-- [x] 1.2 Return `{ scope, id?, key?, value }` for single-key queries and `{ scope, id?, values }` for all-keys queries
+- [x] 1.2 Return `{ name, value }` for single-key queries and `[{ name, value }, ...]` for all-keys queries (scope/id not included in output)
 - [x] 1.3 Validate that `id` is provided when `scope` is `node` or `flow`
 
 ## 2. Server Registration

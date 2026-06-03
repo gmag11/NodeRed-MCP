@@ -17,33 +17,26 @@
  */
 export function buildGetContextPath(scope, id, key) {
   const base = scope === 'global' ? '/context/global' : `/context/${scope}/${id}`;
-  return key ? `${base}?key=${encodeURIComponent(key)}` : base;
+  return key ? `${base}/${encodeURIComponent(key)}` : base;
 }
 
 /**
  * Transform the raw Node-RED context API response into the tool result shape.
  *
- * @param {string} scope - 'node' | 'flow' | 'global'
- * @param {string|undefined} id - Node or flow UUID
+ * Single-key query: returns { [key]: value }
+ * All-keys query:   returns { [key]: value, ... } (the raw object as-is)
+ *
  * @param {string|undefined} key - The requested key (if any)
  * @param {unknown} rawResponse - Raw value returned by the Node-RED API
  * @returns {object}
  */
-export function transformGetContextResponse(scope, id, key, rawResponse) {
+export function transformGetContextResponse(key, rawResponse) {
   if (key) {
-    const result = { scope };
-    if (id) result.id = id;
-    result.key = key;
-    // Node-RED returns undefined/null when the key doesn't exist
-    result.value = rawResponse ?? null;
-    return result;
+    return { [key]: rawResponse ?? null };
   }
 
-  // All-keys query: rawResponse is an object of key-value pairs
-  const result = { scope };
-  if (id) result.id = id;
-  result.values = rawResponse ?? {};
-  return result;
+  // All-keys query: rawResponse is already an object of key-value pairs
+  return rawResponse ?? {};
 }
 
 /**
@@ -66,7 +59,7 @@ export async function handleGetContext(client, params) {
 
   const path = buildGetContextPath(scope, id, key);
   const rawResponse = await client.request('GET', path);
-  const result = transformGetContextResponse(scope, id, key, rawResponse);
+  const result = transformGetContextResponse(key, rawResponse);
 
   return {
     content: [
