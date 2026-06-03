@@ -1,21 +1,26 @@
 /**
  * MCP tool: disconnect-nodes
  *
- * Removes a wire from a node's output port to a target node.
- * Errors if the wire does not exist.
- * Refuses to mutate nodes in locked flows.
+ * Removes wires from a node's output ports.
+ * Supports three modes:
+ *   1. Single: remove one specific wire (outputPort + toNodeId)
+ *   2. Clear-port: remove all wires from an output port (clearPort=true, toNodeId omitted)
+ *   3. Batch: remove multiple wires via connections array
+ * Errors if a wire does not exist.  Refuses to mutate nodes in locked flows.
  */
 
 /**
- * Apply a wire removal in the flows array.
+ * Apply wire removal in the flows array.
  *
  * @param {object} rawResponse - Raw GET /flows response (must contain `flows` array)
  * @param {string} fromNodeId - ID of the source node
- * @param {number} outputPort - Output port index (0-based)
- * @param {string} toNodeId - ID of the target node whose connection to remove
+ * @param {number} [outputPort=0] - Output port index (0-based) — ignored in batch mode
+ * @param {string} [toNodeId] - ID of the target node to disconnect — ignored in batch/clear-port mode
+ * @param {boolean} [clearPort=false] - If true and toNodeId is absent, clear all wires from outputPort
+ * @param {Array<{ outputPort: number, toNodeId: string }>} [connections] - Batch removal entries
  * @returns {{ updatedFlows: object[], previousWires: string[][], currentWires: string[][] }}
  */
-export function applyDisconnect(rawResponse, fromNodeId, outputPort, toNodeId) {
+export function applyDisconnect(rawResponse, fromNodeId, outputPort = 0, toNodeId, clearPort = false, connections) {
   const flows = rawResponse.flows ?? rawResponse;
 
   // Find source node
@@ -39,6 +44,53 @@ export function applyDisconnect(rawResponse, fromNodeId, outputPort, toNodeId) {
 
   const previousWires = (fromNode.wires ?? []).map((port) => [...port]);
 
+  // Determine mode: batch > clear-port > single
+  if (connections) {
+    // --- Batch mode ---
+    // Validate all wires exist before removing any (atomicity)
+    for (const entry of connections) {
+      const port = entry.outputPort;
+      const portWires = previousWires[port] ?? [];
+      if (!portWires.includes(entry.toNodeId)) {
+        throw new Error(
+          `Wire from '${fromNodeId}'[${port}] to '${entry.toNodeId}' does not exist`,
+        );
+      }
+    }
+
+    // Build new wires — deep copy and remove all target wires
+    const newWires = previousWires.map((port) => [...port]);
+    for (const entry of connections) {
+      const port = entry.outputPort;
+      if (newWires[port]) {
+        newWires[port] = newWires[port].filter((id) => id !== entry.toNodeId);
+      }
+    }
+
+    const currentWires = newWires;
+    const updatedNode = { ...fromNode, wires: currentWires };
+    const updatedFlows = flows.map((n, i) => (i === fromIndex ? updatedNode : n));
+
+    return { updatedFlows, previousWires, currentWires };
+  }
+
+  if (clearPort && !toNodeId) {
+    // --- Clear-port mode ---
+    const newWires = previousWires.map((port, i) => {
+      if (i === outputPort) {
+        return [];
+      }
+      return [...port];
+    });
+
+    const currentWires = newWires;
+    const updatedNode = { ...fromNode, wires: currentWires };
+    const updatedFlows = flows.map((n, i) => (i === fromIndex ? updatedNode : n));
+
+    return { updatedFlows, previousWires, currentWires };
+  }
+
+  // --- Single-wire mode ---
   // Check the wire actually exists
   const portConnections = previousWires[outputPort];
   if (!portConnections || !portConnections.includes(toNodeId)) {
@@ -69,11 +121,13 @@ export function applyDisconnect(rawResponse, fromNodeId, outputPort, toNodeId) {
  * @param {object} params
  * @param {string} params.fromNodeId
  * @param {number} [params.outputPort=0]
- * @param {string} params.toNodeId
+ * @param {string} [params.toNodeId]
+ * @param {boolean} [params.clearPort=false]
+ * @param {Array<{ outputPort: number, toNodeId: string }>} [params.connections]
  * @returns {Promise<{ content: Array<{ type: string, text: string }> }>}
  */
 export async function handleDisconnectNodes(client, params) {
-  const { fromNodeId, outputPort = 0, toNodeId } = params;
+  const { fromNodeId, outputPort = 0, toNodeId, clearPort = false, connections } = params;
 
   const rawResponse = await client.request('GET', '/flows');
   const { rev } = rawResponse;
@@ -83,15 +137,32 @@ export async function handleDisconnectNodes(client, params) {
     fromNodeId,
     outputPort,
     toNodeId,
+    clearPort,
+    connections,
   );
 
-  await client.putFlows({ rev, flows: updatedFlows }, 'flows');
+  // Skip deploy if no changes were made (clear-port no-op, or other idempotency cases)
+  const hasChanges = JSON.stringify(previousWires) !== JSON.stringify(currentWires);
+
+  if (hasChanges) {
+    await client.putFlows({ rev, flows: updatedFlows }, 'flows');
+  }
+
+  // Build response shape based on mode
+  let responseData;
+  if (connections) {
+    responseData = { fromNodeId, connections, previousWires, currentWires };
+  } else if (clearPort && !toNodeId) {
+    responseData = { fromNodeId, outputPort, clearPort: true, previousWires, currentWires };
+  } else {
+    responseData = { fromNodeId, outputPort, toNodeId, previousWires, currentWires };
+  }
 
   return {
     content: [
       {
         type: 'text',
-        text: JSON.stringify({ fromNodeId, outputPort, toNodeId, previousWires, currentWires }, null, 2),
+        text: JSON.stringify(responseData, null, 2),
       },
     ],
   };
