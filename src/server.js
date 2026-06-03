@@ -24,6 +24,8 @@ import { handleCreateNode } from './tools/create-node.js';
 import { handleDeleteNode } from './tools/delete-node.js';
 import { handleExportFlowJson } from './tools/export-flow.js';
 import { handleImportFlow } from './tools/import-flow.js';
+import { handleGetContext } from './tools/get-context.js';
+import { handleDeleteContext } from './tools/delete-context.js';
 
 /**
  * Create a configured MCP server with all tools registered.
@@ -326,6 +328,43 @@ export function createMcpServer(nodeRedClient) {
         .describe('If provided, import all non-tab nodes into this existing flow tab (its ID must exist and must not be locked)'),
     },
     async (params) => handleImportFlow(nodeRedClient, params),
+  );
+
+  // Register: get-context
+  server.tool(
+    'get-context',
+    'Read a context variable from a Node-RED node, flow, or global context scope. ' +
+    'Single-key mode (key provided): returns { "<key>": <value> } — e.g. { "counter": 42 }. ' +
+    'All-keys mode (no key): returns a JSON object with all key-value pairs — e.g. { "counter": 42, "config": {} }. ' +
+    'Use scope="global" to access global context (no id needed). ' +
+    'Use scope="flow" with a flowId to access flow-scoped context. ' +
+    'Use scope="node" with a nodeId to access node-scoped context. ' +
+    'If the key does not exist, value is returned as null (not an error). ' +
+    'WARNING: In-memory context values are lost when Node-RED restarts.',
+    {
+      scope: z.enum(['node', 'flow', 'global']).describe('Context scope to read from'),
+      id: z.string().optional().describe('Node or flow UUID — required when scope is "node" or "flow"'),
+      key: z.string().optional().describe('Context key to read; omit to return all keys in the scope'),
+    },
+    async (params) => handleGetContext(nodeRedClient, params),
+  );
+
+  // Register: delete-context
+  server.tool(
+    'delete-context',
+    'Delete a context variable from a Node-RED node, flow, or global context scope. ' +
+    'Use scope="global" to delete from global context (no id needed). ' +
+    'Use scope="flow" with a flowId to delete from flow-scoped context. ' +
+    'Use scope="node" with a nodeId to delete from node-scoped context. ' +
+    'Returns { scope, id?, key, deleted: true } on success. ' +
+    'Note: The Node-RED Admin API does not support writing context values directly — ' +
+    'use a function node with flow.set() / global.set() if you need to write context.',
+    {
+      scope: z.enum(['node', 'flow', 'global']).describe('Context scope to delete from'),
+      id: z.string().optional().describe('Node or flow UUID — required when scope is "node" or "flow"'),
+      key: z.string().describe('Context key to delete'),
+    },
+    async (params) => handleDeleteContext(nodeRedClient, params),
   );
 
   return server;

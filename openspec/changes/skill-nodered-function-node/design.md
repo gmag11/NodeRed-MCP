@@ -9,7 +9,7 @@ Source: https://nodered.org/docs/user-guide/writing-functions
 **Goals:**
 - Cover: `msg`, `node`, `context`, `flow`, `global`, `env`, `RED` APIs
 - Explain: return semantics (return msg vs null vs array), multiple outputs, async patterns
-- Explain: how to set/get context from within function code (vs. MCP `get/set-context`)
+- Explain: how to set/get context from within function code (vs. MCP `get-context`)
 - Explain: how to set the `func` property via `create-node`/`update-node`
 - Provide code examples for common patterns: transform payload, conditional output, stateful counter, async HTTP
 

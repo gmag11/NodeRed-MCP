@@ -1,6 +1,6 @@
 ## Context
 
-The debug workflow uses: `inject-message` to trigger, `read-debug-messages` to observe, `get-node-detail` to inspect node state, and `get/set-context` to control stateful flows. The skill must explain how to position debug nodes in a flow for maximum observability and how to use filter parameters effectively.
+The debug workflow uses: `inject-message` to trigger, `read-debug-messages` to observe, `get-node-detail` to inspect node state, and `get-context` to control stateful flows. The skill must explain how to position debug nodes in a flow for maximum observability and how to use filter parameters effectively.
 
 Source: https://nodered.org/docs/user-guide/editor/sidebar/debug
 
