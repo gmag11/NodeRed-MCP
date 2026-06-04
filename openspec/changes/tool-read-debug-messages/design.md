@@ -11,7 +11,7 @@ The MCP server is currently HTTP-only. Reading debug output requires a persisten
 
 **Goals:**
 - Persistent WebSocket connection to `ws://<host>/comms` maintained by the MCP server
-- In-memory ring buffer of the last N debug messages, size configurable via `NODE_RED_DEBUG_BUFFER_SIZE` env var (default 200)
+- In-memory ring buffer of the last N debug messages, size configurable via `NODE_RED_DEBUG_BUFFER_SIZE` env var (default 500)
 - `read-debug-messages` tool with filters: `nodeId`, `nodeName`, `keyword` (substring in stringified msg), `after` (timestamp lower bound, inclusive), `before` (timestamp upper bound, inclusive), `last` (return the last N messages matching all filters instead of the first N), `limit` (max results when using first-N mode, default 50)
 - Auto-reconnect on disconnect with exponential backoff
 
@@ -32,7 +32,7 @@ The MCP server is currently HTTP-only. Reading debug output requires a persisten
 
 ### Ring buffer size configurable via env var
 
-**Decision**: Keep the last N debug messages in a fixed-size array (FIFO eviction). Size is read from `NODE_RED_DEBUG_BUFFER_SIZE` environment variable at startup (default 200, minimum 10, maximum 10000).
+**Decision**: Keep the last N debug messages in a fixed-size array (FIFO eviction). Size is read from `NODE_RED_DEBUG_BUFFER_SIZE` environment variable at startup (default 500, minimum 10, maximum 10000).
 
 **Rationale**: Different deployments have different needs — a development instance may want 50 messages, a long-running test suite may need 2000. Making it configurable avoids rebuilding.
 
