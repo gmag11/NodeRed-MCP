@@ -236,7 +236,6 @@ export class CommsClient extends EventEmitter {
     this.#token = token || null;
     this.#wsUrl = buildWsUrl(baseUrl, this.#token);
     this.#maxSize = parseBufferSize();
-    console.error(`[CommsClient] Buffer size: ${this.#maxSize} messages`);
   }
 
   /**
@@ -261,7 +260,6 @@ export class CommsClient extends EventEmitter {
     // If no pre-obtained token but credentials are provided, fetch one
     if (!this.#token && this.#username && this.#password) {
       try {
-        console.error('[CommsClient] Fetching auth token via HTTP credentials flow...');
         this.#token = await getToken(this.#baseUrl, this.#username, this.#password);
         this.#wsUrl = buildWsUrl(this.#baseUrl, this.#token);
       } catch (err) {
@@ -272,8 +270,6 @@ export class CommsClient extends EventEmitter {
       }
     }
 
-    console.error(`[CommsClient] Connecting to ${this.#wsUrl}`);
-
     try {
       this.#ws = new WebSocket(this.#wsUrl);
     } catch (err) {
@@ -283,41 +279,29 @@ export class CommsClient extends EventEmitter {
     }
 
     this.#ws.on('open', () => {
-      console.error('[CommsClient] ✅ WebSocket TCP connection established');
-      console.error('[CommsClient] → sending Socket.IO connect (frame: 40)');
       this.#send('40');
     });
 
     this.#ws.on('message', (data) => {
       const raw = typeof data === 'string' ? data : data.toString();
-      // Show a preview of every incoming frame for diagnostics
-      const preview = raw.length > 120 ? raw.substring(0, 120) + '…' : raw;
-      console.error(`[CommsClient] ← raw frame (${raw.length}B): ${preview}`);
 
       const parsed = parseSocketIOFrame(raw);
 
       if (!parsed) {
-        console.error(`[CommsClient] ⚠️  Unrecognised/ignored frame type (first char: '${raw[0]}')`);
         return;
       }
 
       switch (parsed.type) {
         case 'open':
-          console.error(`[CommsClient] ← Engine.IO OPEN  sid=${parsed.sid} — transport ready`);
           break;
 
         case 'pong':
-          console.error('[CommsClient] ← Engine.IO PING → replying with PONG (3)');
           this.#send('3');
           break;
 
         case 'connected':
-          console.error('[CommsClient] ← Socket.IO CONNECT ACK — handshake complete ✅');
           this.#connected = true;
           this.#reconnectDelay = INITIAL_RECONNECT_DELAY;
-          // Subscribe to debug events — without this the server won't
-          // push any debug messages to this client.
-          console.error('[CommsClient] → sending subscribe("debug")  frame: 42["subscribe","debug"]');
           this.#send('42["subscribe","debug"]');
           this.emit('connected');
           break;
@@ -336,8 +320,6 @@ export class CommsClient extends EventEmitter {
     });
 
     this.#ws.on('close', (code, reason) => {
-      const reasonStr = reason ? reason.toString() : '(no reason)';
-      console.error(`[CommsClient] ❌ WebSocket CLOSED  code=${code}  reason=${reasonStr}  wasConnected=${this.#connected}`);
       this.#ws = null;
       const wasConnected = this.#connected;
       this.#connected = false;
@@ -421,19 +403,7 @@ export class CommsClient extends EventEmitter {
     if (parsed.topic === 'debug') {
       const msg = this.#normalizeDebugMessage(parsed.payload);
       this.#appendToBuffer(msg);
-      console.error(
-        `[CommsClient] 🐛 DEBUG MSG #${this.#buffer.length}  node="${msg.name || msg.id}"  ` +
-        `ts=${msg.timestamp}  payload=${JSON.stringify(msg.msg).substring(0, 80)}`,
-      );
       this.emit('debug', msg);
-    } else {
-      // Log non-debug events for diagnostics
-      const payloadPreview = parsed.payload !== null
-        ? JSON.stringify(parsed.payload).substring(0, 60)
-        : 'null';
-      console.error(
-        `[CommsClient] ← event "${parsed.topic}" (ignored, not "debug")  payload=${payloadPreview}`,
-      );
     }
   }
 
@@ -445,10 +415,7 @@ export class CommsClient extends EventEmitter {
    */
   #send(data) {
     if (this.#ws && this.#ws.readyState === WebSocket.OPEN) {
-      console.error(`[CommsClient] → sending frame (${data.length}B): ${data.length > 100 ? data.substring(0, 100) + '…' : data}`);
       this.#ws.send(data);
-    } else {
-      console.error(`[CommsClient] → DROPPED frame (ws not open, state=${this.#ws ? this.#ws.readyState : 'null'}): ${data.substring(0, 80)}`);
     }
   }
 
@@ -469,9 +436,6 @@ export class CommsClient extends EventEmitter {
     }
 
     const delay = this.#reconnectDelay;
-    console.error(
-      `[CommsClient] Reconnecting in ${delay}ms...`,
-    );
 
     this.#reconnectTimer = setTimeout(() => {
       this.#reconnectTimer = null;
@@ -519,15 +483,7 @@ export class CommsClient extends EventEmitter {
     const wasFull = this.#buffer.length >= this.#maxSize;
     this.#buffer.push(message);
     if (wasFull) {
-      const evicted = this.#buffer.shift();
-      console.error(
-        `[CommsClient] 🔄 Buffer full — evicted oldest (ts=${evicted.timestamp})  ` +
-        `size=${this.#buffer.length}/${this.#maxSize}`,
-      );
-    } else {
-      console.error(
-        `[CommsClient] 📥 Buffered message  size=${this.#buffer.length}/${this.#maxSize}`,
-      );
+      this.#buffer.shift();
     }
   }
 
