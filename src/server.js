@@ -31,6 +31,9 @@ import { handleInjectMessage } from './tools/inject-message.js';
 import { handleReadDebugMessages } from './tools/read-debug-messages.js';
 import { handleInstallNode } from './tools/install-node.js';
 import { handleUninstallNode } from './tools/uninstall-node.js';
+import { loadSkills } from './skills/loader.js';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 /**
  * Create a configured MCP server with all tools registered.
@@ -475,6 +478,75 @@ export function createMcpServer(nodeRedClient, commsClient) {
       async (params) => handleReadDebugMessages(commsClient)(params),
     );
   }
+
+  // ── Skills integration ──────────────────────────────────────────────
+
+  // Resolve project root (src/server.js → src/ → project root)
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = path.dirname(__filename);
+  const projectRoot = path.resolve(__dirname, '..');
+  const skills = loadSkills(projectRoot);
+
+  // Register MCP Prompts — one per skill
+  for (const [skillName, skill] of skills) {
+    server.prompt(
+      skillName,
+      skill.description,
+      {},
+      async () => ({
+        messages: [{
+          role: 'user',
+          content: { type: 'text', text: skill.content },
+        }],
+      }),
+    );
+  }
+
+  // Register MCP Resources — one per skill
+  for (const [skillName, skill] of skills) {
+    server.resource(
+      skillName,
+      `nodered://skills/${skillName}`,
+      { description: skill.description, mimeType: 'text/markdown' },
+      async () => ({
+        contents: [{
+          uri: `nodered://skills/${skillName}`,
+          text: skill.content,
+          mimeType: 'text/markdown',
+        }],
+      }),
+    );
+  }
+
+  // Register: get-skill tool
+  server.tool(
+    'get-skill',
+    'MUST call this BEFORE building any Node-RED flows. ' +
+    'Use this tool to retrieve domain-specific guidance, best practices, patterns, ' +
+    'and reference material for building Node-RED flows. ' +
+    'Call it with a skill name (e.g. "nodered-flow-builder") to get the full skill content.',
+    {
+      topic: z.string().describe('The skill topic/name to retrieve (e.g. "nodered-flow-builder", "nodered-node-reference")'),
+    },
+    async (params) => {
+      const skill = skills.get(params.topic);
+      if (!skill) {
+        const available = [...skills.keys()].join(', ');
+        return {
+          content: [{
+            type: 'text',
+            text: `Skill "${params.topic}" not found. Available skills: ${available || '(none)'}`,
+          }],
+        };
+      }
+      return {
+        content: [{
+          type: 'text',
+          text: skill.content,
+        }],
+      };
+    },
+  );
 
   return server;
 }

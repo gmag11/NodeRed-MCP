@@ -1,0 +1,147 @@
+[
+  {
+    "id": "example-parser-tab",
+    "type": "tab",
+    "label": "Data Parsing Example",
+    "disabled": false,
+    "info": "Demonstrates json, xml, csv, html, and yaml parser nodes."
+  },
+  {
+    "id": "inject-json-sample",
+    "type": "inject",
+    "z": "example-parser-tab",
+    "name": "Send JSON string",
+    "props": [
+      { "p": "payload", "v": "{\"name\":\"Alice\",\"age\":30,\"city\":\"NYC\"}", "vt": "str" }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "topic": "",
+    "payload": "{\"name\":\"Alice\",\"age\":30,\"city\":\"NYC\"}",
+    "payloadType": "str",
+    "x": 120,
+    "y": 100,
+    "wires": [["json-parse-example"]]
+  },
+  {
+    "id": "comment-json-section",
+    "type": "comment",
+    "z": "example-parser-tab",
+    "name": "JSON: parse string → modify object → stringify → debug",
+    "info": "",
+    "x": 130,
+    "y": 60,
+    "wires": []
+  },
+  {
+    "id": "json-parse-example",
+    "type": "json",
+    "z": "example-parser-tab",
+    "name": "JSON → Object",
+    "property": "payload",
+    "action": "obj",
+    "pretty": false,
+    "x": 320,
+    "y": 100,
+    "wires": [["function-modify"]]
+  },
+  {
+    "id": "function-modify",
+    "type": "function",
+    "z": "example-parser-tab",
+    "name": "Add country field",
+    "func": "msg.payload.country = \"USA\";\nreturn msg;",
+    "outputs": 1,
+    "x": 520,
+    "y": 100,
+    "wires": [["json-stringify-example"]]
+  },
+  {
+    "id": "json-stringify-example",
+    "type": "json",
+    "z": "example-parser-tab",
+    "name": "Object → JSON",
+    "property": "payload",
+    "action": "str",
+    "pretty": true,
+    "x": 720,
+    "y": 100,
+    "wires": [["debug-json-result"]]
+  },
+  {
+    "id": "debug-json-result",
+    "type": "debug",
+    "z": "example-parser-tab",
+    "name": "Pretty JSON output",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 920,
+    "y": 100,
+    "wires": []
+  },
+  {
+    "id": "comment-csv-section",
+    "type": "comment",
+    "z": "example-parser-tab",
+    "name": "CSV: parse → transform → stringify (round-trip example)",
+    "info": "",
+    "x": 130,
+    "y": 180,
+    "wires": []
+  },
+  {
+    "id": "inject-csv-sample",
+    "type": "inject",
+    "z": "example-parser-tab",
+    "name": "Send CSV string",
+    "props": [
+      { "p": "payload", "v": "name,age,city\nAlice,30,NYC\nBob,25,LA", "vt": "str" }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "topic": "",
+    "payload": "name,age,city\nAlice,30,NYC\nBob,25,LA",
+    "payloadType": "str",
+    "x": 120,
+    "y": 240,
+    "wires": [["csv-parse-example"]]
+  },
+  {
+    "id": "csv-parse-example",
+    "type": "csv",
+    "z": "example-parser-tab",
+    "name": "CSV → Array",
+    "sep": ",",
+    "hdrin": true,
+    "hdrout": "all",
+    "multi": "one",
+    "ret": "\\n",
+    "temp": "",
+    "skip": 0,
+    "charset": "",
+    "x": 320,
+    "y": 240,
+    "wires": [["debug-csv-result"]]
+  },
+  {
+    "id": "debug-csv-result",
+    "type": "debug",
+    "z": "example-parser-tab",
+    "name": "CSV output",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 520,
+    "y": 240,
+    "wires": []
+  }
+]
