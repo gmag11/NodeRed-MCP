@@ -485,7 +485,12 @@ export function createMcpServer(nodeRedClient, commsClient) {
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = path.dirname(__filename);
   const projectRoot = path.resolve(__dirname, '..');
-  const skills = loadSkills(projectRoot);
+  const allSkills = loadSkills(projectRoot);
+
+  // Only expose Node-RED skills — filter out openspec, workflows, etc.
+  const skills = new Map(
+    [...allSkills].filter(([name]) => name.startsWith('nodered-'))
+  );
 
   // Register MCP Prompts — one per skill
   for (const [skillName, skill] of skills) {
