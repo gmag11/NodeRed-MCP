@@ -26,6 +26,7 @@ import { handleExportFlowJson } from './tools/export-flow.js';
 import { handleImportFlow } from './tools/import-flow.js';
 import { handleGetContext } from './tools/get-context.js';
 import { handleDeleteContext } from './tools/delete-context.js';
+import { handleSearchNodes } from './tools/search-nodes.js';
 
 /**
  * Create a configured MCP server with all tools registered.
@@ -383,6 +384,24 @@ export function createMcpServer(nodeRedClient) {
       key: z.string().describe('Context key to delete'),
     },
     async (params) => handleDeleteContext(nodeRedClient, params),
+  );
+
+  // Register: search-nodes
+  server.tool(
+    'search-nodes',
+    'Deep-search all regular nodes across all flows (or a single flow via flowId) with a single query string. ' +
+    'Serializes each node with JSON.stringify and matches the query against the resulting string. ' +
+    'Plain text mode (default, regex: false) is case-insensitive substring matching. ' +
+    'Regex mode (regex: true) treats the query as a JavaScript regex pattern. ' +
+    'Each result includes flowId, flowLabel, nodeId, type, name, x, and y. ' +
+    'Use this to find nodes by name, type, property value, function body content, or any other field.',
+    {
+      query: z.string().describe('The search term — plain text (case-insensitive substring) or regex pattern when regex: true'),
+      regex: z.boolean().optional().default(false).describe('If true, treat query as a JavaScript regex pattern (default false — plain text search)'),
+      flowId: z.string().optional().describe('Limit search to nodes in a specific flow tab or subflow (omit to search all flows)'),
+      limit: z.number().int().min(1).optional().default(50).describe('Max results to return (default 50)'),
+    },
+    async (params) => handleSearchNodes(nodeRedClient, params),
   );
 
   return server;
