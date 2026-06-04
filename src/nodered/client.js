@@ -13,7 +13,7 @@
  *
  * @param {string} baseUrl - Node-RED instance URL
  * @param {import('./auth.js').AuthManager} authManager
- * @returns {{ request: (method: string, path: string, body?: any, extraHeaders?: object) => Promise<any>, requestText: (method: string, path: string) => Promise<string>, putFlows: (flowsPayload: any, deployType?: string) => Promise<any> }}
+ * @returns {{ request: (method: string, path: string, body?: any, extraHeaders?: object) => Promise<any>, requestText: (method: string, path: string) => Promise<string>, putFlows: (flowsPayload: any, deployType?: string) => Promise<any>, post: (path: string, body?: any) => Promise<any> }}
  */
 export function createNodeRedClient(baseUrl, authManager) {
   /**
@@ -22,7 +22,7 @@ export function createNodeRedClient(baseUrl, authManager) {
    * @param {string} method - HTTP method (GET, POST, PUT, DELETE)
    * @param {string} path - API path (e.g., '/flows')
    * @param {any} [body] - Request body (will be JSON-serialized)
-   * @returns {Promise<any>} Parsed JSON response
+   * @returns {Promise<any>} Parsed JSON response, or raw text if the response is not valid JSON
    */
   async function request(method, path, body, extraHeaders) {
     const url = `${baseUrl}${path}`;
@@ -38,22 +38,38 @@ export function createNodeRedClient(baseUrl, authManager) {
         const retryBody = await safeReadBody(retryRes);
         throw new Error(
           `Node-RED API error after re-auth: ${method} ${path} returned ${retryRes.status}` +
-          (retryBody ? ` — ${retryBody}` : '')
+            (retryBody ? ` — ${retryBody}` : '')
         );
       }
 
-      return retryRes.status === 204 ? null : retryRes.json();
+      return retryRes.status === 204 ? null : parseResponseBody(retryRes);
     }
 
     if (!res.ok) {
       const errorBody = await safeReadBody(res);
       throw new Error(
         `Node-RED API error: ${method} ${path} returned ${res.status}` +
-        (errorBody ? ` — ${errorBody}` : '')
+          (errorBody ? ` — ${errorBody}` : '')
       );
     }
 
-    return res.status === 204 ? null : res.json();
+    return res.status === 204 ? null : parseResponseBody(res);
+  }
+
+  /**
+   * Read the response body and parse as JSON. If JSON parsing fails,
+   * return the raw text (some Node-RED endpoints return plain text).
+   *
+   * @param {Response} res - Fetch Response object
+   * @returns {Promise<any>} Parsed JSON or raw text
+   */
+  async function parseResponseBody(res) {
+    const text = await res.text();
+    try {
+      return JSON.parse(text);
+    } catch {
+      return text;
+    }
   }
 
   /**
@@ -150,7 +166,19 @@ export function createNodeRedClient(baseUrl, authManager) {
     return res.text();
   }
 
-  return { request, requestText, putFlows };
+  /**
+   * Make a POST request to the Node-RED Admin API.
+   * Convenience wrapper around request('POST', ...).
+   *
+   * @param {string} path - API path (e.g., '/inject/:nodeId')
+   * @param {any} [body] - Optional request body
+   * @returns {Promise<any>} Parsed JSON response
+   */
+  async function post(path, body) {
+    return request('POST', path, body);
+  }
+
+  return { request, requestText, putFlows, post };
 }
 
 /**

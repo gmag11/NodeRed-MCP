@@ -27,6 +27,7 @@ import { handleImportFlow } from './tools/import-flow.js';
 import { handleGetContext } from './tools/get-context.js';
 import { handleDeleteContext } from './tools/delete-context.js';
 import { handleSearchNodes } from './tools/search-nodes.js';
+import { handleInjectMessage } from './tools/inject-message.js';
 
 /**
  * Create a configured MCP server with all tools registered.
@@ -402,6 +403,21 @@ export function createMcpServer(nodeRedClient) {
       limit: z.number().int().min(1).optional().default(50).describe('Max results to return (default 50)'),
     },
     async (params) => handleSearchNodes(nodeRedClient, params),
+  );
+
+  // Register: inject-message
+  server.tool(
+    'inject-message',
+    'Trigger an inject node in the running Node-RED instance by node ID or by name (optionally scoped to a flow). ' +
+    'The target node MUST be an inject node. ' +
+    'Use `read-debug-messages` to observe the results of the injected message. ' +
+    'If multiple inject nodes share the same name, an error is returned listing the matching IDs — use nodeId to disambiguate.',
+    {
+      nodeId: z.string().optional().describe('Node UUID of the inject node to trigger (alternative to name)'),
+      name: z.string().optional().describe('Name of the inject node to trigger (alternative to nodeId)'),
+      flowId: z.string().optional().describe('Flow ID to scope the name search (optional, ignored when nodeId is provided)'),
+    },
+    async (params) => handleInjectMessage(nodeRedClient)(params),
   );
 
   return server;
