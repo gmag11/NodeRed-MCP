@@ -25,6 +25,7 @@ describe('createNodeRedClient', () => {
         ok: true,
         status: 200,
         json: async () => data,
+        text: async () => JSON.stringify(data),
       });
 
       const result = await client.request('GET', '/flows');
@@ -36,6 +37,7 @@ describe('createNodeRedClient', () => {
         ok: true,
         status: 200,
         json: async () => ({}),
+        text: async () => '{}',
       });
 
       await client.request('GET', '/flows');
@@ -58,6 +60,7 @@ describe('createNodeRedClient', () => {
         ok: true,
         status: 200,
         json: async () => ({}),
+        text: async () => '{}',
       });
 
       await client.request('GET', '/settings');
@@ -107,6 +110,7 @@ describe('createNodeRedClient', () => {
         ok: true,
         status: 200,
         json: async () => data,
+        text: async () => JSON.stringify(data),
       });
 
       const result = await client.request('GET', '/flows');
@@ -216,6 +220,7 @@ describe('createNodeRedClient', () => {
         ok: true,
         status: 200,
         json: async () => ({ rev: 'abc124' }),
+        text: async () => JSON.stringify({ rev: 'abc124' }),
       });
 
       await client.putFlows(payload);
@@ -237,6 +242,7 @@ describe('createNodeRedClient', () => {
         ok: true,
         status: 200,
         json: async () => ({ rev: 'abc124' }),
+        text: async () => JSON.stringify({ rev: 'abc124' }),
       });
 
       await client.putFlows(payload, 'full');
@@ -251,6 +257,7 @@ describe('createNodeRedClient', () => {
         ok: true,
         status: 200,
         json: async () => ({ rev: 'abc124' }),
+        text: async () => JSON.stringify({ rev: 'abc124' }),
       });
 
       await client.putFlows(payload);
@@ -274,6 +281,7 @@ describe('createNodeRedClient', () => {
         ok: true,
         status: 200,
         json: async () => ({ rev: 'r2' }),
+        text: async () => JSON.stringify({ rev: 'r2' }),
       });
 
       await client.putFlows(payload);
