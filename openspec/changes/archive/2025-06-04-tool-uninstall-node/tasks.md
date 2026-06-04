@@ -22,4 +22,4 @@
 
 - [x] 4.1 Run `npm test` and verify all tests pass
 - [x] 4.2 Verify tool appears in MCP tool listing
-- [ ] 4.3 Manual smoke test against a running Node-RED instance (optional, if available)
+- [x] 4.3 Manual smoke test against a running Node-RED instance (optional, if available)
