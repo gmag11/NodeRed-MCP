@@ -30,6 +30,7 @@ import { handleSearchNodes } from './tools/search-nodes.js';
 import { handleInjectMessage } from './tools/inject-message.js';
 import { handleReadDebugMessages } from './tools/read-debug-messages.js';
 import { handleInstallNode } from './tools/install-node.js';
+import { handleUninstallNode } from './tools/uninstall-node.js';
 
 /**
  * Create a configured MCP server with all tools registered.
@@ -436,6 +437,21 @@ export function createMcpServer(nodeRedClient, commsClient) {
       module: z.string().describe('npm package name to install (plain name, no @version), e.g. "node-red-node-suncalc"'),
     },
     async (params) => handleInstallNode(nodeRedClient, params),
+  );
+
+  // Register: uninstall-node
+  server.tool(
+    'uninstall-node',
+    'Uninstall a Node-RED node module from the running instance via the Admin API\'s DELETE /nodes/:module endpoint. ' +
+    'The `module` parameter is the module identifier as shown in get-palette-nodes (e.g., "node-red-node-suncalc"). ' +
+    'Use get-palette-nodes to discover installed modules. ' +
+    'WARNING: Uninstalling a module removes its node types from ALL flows. Nodes of those types will be lost. ' +
+    'If unsure, export your flows with export-flow before uninstalling. ' +
+    'Returns { uninstalled: true, module } on success.',
+    {
+      module: z.string().describe('Module identifier to uninstall, as shown in get-palette-nodes, e.g. "node-red-node-suncalc"'),
+    },
+    async (params) => handleUninstallNode(nodeRedClient, params),
   );
 
   // Register: read-debug-messages
