@@ -10,13 +10,13 @@ The `get-flow-nodes` tool is flow-scoped and returns a summarized list (large te
 - Search by `name` (substring, case-insensitive)
 - Search by `type` (exact match or substring)
 - Search by property: a `property` name and `value` (equality check on top-level node properties)
+- Search by `pattern`: a regex pattern applied against `name` and/or specified `property` values
 - Return results with flow context: each result includes `flowId`, `flowLabel`, `nodeId`, `type`, `name`, `x`, `y`
 - Configurable `limit` (default 50)
 
 **Non-Goals:**
 - Full-text search inside `func`, `template`, or other large text fields (use `get-node-detail` then filter locally)
 - Searching subflows (deferred)
-- Regex-based property matching
 
 ## Decisions
 
@@ -31,6 +31,12 @@ The `get-flow-nodes` tool is flow-scoped and returns a summarized list (large te
 **Decision**: If multiple filters are provided (`name` + `type`), all must match.
 
 **Rationale**: AND semantics are the most intuitive for search. OR would require a more complex query syntax.
+
+### Regex pattern search on name and/or property values
+
+**Decision**: A `pattern` parameter accepts a regex string. When provided without `property`, the regex is tested against the node's `name`. When provided with `property`, the regex is tested against the stringified value of that property.
+
+**Rationale**: LLMs often need to find nodes matching complex patterns (e.g., all nodes whose name starts with `sensor_` followed by digits). Regex provides this flexibility. Patterns are applied with `new RegExp(pattern)` and invalid regex returns a clear error.
 
 ### Tabs and config nodes are excluded from results
 

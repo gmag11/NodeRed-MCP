@@ -4,12 +4,12 @@ Working with large Node-RED instances requires finding specific nodes across man
 
 ## What Changes
 
-- Add `search-nodes` MCP tool that searches all nodes across all flows with filters for name, type, and property values
+- Add `search-nodes` MCP tool that searches all nodes across all flows with filters for name, type, property values, and regex pattern matching
 
 ## Capabilities
 
 ### New Capabilities
-- `tool-search-nodes`: MCP tool that searches nodes across all flows by name, type, and/or property value
+- `tool-search-nodes`: MCP tool that searches nodes across all flows by name, type, property value, and/or regex pattern
 
 ### Modified Capabilities
 
