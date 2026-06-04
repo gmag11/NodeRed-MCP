@@ -28,14 +28,16 @@ import { handleGetContext } from './tools/get-context.js';
 import { handleDeleteContext } from './tools/delete-context.js';
 import { handleSearchNodes } from './tools/search-nodes.js';
 import { handleInjectMessage } from './tools/inject-message.js';
+import { handleReadDebugMessages } from './tools/read-debug-messages.js';
 
 /**
  * Create a configured MCP server with all tools registered.
  *
  * @param {ReturnType<import('./nodered/client.js').createNodeRedClient>} nodeRedClient
+ * @param {import('./nodered/comms-client.js').CommsClient} [commsClient]
  * @returns {McpServer}
  */
-export function createMcpServer(nodeRedClient) {
+export function createMcpServer(nodeRedClient, commsClient) {
   const server = new McpServer({
     name: 'nodered-mcp-server',
     version: '0.1.0',
@@ -419,6 +421,28 @@ export function createMcpServer(nodeRedClient) {
     },
     async (params) => handleInjectMessage(nodeRedClient)(params),
   );
+
+  // Register: read-debug-messages
+  if (commsClient) {
+    server.tool(
+      'read-debug-messages',
+      'Read buffered debug messages from the connected Node-RED instance. ' +
+      'Messages are captured in real time from the /comms WebSocket and stored in an in-memory ring buffer. ' +
+      'Use this to observe the output of debug nodes after triggering a flow with inject-message. ' +
+      'All filter parameters are optional — combine them to narrow results. ' +
+      'The `last` and `limit` parameters are mutually exclusive.',
+      {
+        nodeId: z.string().optional().describe('Filter: exact match on debug node ID'),
+        nodeName: z.string().optional().describe('Filter: case-insensitive substring match on debug node name'),
+        keyword: z.string().optional().describe('Filter: case-insensitive substring match in the stringified message payload'),
+        after: z.number().optional().describe('Filter: inclusive lower bound timestamp (Unix ms) — only messages with timestamp >= after'),
+        before: z.number().optional().describe('Filter: inclusive upper bound timestamp (Unix ms) — only messages with timestamp <= before'),
+        last: z.number().int().min(1).optional().describe('Return the last N matching messages (tail mode). Mutually exclusive with limit.'),
+        limit: z.number().int().min(1).optional().describe('Return the first N matching messages (default 50). Mutually exclusive with last.'),
+      },
+      async (params) => handleReadDebugMessages(commsClient)(params),
+    );
+  }
 
   return server;
 }

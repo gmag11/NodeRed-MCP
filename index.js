@@ -11,6 +11,7 @@
 import 'dotenv/config';
 import { AuthManager } from './src/nodered/auth.js';
 import { createNodeRedClient } from './src/nodered/client.js';
+import { CommsClient } from './src/nodered/comms-client.js';
 import { createMcpServer } from './src/server.js';
 import { startStdioTransport } from './src/transport/stdio.js';
 import { startHttpTransport } from './src/transport/http.js';
@@ -58,14 +59,31 @@ async function main() {
   // Create Node-RED client and MCP server
   const nodeRedClient = createNodeRedClient(baseUrl, authManager);
 
+  // Create and connect the comms client for real-time debug messages
+  const commsClient = new CommsClient({
+    baseUrl,
+    username: process.env.NODERED_USERNAME,
+    password: process.env.NODERED_PASSWORD,
+    // Pre-obtained token from auth manager takes precedence
+    token: authManager.mode === 'credentials' || authManager.mode === 'apikey'
+      ? authManager.getAuthHeader()?.replace('Bearer ', '')
+      : undefined,
+  });
+  // connect() is async (may fetch token); fire-and-forget — errors are
+  // emitted on the 'error' event and auto-reconnect handles the rest.
+  commsClient.connect().catch((err) => {
+    console.error(`[nodered-mcp] CommsClient initial connect failed: ${err.message}`);
+  });
+
   // Start the selected transport
   const port = process.env.MCP_HTTP_PORT
     ? parseInt(process.env.MCP_HTTP_PORT, 10)
     : args.port;
 
   if (args.transport === 'http') {
-    await startHttpTransport(() => createMcpServer(nodeRedClient), port);
+    await startHttpTransport(() => createMcpServer(nodeRedClient, commsClient), port);
   } else if (args.transport === 'stdio') {
+    const mcpServer = createMcpServer(nodeRedClient, commsClient);
     await startStdioTransport(mcpServer);
   } else {
     console.error(`Error: Unknown transport "${args.transport}". Use "stdio" or "http".`);
