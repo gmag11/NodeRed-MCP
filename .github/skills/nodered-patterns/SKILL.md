@@ -104,6 +104,8 @@ connect-nodes(fromNodeId: "<functionId>", outputPort: 0, toNodeId: "<debugId>")
 
 > The broker config node is created automatically when you set the `broker` property with a broker host/port in `create-node` properties. MQTT topics support `+` (single-level) and `#` (multi-level) wildcards.
 
+> **⚠️ Credential privacy**: `get-config-nodes` and `get-node-detail` will NOT show MQTT credentials (username/password) — Node-RED strips them from API responses. To set credentials, use `update-node` on the mqtt-broker config node with: `properties: { credentials: { username: "user", password: "pass" } }`. You cannot read credentials back; to verify they are set, check if the broker connection succeeds.
+
 ---
 
 ## Timer-Triggered Flow

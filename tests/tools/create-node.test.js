@@ -84,6 +84,87 @@ describe('buildNewNode', () => {
 });
 
 // ---------------------------------------------------------------------------
+// buildNewNode — credential handling
+// ---------------------------------------------------------------------------
+
+describe('buildNewNode credential handling', () => {
+  it('nests top-level username and password into credentials', () => {
+    const node = buildNewNode('mqtt-broker', 'flow-1', {
+      name: 'My MQTT',
+      broker: 'localhost',
+      port: '1883',
+      username: 'myuser',
+      password: 'mypass',
+    }, 200, 200);
+
+    // Should NOT be at top level
+    expect(node.username).toBeUndefined();
+    expect(node.password).toBeUndefined();
+    // Should be nested under credentials
+    expect(node.credentials).toEqual({
+      username: 'myuser',
+      password: 'mypass',
+    });
+    // Non-credential fields stay at top level
+    expect(node.name).toBe('My MQTT');
+    expect(node.broker).toBe('localhost');
+    expect(node.port).toBe('1883');
+  });
+
+  it('nests known credential fields like token, cert, key into credentials', () => {
+    const node = buildNewNode('tls-config', 'flow-1', {
+      name: 'TLS Config',
+      cert: '/path/cert.pem',
+      key: '/path/key.pem',
+      ca: '/path/ca.pem',
+      token: 'abc123',
+      servername: 'example.com',
+    }, 200, 200);
+
+    expect(node.credentials).toEqual({
+      cert: '/path/cert.pem',
+      key: '/path/key.pem',
+      ca: '/path/ca.pem',
+      token: 'abc123',
+    });
+    expect(node.cert).toBeUndefined();
+    expect(node.key).toBeUndefined();
+    expect(node.token).toBeUndefined();
+    expect(node.name).toBe('TLS Config');
+    expect(node.servername).toBe('example.com');
+  });
+
+  it('does not create credentials property when no credential fields present', () => {
+    const node = buildNewNode('debug', 'flow-1', {
+      name: 'My Debug',
+      active: true,
+      console: false,
+    }, 200, 200);
+
+    expect(node.credentials).toBeUndefined();
+    expect(node.name).toBe('My Debug');
+    expect(node.active).toBe(true);
+  });
+
+  it('preserves explicit credentials object when caller provides one', () => {
+    const node = buildNewNode('mqtt-broker', 'flow-1', {
+      name: 'MQTT',
+      broker: 'localhost',
+      credentials: {
+        username: 'explicit-user',
+        password: 'explicit-pass',
+      },
+    }, 200, 200);
+
+    expect(node.credentials).toEqual({
+      username: 'explicit-user',
+      password: 'explicit-pass',
+    });
+    expect(node.name).toBe('MQTT');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // applyCreateNode
 // ---------------------------------------------------------------------------
 

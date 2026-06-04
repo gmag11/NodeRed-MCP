@@ -20,6 +20,13 @@ Categorized catalog of built-in core node types with key properties for `create-
 - For node types NOT listed here (third-party, custom), use `get-node-type-detail` to retrieve the full parameter schema before calling `create-node`.
 - JSON example files in `examples/` show working node configurations you can import with `import-flow`.
 
+**⚠️ CREDENTIAL PRIVACY — read before working with config nodes:**
+- **Credential values (passwords, API keys) are NEVER exposed** by the API. `get-flow-nodes` and `get-config-nodes` will NOT include credential fields at all.
+- **A missing `credentials` field does NOT mean no credentials are set** — it means they are hidden for security. This is by design.
+- **To check what credential fields exist on a config node**: Use `get-node-detail`. It returns a `_credentials` object like `{ user: "test67", has_password: true }` — showing field names and whether password-type fields are set. Password VALUES are never shown, only their presence/absence.
+- **To set/update credentials on config nodes** (like `mqtt-broker`, `http-proxy`, `tls-config`), place them inside a `credentials` object: `create-node`/`update-node` with `properties: { credentials: { user: "u", password: "p" } }`. The tools auto-detect and nest credential fields correctly.
+- **Partial updates work**: send only the credential fields you want to change — e.g., `credentials: { password: "newpass" }` changes only the password, leaving `user` unchanged.
+
 ---
 
 ## Common Nodes
@@ -411,6 +418,85 @@ Categorized catalog of built-in core node types with key properties for `create-
 | `useSpawn` | boolean | Use spawn (streaming) instead of exec |
 | `timer` | number | Timeout (seconds) |
 | `winHide` | boolean | Hide window (Windows) |
+
+---
+
+## Config Nodes (Shared Resources)
+
+Config nodes hold reusable settings (broker connections, TLS certificates, proxy settings) shared across flow nodes. They are NOT wired into flows — regular nodes reference them by ID.
+
+**⚠️ Credential privacy**: Node-RED **never** exposes credential values via the API. `get-node-detail` will NOT show `username`, `password`, `key`, `cert`, etc. — even if configured. A missing `credentials` field does NOT mean credentials are absent.
+
+**To create/update credentials**, always use a `credentials` sub-object:
+```
+create-node / update-node properties: { ..., credentials: { username: "u", password: "p" } }
+```
+
+### mqtt-broker
+`type: "mqtt-broker"` — MQTT connection settings shared by `mqtt in` and `mqtt out` nodes.
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `name` | string | Label |
+| `broker` | string | MQTT server hostname |
+| `port` | string | MQTT server port |
+| `usetls` | boolean | Enable TLS |
+| `clientid` | string | Client ID (auto-generated if empty) |
+| `keepalive` | string | Keep-alive interval (seconds) |
+| `cleansession` | boolean | Clean session flag |
+
+**Credentials** (send inside `credentials: { ... }` — NOT at top level):
+| Field | Type | Description |
+|-------|------|-------------|
+| `username` | string | MQTT username |
+| `password` | string | MQTT password |
+
+### http-proxy
+`type: "http-proxy"` — HTTP proxy settings shared by `http request` node.
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `name` | string | Label |
+| `url` | string | Proxy URL (e.g., `http://proxy.example.com:8080`) |
+| `noproxy` | string | Bypass proxy for these hosts |
+
+**Credentials** (send inside `credentials: { ... }`):
+| Field | Type | Description |
+|-------|------|-------------|
+| `username` | string | Proxy username |
+| `password` | string | Proxy password |
+
+### tls-config
+`type: "tls-config"` — TLS/SSL certificate configuration shared by nodes that need secure connections.
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `name` | string | Label |
+| `servername` | string | Expected server name (SNI) |
+| `verifyservercert` | boolean | Verify server certificate |
+
+**Credentials** (send inside `credentials: { ... }`):
+| Field | Type | Description |
+|-------|------|-------------|
+| `cert` | string | Client certificate (PEM) |
+| `key` | string | Client private key (PEM) |
+| `ca` | string | CA certificate (PEM) |
+| `passphrase` | string | Private key passphrase |
+
+### websocket-listener / websocket-client
+`type: "websocket-listener"` / `type: "websocket-client"` — WebSocket server/client config shared by `websocket in` and `websocket out` nodes.
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `name` | string | Label |
+| `path` | string | URL path (listener) or full URL (client) |
+| `wholemsg` | string | Send entire msg object (not just payload) |
+
+**Credentials** (send inside `credentials: { ... }`):
+| Field | Type | Description |
+|-------|------|-------------|
+| `username` | string | Auth username (if using auth) |
+| `password` | string | Auth password (if using auth) |
 
 ---
 

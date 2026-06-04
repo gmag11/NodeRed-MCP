@@ -65,7 +65,9 @@ export function createMcpServer(nodeRedClient, commsClient) {
     'Returns each node\'s id, type, name, disabled state, position (x/y), wires (connections), and sanitized configuration. ' +
     'Large text fields (func, template, format, html, css) are excluded to save context. ' +
     'Supports filtering by disabled state, node type, and connected subgraph (upstream/downstream from a specific node). ' +
-    'Use offset/limit for pagination on large flows.',
+    'Use offset/limit for pagination on large flows. ' +
+    '⚠️ Credential field values (passwords, API keys) are stripped by Node-RED and NOT included here. ' +
+    'Use get-node-detail on a specific config node to see credential metadata (field names and has_<field> flags).',
     {
       flowId: z.string().describe('ID of the flow (tab or subflow) to inspect'),
       disabledOnly: z.boolean().optional().describe('If true, return only disabled nodes'),
@@ -106,7 +108,10 @@ export function createMcpServer(nodeRedClient, commsClient) {
     'Get a paginated list of global configuration nodes from the Node-RED instance. ' +
     'Configuration nodes (e.g. mqtt-broker, tls-config, http-proxy) are shared resources used by flow nodes but not tied to any specific flow. ' +
     'Returns each config node\'s id, type, name, and sanitized configuration. ' +
-    'Supports filtering by node type and pagination.',
+    'Supports filtering by node type and pagination. ' +
+    '⚠️ Credential values (passwords, keys) are NOT included — Node-RED strips them. ' +
+    'Use get-node-detail on a specific config node to see credential metadata (field names, has_<field> flags). ' +
+    'To update credentials, use update-node with a `credentials` object.',
     {
       nodeType: z.string().optional().describe('Filter to config nodes of this type (e.g. "mqtt-broker")'),
       offset: z.number().int().min(0).optional().default(0).describe('Pagination offset (default 0)'),
@@ -121,7 +126,10 @@ export function createMcpServer(nodeRedClient, commsClient) {
     'Get the full detail of a single Node-RED node by its ID. ' +
     'Returns all node fields including large text fields (func, template, format, html, css) ' +
     'that are intentionally excluded from get-flow-nodes to save context. ' +
-    'Use this when you need to read the actual logic or content of a specific node (e.g. a function node\'s JavaScript code or a template node\'s markup).',
+    'Use this when you need to read the actual logic or content of a specific node (e.g. a function node\'s JavaScript code or a template node\'s markup). ' +
+    '🔑 CREDENTIAL METADATA: For config nodes (mqtt-broker, http-proxy, tls-config, etc.), ' +
+    'includes a `_credentials` field with credential field names and whether each password is set (has_<field>: true/false). ' +
+    'Password VALUES are never exposed — only their presence/absence. Non-credential text fields (like username) are shown in plain text.',
     {
       nodeId: z.string().describe('ID of the node to retrieve'),
     },
@@ -219,7 +227,12 @@ export function createMcpServer(nodeRedClient, commsClient) {
     'To wire a node after creating it: call connect-nodes with fromNodeId and toNodeId. ' +
     'Fields in properties overwrite the matching node fields; fields not mentioned are preserved. ' +
     'Returns previousState and currentState for review or undo. ' +
-    'Refuses to update a node in a locked flow.',
+    'Refuses to update a node in a locked flow. ' +
+    '🔑 CREDENTIALS: For config nodes (mqtt-broker, http-proxy, tls-config, etc.), put credential fields ' +
+    '(username, password, key, cert, token) inside a `credentials` object: ' +
+    'e.g. `properties: { broker: "localhost", credentials: { username: "user", password: "pass" } }`. ' +
+    'The tool auto-detects and nests credential fields correctly. Partial updates are supported — ' +
+    'only send the credential fields you want to change; unspecified ones are preserved.',
     {
       nodeId: z.string().describe('ID of the node to update'),
       properties: z.record(z.unknown()).describe('Properties to shallow-merge onto the node — must NOT include wires; use connect-nodes to add connections'),
@@ -290,7 +303,11 @@ export function createMcpServer(nodeRedClient, commsClient) {
     'Creating a node does NOT connect it to anything. ' +
     'To INSERT a node between A and B: (1) create-node to get newId, (2) disconnect-nodes A→B, (3) connect-nodes A→newId, (4) connect-nodes newId→B. ' +
     'Skipping steps 2-4 will leave the new node isolated and the original flow broken. ' +
-    'Refuses to create in a locked flow.',
+    'Refuses to create in a locked flow. ' +
+    '🔑 CREDENTIALS: For config node types (mqtt-broker, http-proxy, tls-config, websocket-listener, etc.), ' +
+    'put credential fields inside a `credentials` object within properties: ' +
+    'e.g. `properties: { broker: \"localhost\", port: 1883, credentials: { username: \"user\", password: \"pass\" } }`. ' +
+    'The tool auto-detects and nests credential fields correctly even if sent at the top level.',
     {
       type: z.string().describe('Palette node type to create (e.g. "function", "debug", "http in")'),
       flowId: z.string().describe('ID of the flow tab or subflow to place the node in'),

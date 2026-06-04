@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { transformNodeDetail } from '../../src/tools/get-node-detail.js';
+import { describe, it, expect, vi } from 'vitest';
+import { transformNodeDetail, handleGetNodeDetail } from '../../src/tools/get-node-detail.js';
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -58,5 +58,78 @@ describe('transformNodeDetail', () => {
 
   it('throws when nodeId is not found', () => {
     expect(() => transformNodeDetail(RAW, 'does-not-exist')).toThrow("Node 'does-not-exist' not found");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// handleGetNodeDetail — credential metadata
+// ---------------------------------------------------------------------------
+
+describe('handleGetNodeDetail credential metadata', () => {
+  /** Build a flow with an MQTT broker config node */
+  const makeFlowsWithBroker = () => {
+    const mqttNode = {
+      id: 'mqtt-1',
+      type: 'mqtt-broker',
+      name: 'My MQTT',
+      broker: 'localhost',
+      port: '1883',
+    };
+    return { rev: 'rev-1', flows: [mqttNode] };
+  };
+
+  it('includes _credentials metadata when the credentials endpoint returns data', async () => {
+    const rawResponse = makeFlowsWithBroker();
+    const client = {
+      request: vi.fn()
+        .mockResolvedValueOnce(rawResponse)                          // GET /flows
+        .mockResolvedValueOnce({ user: 'test67', has_password: true }), // GET /credentials
+    };
+
+    const result = await handleGetNodeDetail(client, { nodeId: 'mqtt-1' });
+    const parsed = JSON.parse(result.content[0].text);
+
+    // Node fields should be present
+    expect(parsed.id).toBe('mqtt-1');
+    expect(parsed.type).toBe('mqtt-broker');
+    expect(parsed.broker).toBe('localhost');
+
+    // Credential metadata should be present under _credentials
+    expect(parsed._credentials).toEqual({
+      user: 'test67',
+      has_password: true,
+    });
+    // Password value should NEVER be exposed
+    expect(parsed._credentials.password).toBeUndefined();
+  });
+
+  it('does not include _credentials when the endpoint returns empty object', async () => {
+    const rawResponse = makeFlowsWithBroker();
+    const client = {
+      request: vi.fn()
+        .mockResolvedValueOnce(rawResponse)   // GET /flows
+        .mockResolvedValueOnce({}),            // GET /credentials (empty)
+    };
+
+    const result = await handleGetNodeDetail(client, { nodeId: 'mqtt-1' });
+    const parsed = JSON.parse(result.content[0].text);
+
+    expect(parsed.id).toBe('mqtt-1');
+    expect(parsed._credentials).toBeUndefined();
+  });
+
+  it('does not include _credentials when the endpoint fails', async () => {
+    const rawResponse = makeFlowsWithBroker();
+    const client = {
+      request: vi.fn()
+        .mockResolvedValueOnce(rawResponse)                       // GET /flows
+        .mockRejectedValueOnce(new Error('Not Found')),           // GET /credentials fails
+    };
+
+    const result = await handleGetNodeDetail(client, { nodeId: 'mqtt-1' });
+    const parsed = JSON.parse(result.content[0].text);
+
+    expect(parsed.id).toBe('mqtt-1');
+    expect(parsed._credentials).toBeUndefined();
   });
 });

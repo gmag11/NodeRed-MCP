@@ -157,9 +157,20 @@ A **config node** (configuration node) is a shared resource node that holds reus
 - Not visible on the flow canvas by default (shown in a separate config node sidebar)
 - Created automatically when you set a config-type property on a regular node via `create-node` or `update-node`
 
+**⚠️ CREDENTIAL PRIVACY — critical to understand:**
+Node-RED **never** exposes real credential **values** (passwords, API keys, tokens, certificates) through its REST API. When you call `get-flow-nodes` or `get-config-nodes`:
+- The `credentials` field (e.g., `{ username: "xxx", password: "yyy" }`) will be **absent** — never included.
+- **A missing `credentials` field does NOT mean the node has no credentials configured.** It means the values are hidden for security.
+
+**How to work with credentials despite this limitation:**
+- **To see credential metadata** (field names and which password-type fields are set): Use `get-node-detail` on a config node. It returns a `_credentials` field like `{ user: "test67", has_password: true }`. Password values are NEVER shown — only `has_<field>: true/false`.
+- **To update credentials**: Use `update-node` with a `credentials` object. You only need to send the fields you want to change — unspecified credential fields are preserved. Example: `properties: { credentials: { password: "newpass" } }` changes only the password.
+- **To set credentials on a new config node**: Use `create-node` with `credentials` inside `properties`. Example: `properties: { broker: "localhost", port: 1883, credentials: { user: "test67", password: "mypass" } }`.
+- **The tools auto-detect credential fields** and nest them correctly — even if you send them at the top level, they will be moved to the `credentials` sub-object.
+
 **MCP tools:**
-- `get-config-nodes` — list all config nodes, filter by type
-- `get-node-detail` — get full details of a specific config node
+- `get-config-nodes` — list all config nodes, filter by type (credentials hidden)
+- `get-node-detail` — get full details of a specific config node (credentials hidden)
 
 ---
 

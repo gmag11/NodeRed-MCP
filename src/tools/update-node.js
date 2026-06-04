@@ -5,7 +5,23 @@
  * configuration and deploys the result. Wiring changes are explicitly
  * rejected — agents must use connect-nodes / disconnect-nodes instead.
  * Refuses to mutate nodes in locked flows.
+ *
+ * Credential handling (via normalizeCredentials from flow-utils.js):
+ * When updating configuration nodes (e.g. mqtt-broker, http-proxy),
+ * credential fields like `username`, `password`, `key`, `token`, etc.
+ * must be nested under a `credentials` sub-object to match Node-RED's
+ * credential storage model. This module automatically detects and moves
+ * credential fields into the `credentials` object.
+ *
+ * Node-RED strips credential values from GET /flows responses for privacy,
+ * so the `credentials` property may be absent from the node. Detection uses
+ * a well-known set of credential field names as a fallback.
+ *
+ * Partial credential updates are supported: only the fields you specify
+ * are updated; unspecified credential fields retain their previous values.
  */
+
+import { normalizeCredentials } from './flow-utils.js';
 
 /**
  * Apply a property update to a node in the flows array.
@@ -13,9 +29,10 @@
  * @param {object} rawResponse - Raw GET /flows response (must contain `flows` array)
  * @param {string} nodeId - ID of the node to update
  * @param {object} properties - Properties to shallow-merge onto the node
+ * @param {string[]|null} [credentialKeys=null] - Authoritative credential field names from the API, or null to auto-detect
  * @returns {{ updatedFlows: object[], previousState: object, currentState: object }}
  */
-export function applyNodeUpdate(rawResponse, nodeId, properties) {
+export function applyNodeUpdate(rawResponse, nodeId, properties, credentialKeys = null) {
   // Reject wires in properties — wiring is managed by connect/disconnect tools
   if (Object.prototype.hasOwnProperty.call(properties, 'wires')) {
     throw new Error(
@@ -46,8 +63,13 @@ export function applyNodeUpdate(rawResponse, nodeId, properties) {
     }
   }
 
+  // Normalize properties: move credential fields under `credentials` and
+  // deep-merge with existing credentials to preserve unspecified fields.
+  // credentialKeys comes from the Node-RED /credentials/:type/:id API when available.
+  const normalizedProperties = normalizeCredentials(properties, node, credentialKeys);
+
   const previousState = { ...node };
-  const currentState = { ...node, ...properties };
+  const currentState = { ...node, ...normalizedProperties };
 
   const updatedFlows = flows.map((n, i) => (i === nodeIndex ? currentState : n));
 
@@ -70,10 +92,39 @@ export async function handleUpdateNode(client, params) {
   const rawResponse = await client.request('GET', '/flows');
   const { rev } = rawResponse;
 
+  // Find the target node to get its type for credential detection
+  const flows = rawResponse.flows ?? rawResponse;
+  const node = flows.find((n) => n.id === nodeId);
+  if (!node) {
+    throw new Error(`Node '${nodeId}' not found`);
+  }
+
+  // Try to get credential field names from the Node-RED API.
+  // The /credentials/:type/:id endpoint returns the credential field names
+  // (with password values masked as has_<field>: true/false).
+  // This gives us an authoritative list of which properties are credentials.
+  let credentialKeys = null;
+  try {
+    const credResponse = await client.request('GET', `/credentials/${encodeURIComponent(node.type)}/${encodeURIComponent(nodeId)}`);
+    if (credResponse && typeof credResponse === 'object') {
+      credentialKeys = Object.keys(credResponse).flatMap((k) => {
+        if (k.startsWith('has_')) {
+          // has_password → password
+          return [k.slice(4)];
+        }
+        return [k];
+      });
+    }
+  } catch {
+    // Fall back to heuristic detection if the credentials endpoint is
+    // unavailable (e.g., editor disabled, auth mismatch, node has no creds).
+  }
+
   const { updatedFlows, previousState, currentState } = applyNodeUpdate(
     rawResponse,
     nodeId,
     properties,
+    credentialKeys,
   );
 
   // PUT updated flows back with revision token

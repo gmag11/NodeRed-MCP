@@ -3,6 +3,10 @@
  *
  * Returns the full detail of a single Node-RED node by its ID, including
  * large text fields (func, template, etc.) that are excluded from get-flow-nodes.
+ *
+ * Also queries the /credentials/:type/:id endpoint to include credential
+ * metadata: field names and whether each password-type field is set.
+ * Password values are never exposed — only `has_<field>: true/false` is returned.
  */
 
 /**
@@ -34,7 +38,29 @@ export function transformNodeDetail(rawResponse, nodeId) {
  */
 export async function handleGetNodeDetail(client, params) {
   const rawResponse = await client.request('GET', '/flows');
-  const result = transformNodeDetail(rawResponse, params.nodeId);
+  const node = transformNodeDetail(rawResponse, params.nodeId);
+
+  // Fetch credential metadata if the node type may have credentials.
+  // The /credentials/:type/:id endpoint returns field names and
+  // has_<field>: true/false for password-type fields (never real values).
+  let credentialMetadata = null;
+  try {
+    const credResponse = await client.request(
+      'GET',
+      `/credentials/${encodeURIComponent(node.type)}/${encodeURIComponent(node.id)}`,
+    );
+    if (credResponse && typeof credResponse === 'object' && Object.keys(credResponse).length > 0) {
+      credentialMetadata = credResponse;
+    }
+  } catch {
+    // Node type has no credentials registered, or editor is disabled.
+    // credentialMetadata stays null — the response simply won't include _credentials.
+  }
+
+  // Build the result, adding _credentials metadata when available
+  const result = credentialMetadata
+    ? { ...node, _credentials: credentialMetadata }
+    : node;
 
   return {
     content: [

@@ -222,3 +222,118 @@ export function paginate(items, offset = 0, limit = 50) {
     hasMore: offset + limit < totalCount,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Credential normalization (shared by update-node and create-node)
+// ---------------------------------------------------------------------------
+
+/**
+ * Known credential field names commonly used across Node-RED node types.
+ * When these appear at the top level of properties, they should be nested
+ * under `credentials` to match Node-RED's credential storage model.
+ *
+ * Node-RED stores sensitive fields (passwords, API keys, certificates) in a
+ * separate `credentials` object. Putting them at the top level of the node
+ * would cause Node-RED to treat them as regular (non-credential) properties.
+ *
+ * @type {Set<string>}
+ */
+export const CREDENTIAL_FIELD_NAMES = new Set([
+  'username', 'password', 'passphrase', 'key', 'privateKey',
+  'cert', 'ca', 'clientKey', 'clientCert', 'token', 'secret',
+  'accessKey', 'secretKey', 'apiKey', 'bearerToken', 'psk',
+  'pass', 'user', 'passkey', 'sharedKey', 'hmacKey',
+]);
+
+/**
+ * Normalize properties by moving credential fields into a `credentials`
+ * sub-object, deep-merging with existing credentials to preserve
+ * unspecified fields.
+ *
+ * Detection strategy (in priority order):
+ * 1. If `credentialKeys` is provided (from the `/credentials/:type/:id` API),
+ *    it is used as the authoritative list of credential field names.
+ * 2. If the caller already sent a `credentials` property, deep-merge it
+ *    with the node's existing `credentials` (preserving unspecified fields).
+ * 3. If the node has an existing `credentials` object (even if masked),
+ *    use its keys to identify which incoming properties are credentials.
+ * 4. Fallback: match incoming properties against the well-known set of
+ *    credential field names (CREDENTIAL_FIELD_NAMES).
+ *
+ * When `node` is null/undefined (used by create-node where no existing
+ * node exists), only strategies 1, 2, and 4 apply.
+ *
+ * @param {object} properties - Incoming properties from the caller
+ * @param {object|null} [node=null] - The existing node object (from GET /flows), or null for new nodes
+ * @param {string[]|null} [credentialKeys=null] - Authoritative list of credential field names from the Node-RED API, or null to auto-detect
+ * @returns {object} Normalized properties with credentials nested correctly
+ */
+export function normalizeCredentials(properties, node = null, credentialKeys = null) {
+  const props = { ...properties };
+
+  // Case 1: caller already provided a `credentials` object → deep-merge
+  if (props.credentials && typeof props.credentials === 'object' && !Array.isArray(props.credentials)) {
+    const existingCreds = (node && node.credentials && typeof node.credentials === 'object' && !Array.isArray(node.credentials))
+      ? { ...node.credentials }
+      : {};
+    props.credentials = { ...existingCreds, ...props.credentials };
+    return props;
+  }
+
+  // Case 2: credential keys provided by API → use as authoritative list.
+  // null means "API not consulted", [] means "API confirmed no credentials".
+  if (credentialKeys !== null) {
+    // Empty array = node type has no credentials defined → don't move anything
+    if (credentialKeys.length === 0) {
+      return { ...props };
+    }
+
+    const credProps = {};
+    const nonCredProps = {};
+
+    for (const [key, value] of Object.entries(props)) {
+      if (key === 'credentials') continue;
+      if (credentialKeys.includes(key)) {
+        credProps[key] = value;
+      } else {
+        nonCredProps[key] = value;
+      }
+    }
+
+    if (Object.keys(credProps).length > 0) {
+      const existingCreds = (node && node.credentials && typeof node.credentials === 'object' && !Array.isArray(node.credentials))
+        ? { ...node.credentials }
+        : {};
+      nonCredProps.credentials = { ...existingCreds, ...credProps };
+    }
+
+    return nonCredProps;
+  }
+
+  // Case 3+4: auto-detect from node.credentials keys or fallback heuristic
+  const existingCredKeys = (node && node.credentials && typeof node.credentials === 'object' && !Array.isArray(node.credentials))
+    ? Object.keys(node.credentials)
+    : [];
+
+  const credProps = {};
+  const nonCredProps = {};
+
+  for (const [key, value] of Object.entries(props)) {
+    if (key === 'credentials') continue;
+
+    if (existingCredKeys.includes(key) || CREDENTIAL_FIELD_NAMES.has(key)) {
+      credProps[key] = value;
+    } else {
+      nonCredProps[key] = value;
+    }
+  }
+
+  if (Object.keys(credProps).length > 0) {
+    const existingCreds = (node && node.credentials && typeof node.credentials === 'object' && !Array.isArray(node.credentials))
+      ? { ...node.credentials }
+      : {};
+    nonCredProps.credentials = { ...existingCreds, ...credProps };
+  }
+
+  return nonCredProps;
+}

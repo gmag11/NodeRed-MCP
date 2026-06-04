@@ -32,3 +32,22 @@ The system SHALL expose an MCP tool named `create-node` that accepts `type` (req
 
 ### Requirement: create-node returns new node state
 The tool SHALL return `nodeId` (the generated ID) and `currentState` (the full node object as stored) in its response.
+
+### Requirement: create-node handles credentials correctly
+The tool SHALL automatically detect credential fields (e.g., `username`, `password`, `key`, `token`, `cert`) in the `properties` object and nest them under a `credentials` sub-object to match Node-RED's credential storage model. This is necessary because Node-RED stores sensitive fields inside a `credentials` object separate from regular configuration properties.
+
+Since the node is new, credential detection relies solely on a well-known set of credential field names: `username`, `password`, `passphrase`, `key`, `privateKey`, `cert`, `ca`, `clientKey`, `clientCert`, `token`, `secret`, `accessKey`, `secretKey`, `apiKey`, `bearerToken`, `psk`, `pass`, `user`, `passkey`, `sharedKey`, `hmacKey`.
+
+If the caller explicitly provides a `credentials` property in `properties`, it is used directly (not auto-detected).
+
+#### Scenario: Top-level credentials are nested automatically
+- **WHEN** `create-node` is invoked for an `mqtt-broker` with `properties: { username: "myuser", password: "mypass", broker: "localhost" }`
+- **THEN** `username` and `password` are moved into `credentials: { username: "myuser", password: "mypass" }` and `broker` remains at the top level
+
+#### Scenario: Explicit credentials object is used directly
+- **WHEN** `create-node` is invoked with `properties: { name: "MQTT", broker: "localhost", credentials: { username: "u", password: "p" } }`
+- **THEN** the node has `credentials: { username: "u", password: "p" }` and `name`, `broker` at the top level
+
+#### Scenario: No credentials property created when no credential fields present
+- **WHEN** `create-node` is invoked for a `debug` node with `properties: { name: "Debug", active: true }`
+- **THEN** no `credentials` property is added to the node

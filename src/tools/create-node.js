@@ -4,9 +4,16 @@
  * Creates a new node of any installed palette type in a specified Node-RED flow.
  * Generates a UUID for the node ID, assembles the node object, appends it to the
  * flows, and deploys. Returns nodeId and currentState.
+ *
+ * Credential handling (via normalizeCredentials from flow-utils.js):
+ * When creating configuration nodes (e.g. mqtt-broker, http-proxy),
+ * credential fields like `username`, `password`, `key`, `token`, etc.
+ * are automatically nested under a `credentials` sub-object to match
+ * Node-RED's credential storage model.
  */
 
 import { randomUUID } from 'crypto';
+import { normalizeCredentials } from './flow-utils.js';
 
 /**
  * Build a new node object with structural fields set and properties merged in.
@@ -24,6 +31,11 @@ export function buildNewNode(type, flowId, properties, x, y) {
   // Strip structural fields the caller must not override
   const { id: _id, z: _z, wires: _wires, ...safeProperties } = properties;
 
+  // Normalize credentials: move credential fields like username, password,
+  // key, token, etc. into a `credentials` sub-object for config nodes.
+  // Pass null for node since this is a new node (no existing credentials).
+  const normalizedProperties = normalizeCredentials(safeProperties, null);
+
   return {
     id: randomUUID(),
     type,
@@ -31,7 +43,7 @@ export function buildNewNode(type, flowId, properties, x, y) {
     x,
     y,
     wires: [[]],
-    ...safeProperties,
+    ...normalizedProperties,
   };
 }
 
