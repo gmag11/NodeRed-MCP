@@ -1,0 +1,104 @@
+[
+  {
+    "id": "example-storage-tab",
+    "type": "tab",
+    "label": "Storage & Context Example",
+    "disabled": false,
+    "info": "Demonstrates context read/write in function nodes, change node, and exec node."
+  },
+  {
+    "id": "inject-counter-inc",
+    "type": "inject",
+    "z": "example-storage-tab",
+    "name": "Increment counter",
+    "props": [{ "p": "payload", "v": "inc", "vt": "str" }],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "topic": "",
+    "payload": "inc",
+    "payloadType": "str",
+    "x": 120,
+    "y": 100,
+    "wires": [["function-counter"]]
+  },
+  {
+    "id": "function-counter",
+    "type": "function",
+    "z": "example-storage-tab",
+    "name": "Context counter",
+    "func": "// Increment flow-scoped counter\nlet count = flow.get(\"counter\") || 0;\ncount += 1;\nflow.set(\"counter\", count);\n\nmsg.payload = { counter: count, timestamp: Date.now() };\nreturn msg;",
+    "outputs": 1,
+    "x": 340,
+    "y": 100,
+    "wires": [["debug-counter"]]
+  },
+  {
+    "id": "debug-counter",
+    "type": "debug",
+    "z": "example-storage-tab",
+    "name": "Show counter",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 560,
+    "y": 100,
+    "wires": []
+  },
+  {
+    "id": "inject-counter-reset",
+    "type": "inject",
+    "z": "example-storage-tab",
+    "name": "Reset counter",
+    "props": [{ "p": "payload", "v": "reset", "vt": "str" }],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "topic": "",
+    "payload": "reset",
+    "payloadType": "str",
+    "x": 120,
+    "y": 180,
+    "wires": [["change-reset"]]
+  },
+  {
+    "id": "change-reset",
+    "type": "change",
+    "z": "example-storage-tab",
+    "name": "Clear flow counter",
+    "rules": [
+      { "t": "set", "p": "counter", "pt": "flow", "to": "0", "tot": "num" }
+    ],
+    "x": 340,
+    "y": 180,
+    "wires": [["debug-reset-msg"]]
+  },
+  {
+    "id": "debug-reset-msg",
+    "type": "debug",
+    "z": "example-storage-tab",
+    "name": "Reset confirmed",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "true",
+    "targetType": "full",
+    "x": 560,
+    "y": 180,
+    "wires": []
+  },
+  {
+    "id": "comment-context-section",
+    "type": "comment",
+    "z": "example-storage-tab",
+    "name": "Context: function node increments flow.counter + change node resets flow.counter to 0",
+    "info": "",
+    "x": 130,
+    "y": 60,
+    "wires": []
+  }
+]

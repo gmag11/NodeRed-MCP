@@ -1,0 +1,141 @@
+[
+  {
+    "id": "example-sequence-tab",
+    "type": "tab",
+    "label": "Sequence & Flow Control Example",
+    "disabled": false,
+    "info": "Demonstrates delay, split, join, switch, change, and trigger nodes in sequence."
+  },
+  {
+    "id": "inject-sequence-1",
+    "type": "inject",
+    "z": "example-sequence-tab",
+    "name": "Send array of names",
+    "props": [
+      { "p": "payload", "v": "[\"Alice\",\"Bob\",\"Charlie\",\"Diana\",\"Eve\"]", "vt": "json" }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "topic": "",
+    "payload": "[\"Alice\",\"Bob\",\"Charlie\",\"Diana\",\"Eve\"]",
+    "payloadType": "json",
+    "x": 120,
+    "y": 100,
+    "wires": [["split-names"]]
+  },
+  {
+    "id": "comment-seq-intro",
+    "type": "comment",
+    "z": "example-sequence-tab",
+    "name": "Sequence: inject array → split → delay each → switch route → join → debug",
+    "info": "",
+    "x": 130,
+    "y": 60,
+    "wires": []
+  },
+  {
+    "id": "split-names",
+    "type": "split",
+    "z": "example-sequence-tab",
+    "name": "Split array to individual msgs",
+    "splt": "\\n",
+    "spltType": "arr",
+    "arraySplt": 1,
+    "stream": false,
+    "addname": "",
+    "x": 320,
+    "y": 100,
+    "wires": [["delay-each"]]
+  },
+  {
+    "id": "delay-each",
+    "type": "delay",
+    "z": "example-sequence-tab",
+    "name": "Delay 500ms per msg",
+    "pauseType": "delay",
+    "timeout": "0.5",
+    "timeoutUnits": "seconds",
+    "rate": 1,
+    "nbRateUnits": 1,
+    "rateUnits": "second",
+    "drop": false,
+    "x": 520,
+    "y": 100,
+    "wires": [["switch-route"]]
+  },
+  {
+    "id": "switch-route",
+    "type": "switch",
+    "z": "example-sequence-tab",
+    "name": "Route by first letter",
+    "rules": [
+      { "t": "lte", "v": "D", "vt": "str", "property": "payload" },
+      { "t": "else", "v": "", "vt": "str" }
+    ],
+    "property": "payload",
+    "propertyType": "msg",
+    "checkall": "false",
+    "repair": false,
+    "x": 720,
+    "y": 100,
+    "wires": [
+      ["change-tag-early"],
+      ["change-tag-late"]
+    ]
+  },
+  {
+    "id": "change-tag-early",
+    "type": "change",
+    "z": "example-sequence-tab",
+    "name": "Tag: early alpha",
+    "rules": [
+      { "t": "set", "p": "topic", "pt": "msg", "to": "early", "tot": "str" }
+    ],
+    "x": 920,
+    "y": 80,
+    "wires": [["debug-early"]]
+  },
+  {
+    "id": "debug-early",
+    "type": "debug",
+    "z": "example-sequence-tab",
+    "name": "Early names",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1100,
+    "y": 80,
+    "wires": []
+  },
+  {
+    "id": "change-tag-late",
+    "type": "change",
+    "z": "example-sequence-tab",
+    "name": "Tag: late alpha",
+    "rules": [
+      { "t": "set", "p": "topic", "pt": "msg", "to": "late", "tot": "str" }
+    ],
+    "x": 920,
+    "y": 140,
+    "wires": [["debug-late"]]
+  },
+  {
+    "id": "debug-late",
+    "type": "debug",
+    "z": "example-sequence-tab",
+    "name": "Late names",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1100,
+    "y": 140,
+    "wires": []
+  }
+]

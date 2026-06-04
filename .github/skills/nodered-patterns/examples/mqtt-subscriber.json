@@ -1,0 +1,47 @@
+[
+  {
+    "id": "pat-mqtt-tab",
+    "type": "tab",
+    "label": "MQTT Subscriber Pattern",
+    "disabled": false,
+    "info": "MQTT subscriber: receives messages, transforms payload, logs to debug"
+  },
+  {
+    "id": "mqttin-pattern-1",
+    "type": "mqtt in",
+    "z": "pat-mqtt-tab",
+    "name": "Subscribe sensors/#",
+    "topic": "sensors/#",
+    "qos": "2",
+    "datatype": "auto-detect",
+    "broker": "",
+    "x": 100,
+    "y": 100,
+    "wires": [["func-pattern-mqtt"]]
+  },
+  {
+    "id": "func-pattern-mqtt",
+    "type": "function",
+    "z": "pat-mqtt-tab",
+    "name": "Parse & enrich",
+    "func": "// Parse sensor data and add metadata\nconst data = typeof msg.payload === \"string\" ? JSON.parse(msg.payload) : msg.payload;\nmsg.payload = {\n    device: data.device || \"unknown\",\n    value: data.value,\n    unit: data.unit || \"raw\",\n    receivedAt: Date.now()\n};\nreturn msg;",
+    "outputs": 1,
+    "x": 300,
+    "y": 100,
+    "wires": [["debug-pattern-mqtt"]]
+  },
+  {
+    "id": "debug-pattern-mqtt",
+    "type": "debug",
+    "z": "pat-mqtt-tab",
+    "name": "Show sensor data",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 500,
+    "y": 100,
+    "wires": []
+  }
+]

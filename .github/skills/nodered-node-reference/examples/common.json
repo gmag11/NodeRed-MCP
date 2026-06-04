@@ -1,0 +1,113 @@
+[
+  {
+    "id": "example-common-tab",
+    "type": "tab",
+    "label": "Common Nodes Example",
+    "disabled": false,
+    "info": "Demonstrates inject, debug, catch, comment, and complete nodes."
+  },
+  {
+    "id": "inject-common-1",
+    "type": "inject",
+    "z": "example-common-tab",
+    "name": "Trigger every 10s",
+    "props": [{ "p": "payload", "v": "Hello", "vt": "str" }],
+    "repeat": "10",
+    "crontab": "",
+    "once": false,
+    "topic": "test",
+    "payload": "Hello",
+    "payloadType": "str",
+    "x": 120,
+    "y": 100,
+    "wires": [["debug-common-1"]]
+  },
+  {
+    "id": "debug-common-1",
+    "type": "debug",
+    "z": "example-common-tab",
+    "name": "Show full msg",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "true",
+    "targetType": "full",
+    "x": 340,
+    "y": 100,
+    "wires": []
+  },
+  {
+    "id": "comment-common-1",
+    "type": "comment",
+    "z": "example-common-tab",
+    "name": "This flow sends a test message every 10 seconds and displays it in the debug sidebar",
+    "info": "",
+    "x": 130,
+    "y": 60,
+    "wires": []
+  },
+  {
+    "id": "inject-error-trigger",
+    "type": "inject",
+    "z": "example-common-tab",
+    "name": "Trigger error test",
+    "props": [{ "p": "payload" }],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 120,
+    "y": 200,
+    "wires": [["function-throw-error"]]
+  },
+  {
+    "id": "function-throw-error",
+    "type": "function",
+    "z": "example-common-tab",
+    "name": "Throw error",
+    "func": "node.error(\"Simulated error in function node\", msg);\nreturn null;",
+    "outputs": 1,
+    "x": 340,
+    "y": 200,
+    "wires": [[]]
+  },
+  {
+    "id": "catch-common-1",
+    "type": "catch",
+    "z": "example-common-tab",
+    "name": "Catch all errors",
+    "scope": [],
+    "uncaught": false,
+    "x": 340,
+    "y": 280,
+    "wires": [["debug-error-output"]]
+  },
+  {
+    "id": "debug-error-output",
+    "type": "debug",
+    "z": "example-common-tab",
+    "name": "Error debug",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 560,
+    "y": 280,
+    "wires": []
+  },
+  {
+    "id": "comment-error-section",
+    "type": "comment",
+    "z": "example-common-tab",
+    "name": "Error handling: inject triggers function that throws → catch captures and displays",
+    "info": "",
+    "x": 130,
+    "y": 160,
+    "wires": []
+  }
+]

@@ -1,0 +1,107 @@
+[
+  {
+    "id": "example-network-tab",
+    "type": "tab",
+    "label": "Network Nodes Example",
+    "disabled": false,
+    "info": "Demonstrates http in, http response, http request, and mqtt nodes."
+  },
+  {
+    "id": "httpin-example-1",
+    "type": "http in",
+    "z": "example-network-tab",
+    "name": "GET /api/hello",
+    "url": "/api/hello",
+    "method": "get",
+    "swaggerDoc": "",
+    "x": 120,
+    "y": 100,
+    "wires": [["function-api-handler"]]
+  },
+  {
+    "id": "function-api-handler",
+    "type": "function",
+    "z": "example-network-tab",
+    "name": "Build response",
+    "func": "// Build a JSON response\nmsg.payload = {\n    message: \"Hello from Node-RED\",\n    timestamp: Date.now(),\n    query: msg.req.query\n};\nreturn msg;",
+    "outputs": 1,
+    "x": 340,
+    "y": 100,
+    "wires": [["httpresponse-example-1"]]
+  },
+  {
+    "id": "httpresponse-example-1",
+    "type": "http response",
+    "z": "example-network-tab",
+    "name": "Send JSON response",
+    "statusCode": 200,
+    "headers": { "content-type": "application/json" },
+    "x": 560,
+    "y": 100,
+    "wires": []
+  },
+  {
+    "id": "comment-api-section",
+    "type": "comment",
+    "z": "example-network-tab",
+    "name": "HTTP API: GET /api/hello → returns JSON with timestamp",
+    "info": "",
+    "x": 130,
+    "y": 60,
+    "wires": []
+  },
+  {
+    "id": "inject-http-request",
+    "type": "inject",
+    "z": "example-network-tab",
+    "name": "Fetch external API",
+    "props": [{ "p": "payload", "v": "", "vt": "str" }],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 120,
+    "y": 220,
+    "wires": [["httprequest-example-1"]]
+  },
+  {
+    "id": "httprequest-example-1",
+    "type": "http request",
+    "z": "example-network-tab",
+    "name": "GET JSONPlaceholder",
+    "method": "GET",
+    "ret": "obj",
+    "url": "https://jsonplaceholder.typicode.com/posts/1",
+    "tls": "",
+    "x": 340,
+    "y": 220,
+    "wires": [["debug-http-result"]]
+  },
+  {
+    "id": "debug-http-result",
+    "type": "debug",
+    "z": "example-network-tab",
+    "name": "Show API result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 560,
+    "y": 220,
+    "wires": []
+  },
+  {
+    "id": "comment-http-section",
+    "type": "comment",
+    "z": "example-network-tab",
+    "name": "Outbound HTTP: inject → http request → debug (result displayed in sidebar)",
+    "info": "",
+    "x": 130,
+    "y": 180,
+    "wires": []
+  }
+]

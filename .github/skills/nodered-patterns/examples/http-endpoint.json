@@ -1,0 +1,42 @@
+[
+  {
+    "id": "pat-http-endpoint-tab",
+    "type": "tab",
+    "label": "HTTP Endpoint Pattern",
+    "disabled": false,
+    "info": "HTTP endpoint: GET /api/hello → returns JSON response"
+  },
+  {
+    "id": "httpin-pattern-1",
+    "type": "http in",
+    "z": "pat-http-endpoint-tab",
+    "name": "GET /api/hello",
+    "url": "/api/hello",
+    "method": "get",
+    "x": 100,
+    "y": 100,
+    "wires": [["func-pattern-api"]]
+  },
+  {
+    "id": "func-pattern-api",
+    "type": "function",
+    "z": "pat-http-endpoint-tab",
+    "name": "Build JSON response",
+    "func": "msg.payload = {\n    message: \"Hello from Node-RED\",\n    timestamp: Date.now(),\n    method: msg.req.method,\n    query: msg.req.query\n};\nreturn msg;",
+    "outputs": 1,
+    "x": 300,
+    "y": 100,
+    "wires": [["httpresp-pattern-1"]]
+  },
+  {
+    "id": "httpresp-pattern-1",
+    "type": "http response",
+    "z": "pat-http-endpoint-tab",
+    "name": "Send JSON response",
+    "statusCode": 200,
+    "headers": {},
+    "x": 500,
+    "y": 100,
+    "wires": []
+  }
+]
