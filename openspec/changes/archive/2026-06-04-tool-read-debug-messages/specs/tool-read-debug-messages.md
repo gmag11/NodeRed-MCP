@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: nodered-comms-client WebSocket connection
-The system SHALL maintain a persistent WebSocket connection to Node-RED's `/comms` endpoint for the lifetime of the MCP server process. It SHALL perform the minimal Socket.IO v2 handshake (send `40` after open, parse `42[...]` event frames). It SHALL reconnect automatically on disconnect using exponential backoff (initial 1s, max 30s). It SHALL buffer the last N debug messages where N is read from the `NODE_RED_DEBUG_BUFFER_SIZE` environment variable at startup (default 200, min 10, max 10000).
+The system SHALL maintain a persistent WebSocket connection to Node-RED's `/comms` endpoint for the lifetime of the MCP server process. It SHALL perform the minimal Socket.IO v4 / Engine.IO v4 handshake (add `EIO=4&transport=websocket` query params, send `40` after open, parse `42[...]` event frames). It SHALL reconnect automatically on disconnect using exponential backoff (initial 1s, max 30s). It SHALL buffer the last N debug messages where N is read from the `NODE_RED_DEBUG_BUFFER_SIZE` environment variable at startup (default 500, min 10, max 10000).
 
 #### Scenario: Connect and buffer a debug message
 - **WHEN** a debug node fires in Node-RED
