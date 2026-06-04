@@ -523,6 +523,27 @@ export function createMcpServer(nodeRedClient, commsClient) {
     );
   }
 
+  // Register: list-skills tool
+  server.tool(
+    'list-skills',
+    'List all available Node-RED skills with their names and descriptions. ' +
+    'Call this FIRST to discover what skills exist, then use get-skill with the desired skill name ' +
+    'to retrieve its full content.',
+    {},
+    async () => {
+      const skillList = [...skills].map(([name, s]) => ({
+        name,
+        description: s.description,
+      }));
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify(skillList),
+        }],
+      };
+    },
+  );
+
   // Register: get-skill tool
   server.tool(
     'get-skill',
