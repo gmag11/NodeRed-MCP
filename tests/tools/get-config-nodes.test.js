@@ -5,16 +5,19 @@ import { transformConfigNodes } from '../../src/tools/get-config-nodes.js';
 // Fixtures
 // ---------------------------------------------------------------------------
 
-const makeNode = (overrides) => ({ wires: [], ...overrides });
+const makeNode = (overrides) => ({ ...overrides });
 
 const TAB1 = makeNode({ id: 'tab1', type: 'tab', label: 'Flow 1' });
-const FLOW_NODE = makeNode({ id: 'fn1', type: 'inject', z: 'tab1' });
+const FLOW_NODE = makeNode({ id: 'fn1', type: 'inject', z: 'tab1', wires: [] });
 
+// Config nodes: do NOT have a `wires` property (they are not placed on canvas)
 const MQTT_BROKER = makeNode({ id: 'cfg1', type: 'mqtt-broker', name: 'Local Broker', broker: 'localhost', port: 1883, clientid: 'mcp' });
 const TLS_CONFIG = makeNode({ id: 'cfg2', type: 'tls-config', name: 'My TLS', cert: 'cert.pem', key: 'key.pem' });
 const HTTP_PROXY = makeNode({ id: 'cfg3', type: 'http-proxy', name: '', url: 'http://proxy:3128' });
+// Config node that belongs to a tab (has `z` property — common in real Node-RED)
+const MQTT_BROKER_WITH_Z = makeNode({ id: 'cfg4', type: 'mqtt-broker', name: 'Tab Broker', z: 'tab1', broker: '10.0.0.1', port: 1883 });
 
-const ALL_NODES = [TAB1, FLOW_NODE, MQTT_BROKER, TLS_CONFIG, HTTP_PROXY];
+const ALL_NODES = [TAB1, FLOW_NODE, MQTT_BROKER, TLS_CONFIG, HTTP_PROXY, MQTT_BROKER_WITH_Z];
 const RAW = { flows: ALL_NODES };
 
 // ---------------------------------------------------------------------------
@@ -22,19 +25,27 @@ const RAW = { flows: ALL_NODES };
 // ---------------------------------------------------------------------------
 describe('transformConfigNodes', () => {
   describe('basic listing', () => {
-    it('returns only config nodes (no z, not tab/subflow)', () => {
+    it('returns only config nodes (no wires, not tab/subflow)', () => {
       const result = transformConfigNodes(RAW);
-      expect(result.nodes).toHaveLength(3);
+      expect(result.nodes).toHaveLength(4);
       const ids = result.nodes.map((n) => n.id).sort();
-      expect(ids).toEqual(['cfg1', 'cfg2', 'cfg3']);
+      expect(ids).toEqual(['cfg1', 'cfg2', 'cfg3', 'cfg4']);
     });
 
     it('returns totalCount, offset, limit, hasMore metadata', () => {
       const result = transformConfigNodes(RAW);
-      expect(result.totalCount).toBe(3);
+      expect(result.totalCount).toBe(4);
       expect(result.offset).toBe(0);
       expect(result.limit).toBe(50);
       expect(result.hasMore).toBe(false);
+    });
+
+    it('includes config nodes that have a z property (belong to a tab)', () => {
+      const result = transformConfigNodes(RAW);
+      const tabBroker = result.nodes.find((n) => n.id === 'cfg4');
+      expect(tabBroker).toBeDefined();
+      expect(tabBroker.type).toBe('mqtt-broker');
+      expect(tabBroker.name).toBe('Tab Broker');
     });
 
     it('returns empty array when no config nodes exist', () => {
@@ -84,8 +95,9 @@ describe('transformConfigNodes', () => {
   describe('nodeType filter', () => {
     it('returns only mqtt-broker nodes when nodeType is mqtt-broker', () => {
       const result = transformConfigNodes(RAW, { nodeType: 'mqtt-broker' });
-      expect(result.nodes).toHaveLength(1);
-      expect(result.nodes[0].id).toBe('cfg1');
+      expect(result.nodes).toHaveLength(2);
+      const ids = result.nodes.map((n) => n.id).sort();
+      expect(ids).toEqual(['cfg1', 'cfg4']);
     });
 
     it('returns empty when no config nodes match the type', () => {

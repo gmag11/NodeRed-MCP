@@ -1,8 +1,9 @@
 /**
  * MCP tool: get-config-nodes
  *
- * Returns a paginated list of global configuration nodes (nodes without a `z`
- * property) from the connected Node-RED instance.
+ * Returns a paginated list of global configuration nodes from the connected
+ * Node-RED instance.  Configuration nodes are shared resources (e.g. MQTT
+ * brokers, TLS configs) used by flow nodes but not wired on the canvas.
  */
 
 import {
@@ -14,8 +15,10 @@ import {
  * Transform a raw /flows response into a paginated list of global config nodes.
  *
  * Config nodes are those that:
- * - Have no `z` property (not bound to a tab or subflow)
+ * - Have no `wires` property (unlike flow nodes, config nodes are not wired)
  * - Are not of type `tab` or `subflow`
+ *
+ * Note: config nodes *may* have a `z` property when defined within a flow tab.
  *
  * @param {object} rawResponse - Response from GET /flows (v2 format: { rev, flows })
  * @param {object} [options]
@@ -28,9 +31,9 @@ export function transformConfigNodes(rawResponse, options = {}) {
   const { nodeType, offset = 0, limit = 50 } = options;
   const allNodes = rawResponse.flows || [];
 
-  // Config nodes: no z property, and not tab or subflow
+  // Config nodes: no wires property (not placed on canvas), and not tab or subflow
   let configNodes = allNodes.filter(
-    (n) => !n.z && n.type !== 'tab' && n.type !== 'subflow'
+    (n) => !('wires' in n) && n.type !== 'tab' && n.type !== 'subflow'
   );
 
   // Optional type filter

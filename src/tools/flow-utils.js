@@ -46,9 +46,12 @@ export function sanitizeNodeConfig(node) {
  * Extract nodes belonging to a specific flow (tab or subflow).
  * Throws if the flowId does not match any known tab or subflow.
  *
+ * Only returns flow-level nodes — config nodes (nodes without a `wires`
+ * property) are excluded even if they share the same `z`.
+ *
  * @param {object[]} allNodes - All nodes from the /flows response
  * @param {string} flowId - Target flow ID
- * @returns {object[]} Nodes whose `z` property equals `flowId`
+ * @returns {object[]} Flow nodes whose `z` property equals `flowId`
  * @throws {Error} If no tab or subflow with flowId exists
  */
 export function getFlowNodes(allNodes, flowId) {
@@ -60,7 +63,9 @@ export function getFlowNodes(allNodes, flowId) {
     throw new Error(`Flow not found: no tab or subflow with id "${flowId}"`);
   }
 
-  return allNodes.filter((n) => n.z === flowId);
+  return allNodes.filter(
+    (n) => n.z === flowId && ('wires' in n)
+  );
 }
 
 /**
