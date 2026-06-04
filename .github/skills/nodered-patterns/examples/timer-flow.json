@@ -1,0 +1,50 @@
+[
+  {
+    "id": "pat-timer-tab",
+    "type": "tab",
+    "label": "Timer-Triggered Flow Pattern",
+    "disabled": false,
+    "info": "Scheduled flow: runs every 5 minutes, fetches and processes data"
+  },
+  {
+    "id": "inject-pattern-timer",
+    "type": "inject",
+    "z": "pat-timer-tab",
+    "name": "Every 5 minutes",
+    "props": [{ "p": "payload" }],
+    "repeat": "300",
+    "crontab": "",
+    "once": true,
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 100,
+    "y": 100,
+    "wires": [["func-pattern-timer"]]
+  },
+  {
+    "id": "func-pattern-timer",
+    "type": "function",
+    "z": "pat-timer-tab",
+    "name": "Scheduled task",
+    "func": "// Runs every 5 minutes\nconst now = new Date().toISOString();\nconst count = context.get(\"runCount\") || 0;\ncontext.set(\"runCount\", count + 1);\n\nmsg.payload = {\n    run: count + 1,\n    time: now,\n    status: \"ok\"\n};\nreturn msg;",
+    "outputs": 1,
+    "x": 300,
+    "y": 100,
+    "wires": [["debug-pattern-timer"]]
+  },
+  {
+    "id": "debug-pattern-timer",
+    "type": "debug",
+    "z": "pat-timer-tab",
+    "name": "Show result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 500,
+    "y": 100,
+    "wires": []
+  }
+]

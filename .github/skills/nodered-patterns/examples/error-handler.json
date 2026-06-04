@@ -1,0 +1,72 @@
+[
+  {
+    "id": "pat-error-tab",
+    "type": "tab",
+    "label": "Error Handler Pattern",
+    "disabled": false,
+    "info": "Error handling: catch node captures errors from all nodes on this tab"
+  },
+  {
+    "id": "inject-pattern-error",
+    "type": "inject",
+    "z": "pat-error-tab",
+    "name": "Trigger error test",
+    "props": [{ "p": "payload" }],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 100,
+    "y": 100,
+    "wires": [["func-pattern-bad"]]
+  },
+  {
+    "id": "func-pattern-bad",
+    "type": "function",
+    "z": "pat-error-tab",
+    "name": "Faulty function",
+    "func": "// Simulate an error\nif (!msg.payload) {\n    node.error(\"Empty payload received\", msg);\n    return null;\n}\nreturn msg;",
+    "outputs": 1,
+    "x": 300,
+    "y": 100,
+    "wires": [[]]
+  },
+  {
+    "id": "catch-pattern-1",
+    "type": "catch",
+    "z": "pat-error-tab",
+    "name": "Catch all errors",
+    "scope": [],
+    "uncaught": false,
+    "x": 300,
+    "y": 200,
+    "wires": [["func-pattern-handler"]]
+  },
+  {
+    "id": "func-pattern-handler",
+    "type": "function",
+    "z": "pat-error-tab",
+    "name": "Log error details",
+    "func": "// Extract error info\nmsg.payload = {\n    error: msg.error ? msg.error.message : \"unknown\",\n    source: msg.payload.source,\n    timestamp: Date.now()\n};\nreturn msg;",
+    "outputs": 1,
+    "x": 500,
+    "y": 200,
+    "wires": [["debug-pattern-error"]]
+  },
+  {
+    "id": "debug-pattern-error",
+    "type": "debug",
+    "z": "pat-error-tab",
+    "name": "Error output",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 700,
+    "y": 200,
+    "wires": []
+  }
+]
