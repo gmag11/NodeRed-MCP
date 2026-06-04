@@ -29,6 +29,7 @@ import { handleDeleteContext } from './tools/delete-context.js';
 import { handleSearchNodes } from './tools/search-nodes.js';
 import { handleInjectMessage } from './tools/inject-message.js';
 import { handleReadDebugMessages } from './tools/read-debug-messages.js';
+import { handleInstallNode } from './tools/install-node.js';
 
 /**
  * Create a configured MCP server with all tools registered.
@@ -420,6 +421,21 @@ export function createMcpServer(nodeRedClient, commsClient) {
       flowId: z.string().optional().describe('Flow ID to scope the name search (optional, ignored when nodeId is provided)'),
     },
     async (params) => handleInjectMessage(nodeRedClient)(params),
+  );
+
+  // Register: install-node
+  server.tool(
+    'install-node',
+    'Install a new Node-RED node module from the npm registry via the Admin API\'s POST /nodes endpoint. ' +
+    'Accepts a plain npm package name (no @version qualifiers — the API does not support them via JSON body). ' +
+    'Intended workflow: the LLM discovers a suitable package from the Node-RED library catalog (https://flows.nodered.org/search?type=node), ' +
+    'the user selects one, and this tool installs it. ' +
+    'Returns the Node Module object with name, version, and the list of installed node types. ' +
+    'Note: installation may take 10-30+ seconds for large packages. Some nodes may require a Node-RED restart for full activation.',
+    {
+      module: z.string().describe('npm package name to install (plain name, no @version), e.g. "node-red-node-suncalc"'),
+    },
+    async (params) => handleInstallNode(nodeRedClient, params),
   );
 
   // Register: read-debug-messages

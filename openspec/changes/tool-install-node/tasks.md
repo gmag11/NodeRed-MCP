@@ -13,14 +13,14 @@
 
 ## 3. Unit Tests
 
-- [ ] 3.1 Create `tests/tools/install-node.test.js` following existing test patterns (vitest)
-- [ ] 3.2 Test: successful JSON response (200) returns Node Module object with `name`, `version`, `nodes`
-- [ ] 3.3 Test: module not found (404) error propagation
-- [ ] 3.4 Test: bad request (400) error propagation
-- [ ] 3.5 Test: parameter validation (missing `module` handled by Zod)
+- [x] 3.1 Create `tests/tools/install-node.test.js` following existing test patterns (vitest)
+- [x] 3.2 Test: successful JSON response (200) returns Node Module object with `name`, `version`, `nodes`
+- [x] 3.3 Test: module not found (404) error propagation
+- [x] 3.4 Test: bad request (400) error propagation
+- [x] 3.5 Test: parameter validation (missing `module` handled by Zod)
 
 ## 4. Validation
 
-- [ ] 4.1 Run `npm test` and verify all tests pass
-- [ ] 4.2 Verify tool appears in MCP tool listing
+- [x] 4.1 Run `npm test` and verify all tests pass
+- [x] 4.2 Verify tool appears in MCP tool listing
 - [ ] 4.3 Manual smoke test against a running Node-RED instance (optional, if available)
