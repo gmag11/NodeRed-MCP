@@ -1,41 +1,28 @@
-## Context
+# Design: Node-RED Flow Builder
 
-The MCP flow-building workflow is: create flow → add nodes → wire nodes → verify. Each step maps to specific tools, and there are important constraints (e.g., nodes must exist before wiring; you must know a node's output port count before connecting it). The skill encodes this procedural knowledge.
+## Output artifact(s)
+`.github/skills/nodered-flow-builder/SKILL.md`
 
-Source: https://nodered.org/docs/user-guide/editor/workspace
+## Structure
+### Sections
 
-## Goals / Non-Goals
+| Section | Content | Origin |
+|---------|---------|--------|
+| Workflow A — Build from scratch | create-flow → create-node × N → connect-nodes × N → get-flow-diagram | flow-builder |
+| Port numbering | 0-indexed, switch example with 3 outputs, ASCII diagram | flow-builder |
+| Coordinate grid | First node at (100,100), x+=200 inline, y+=100 branch, locked flows | flow-builder |
+| Workflow B — Import from JSON | When to prefer import-flow, conflict strategies, targetFlowId | flow-builder |
+| Workflow C — Edit existing node | get-node-detail → update-node → verify | flow-builder |
+| Workflow D — Delete | delete-node, delete-flow, previousState for undo | flow-builder |
+| Debug Workflow | Ensure debug active → record timestamp → inject-message → read-debug-messages with after filter → analyze → fix → repeat | debug |
+| Debug Node Configuration | active (bool), complete (false/true/expression), console, tosidebar | debug |
+| inject-message Usage | By nodeId (preferred) vs name, async nature, flowId scoping | debug |
+| read-debug-messages Filters | nodeId, nodeName, keyword, after/before, last — each with use case | debug |
+| Common Debug Patterns | "Is flow triggered?", "What is payload?", "Is context set?" | debug |
+| Verification | get-flow-diagram for topology, get-flow-nodes for inventory | flow-builder |
+| Common Mistakes | Not wiring after create, wrong port index, setting wires in update-node, overlapping coordinates | flow-builder + debug |
 
-**Goals:**
-- Step-by-step guide for the most common flow-building workflows: build from scratch, import, edit existing, delete
-- Port numbering explanation (output ports are 0-indexed arrays in wires)
-- How to verify a flow after building (get-flow-diagram, get-flow-nodes)
-- When to use `import-flow` vs. node-by-node construction
-
-**Non-Goals:**
-- Node property details (covered in `nodered-core-nodes`)
-- Pattern-level recipes (covered in `nodered-patterns`)
-
-## Decisions
-
-### Primary workflow: build from scratch with node-by-node construction
-
-**Decision**: The main section walks through: 1) `create-flow`, 2) `create-node` for each node with layout coordinates, 3) `connect-nodes`, 4) `get-flow-diagram` to verify.
-
-**Rationale**: This is the most atomic and learnable workflow. The LLM can apply it for any flow regardless of complexity.
-
-### Secondary workflow: import-flow for known patterns
-
-**Decision**: A secondary section explains when to use `import-flow`: when the user provides a JSON, when replicating a known Cookbook pattern, when complexity is high.
-
-**Rationale**: `import-flow` is faster but requires knowing the full node JSON upfront. For novel flows, node-by-node is safer.
-
-### Coordinate strategy
-
-**Decision**: Include a grid recommendation: first node at x=100, y=100; each subsequent node +200 x or +100 y for branches.
-
-**Rationale**: Without coordinate guidance the LLM stacks all nodes at 0,0 producing overlapping layouts that are hard to read in the Node-RED UI.
-
-## Risks / Trade-offs
-
-- [Port numbering errors] The most common wiring error is using 1-based port numbers instead of 0-based. The skill must prominently document 0-based indexing.
+## Constraints
+- Procedural (numbered steps).
+- Language: English.
+- Keep under 3500 words.

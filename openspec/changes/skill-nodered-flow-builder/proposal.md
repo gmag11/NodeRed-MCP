@@ -1,18 +1,14 @@
+# Skill: Node-RED Flow Builder
+
+## What
+This is the OPERATIONAL guide - how to actually build, edit, test, and debug flows using MCP tools step by step.
+
 ## Why
+- Individual tool descriptions explain *what* each tool does but not *how* to orchestrate them
+- Without a builder guide the LLM creates nodes but forgets to wire them, places all nodes at (0,0), doesn't verify results
+- Debugging via MCP requires knowing the inject → debug → read sequence
+- Consolidates operational knowledge from flow-builder + debug + flow-architecture into one guide
 
-Building Node-RED flows through MCP requires a procedural guide: what tools to call, in what order, with what parameters, and how to verify the result. Without this, the LLM must infer the workflow from individual tool descriptions, leading to errors like creating nodes in non-existent flows or wiring nodes without knowing their output port counts.
-
-## What Changes
-
-- Add `nodered-flow-builder` skill: a step-by-step procedural guide for building and editing flows via MCP tools
-
-## Capabilities
-
-### New Capabilities
-- `skill-nodered-flow-builder`: skill at `.github/skills/nodered-flow-builder/SKILL.md`
-
-### Modified Capabilities
-
-## Impact
-
-- New file: `.github/skills/nodered-flow-builder/SKILL.md`
+## Scope
+- In scope: Build workflow (create → wire → verify), edit workflow, delete workflow, import workflow, port numbering, coordinate grid, debug workflow (inject → read-debug-messages → analyze → fix), common mistakes
+- Out of scope: Node property details (→ nodered-node-reference), pattern recipes (→ nodered-patterns), core concepts (→ nodered-fundamentals)
