@@ -7,6 +7,7 @@
  * Refuses to wire nodes in locked flows.
  */
 
+import { withRetry } from './flow-utils.js';
 /**
  * Apply a wire connection in the flows array.
  *
@@ -95,23 +96,18 @@ export function applyConnect(rawResponse, fromNodeId, outputPort = 0, toNodeId, 
 export async function handleConnectNodes(client, params) {
   const { fromNodeId, outputPort = 0, toNodeId, connections } = params;
 
-  const rawResponse = await client.request('GET', '/flows');
-  const { rev } = rawResponse;
-
-  const { updatedFlows, previousWires, currentWires } = applyConnect(
-    rawResponse,
-    fromNodeId,
-    outputPort,
-    toNodeId,
-    connections,
+  const { previousWires, currentWires } = await withRetry(
+    client,
+    (rawResponse) => {
+      return applyConnect(
+        rawResponse,
+        fromNodeId,
+        outputPort,
+        toNodeId,
+        connections,
+      );
+    }
   );
-
-  // Determine if any change was actually made (idempotency guard)
-  const hasChanges = JSON.stringify(previousWires) !== JSON.stringify(currentWires);
-
-  if (hasChanges) {
-    await client.putFlows({ rev, flows: updatedFlows }, 'flows');
-  }
 
   // Build response shape: batch mode echoes connections, single mode echoes outputPort + toNodeId
   const responseData = connections

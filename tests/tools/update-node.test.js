@@ -277,14 +277,46 @@ describe('applyNodeUpdate credential handling', () => {
 // ---------------------------------------------------------------------------
 
 describe('handleUpdateNode', () => {
+  // Helper: build mock client with correct request/putFlows pattern for withRetry
+  // The handler does: GET /flows (credential lookup) → GET /credentials → GET /flows (withRetry) → PUT /flows
+  function makeClient(rawResponse, credResponse, putFlowsImpl) {
+    const reqMocks = [vi.fn().mockResolvedValueOnce(rawResponse)]; // GET /flows (credential)
+    if (credResponse !== undefined) {
+      if (credResponse instanceof Error) {
+        reqMocks.push(vi.fn().mockRejectedValueOnce(credResponse)); // GET /credentials fails
+      } else {
+        reqMocks.push(vi.fn().mockResolvedValueOnce(credResponse)); // GET /credentials
+      }
+    }
+    // GET /flows inside withRetry — return same rawResponse
+    reqMocks.push(vi.fn().mockResolvedValueOnce(rawResponse));
+
+    // Chain them
+    const request = reqMocks.reduce((mocked, m) => {
+      return mocked.mockImplementationOnce(m.getMockImplementation());
+    }, vi.fn());
+    // Actually, simpler: just chain the mockResolvedValueOnce calls
+    const requestFn = vi.fn()
+      .mockResolvedValueOnce(rawResponse); // GET /flows (credential)
+
+    if (credResponse !== undefined) {
+      if (credResponse instanceof Error) {
+        requestFn.mockRejectedValueOnce(credResponse);
+      } else {
+        requestFn.mockResolvedValueOnce(credResponse);
+      }
+    }
+    requestFn.mockResolvedValueOnce(rawResponse); // GET /flows (retry)
+
+    return {
+      request: requestFn,
+      putFlows: putFlowsImpl ? putFlowsImpl : vi.fn().mockResolvedValueOnce({}),
+    };
+  }
+
   it('GETs /flows then PUTs with updated node', async () => {
     const rawResponse = makeFlows();
-    const client = {
-      request: vi.fn()
-        .mockResolvedValueOnce(rawResponse)           // GET /flows
-        .mockResolvedValueOnce(null),                  // GET /credentials (no creds)
-      putFlows: vi.fn().mockResolvedValueOnce({}),
-    };
+    const client = makeClient(rawResponse, null);
 
     await handleUpdateNode(client, { nodeId: 'n1', properties: { name: 'New' } });
 
@@ -299,12 +331,7 @@ describe('handleUpdateNode', () => {
 
   it('round-trips the rev field in the PUT body', async () => {
     const rawResponse = { ...makeFlows(), rev: 'my-revision-123' };
-    const client = {
-      request: vi.fn()
-        .mockResolvedValueOnce(rawResponse)           // GET /flows
-        .mockResolvedValueOnce(null),                  // GET /credentials
-      putFlows: vi.fn().mockResolvedValueOnce({}),
-    };
+    const client = makeClient(rawResponse, null);
 
     await handleUpdateNode(client, { nodeId: 'n1', properties: { name: 'X' } });
 
@@ -314,12 +341,7 @@ describe('handleUpdateNode', () => {
 
   it('returns previousState and currentState in MCP content', async () => {
     const rawResponse = makeFlows();
-    const client = {
-      request: vi.fn()
-        .mockResolvedValueOnce(rawResponse)           // GET /flows
-        .mockResolvedValueOnce(null),                  // GET /credentials
-      putFlows: vi.fn().mockResolvedValueOnce({}),
-    };
+    const client = makeClient(rawResponse, null);
 
     const result = await handleUpdateNode(client, { nodeId: 'n1', properties: { name: 'New' } });
     const parsed = JSON.parse(result.content[0].text);
@@ -331,12 +353,7 @@ describe('handleUpdateNode', () => {
 
   it('throws if wires is in properties', async () => {
     const rawResponse = makeFlows();
-    const client = {
-      request: vi.fn()
-        .mockResolvedValueOnce(rawResponse)           // GET /flows
-        .mockResolvedValueOnce(null),                  // GET /credentials
-      putFlows: vi.fn(),
-    };
+    const client = makeClient(rawResponse, null, vi.fn());
 
     await expect(handleUpdateNode(client, { nodeId: 'n1', properties: { wires: [] } }))
       .rejects.toThrow(/wires/i);
@@ -345,12 +362,7 @@ describe('handleUpdateNode', () => {
 
   it('throws if nodeId is not found', async () => {
     const rawResponse = makeFlows();
-    const client = {
-      request: vi.fn()
-        .mockResolvedValueOnce(rawResponse),           // GET /flows
-      // No credentials call needed — node not found throws first
-      putFlows: vi.fn(),
-    };
+    const client = makeClient(rawResponse, undefined, vi.fn());
 
     await expect(handleUpdateNode(client, { nodeId: 'ghost', properties: { name: 'X' } }))
       .rejects.toThrow("Node 'ghost' not found");
@@ -358,12 +370,7 @@ describe('handleUpdateNode', () => {
 
   it('throws if parent flow is locked', async () => {
     const rawResponse = makeLockedFlows();
-    const client = {
-      request: vi.fn()
-        .mockResolvedValueOnce(rawResponse)           // GET /flows
-        .mockResolvedValueOnce(null),                  // GET /credentials
-      putFlows: vi.fn(),
-    };
+    const client = makeClient(rawResponse, null, vi.fn());
 
     await expect(handleUpdateNode(client, { nodeId: 'n1', properties: { name: 'X' } }))
       .rejects.toThrow("Flow 'flow-1' is locked");
@@ -371,7 +378,6 @@ describe('handleUpdateNode', () => {
   });
 
   it('queries /credentials/:type/:id to get authoritative credential field names', async () => {
-    // Build a flow with an MQTT broker config node
     const mqttNode = {
       id: 'mqtt-1',
       type: 'mqtt-broker',
@@ -380,34 +386,23 @@ describe('handleUpdateNode', () => {
       port: '1883',
     };
     const rawResponse = { rev: 'rev-1', flows: [mqttNode] };
-
-    const client = {
-      request: vi.fn()
-        .mockResolvedValueOnce(rawResponse) // GET /flows
-        .mockResolvedValueOnce({           // GET /credentials/mqtt-broker/mqtt-1
-          username: 'stored-user',
-          has_password: true,
-        }),
-      putFlows: vi.fn().mockResolvedValueOnce({}),
-    };
+    const credResponse = { username: 'stored-user', has_password: true };
+    const client = makeClient(rawResponse, credResponse);
 
     await handleUpdateNode(client, {
       nodeId: 'mqtt-1',
       properties: { username: 'new-user', password: 'new-pass', broker: 'new-broker' },
     });
 
-    // Should have called the credentials endpoint
     expect(client.request).toHaveBeenCalledWith('GET', '/credentials/mqtt-broker/mqtt-1');
 
     const [putPayload] = client.putFlows.mock.calls[0];
     const updatedNode = putPayload.flows.find((n) => n.id === 'mqtt-1');
 
-    // username and password should be in credentials (from API)
     expect(updatedNode.credentials).toEqual({
       username: 'new-user',
       password: 'new-pass',
     });
-    // broker should be at top level
     expect(updatedNode.broker).toBe('new-broker');
     expect(updatedNode.username).toBeUndefined();
     expect(updatedNode.password).toBeUndefined();
@@ -422,20 +417,13 @@ describe('handleUpdateNode', () => {
       port: '1883',
     };
     const rawResponse = { rev: 'rev-1', flows: [mqttNode] };
-
-    const client = {
-      request: vi.fn()
-        .mockResolvedValueOnce(rawResponse) // GET /flows
-        .mockRejectedValueOnce(new Error('Not Found')), // GET /credentials fails (404)
-      putFlows: vi.fn().mockResolvedValueOnce({}),
-    };
+    const client = makeClient(rawResponse, new Error('Not Found'));
 
     await handleUpdateNode(client, {
       nodeId: 'mqtt-1',
       properties: { username: 'heuristic-user', password: 'heuristic-pass' },
     });
 
-    // Should still work — heuristic places username/password in credentials
     const [putPayload] = client.putFlows.mock.calls[0];
     const updatedNode = putPayload.flows.find((n) => n.id === 'mqtt-1');
     expect(updatedNode.credentials).toEqual({

@@ -9,6 +9,7 @@
  */
 
 import { randomUUID } from 'crypto';
+import { withRetry } from './flow-utils.js';
 
 /**
  * Parse and normalize a flowJson string to a flat node array.
@@ -202,70 +203,44 @@ export async function handleImportFlow(client, params) {
     throw new Error(`Unknown conflictStrategy '${conflictStrategy}'. Use "regenerate" or "overwrite"`);
   }
 
-  // Step 2: Fetch existing flows
-  const rawResponse = await client.request('GET', '/flows');
-  const existing = rawResponse.flows || [];
-  const { rev } = rawResponse;
-
-  // Step 3: Validate targetFlowId if provided
-  if (targetFlowId) {
-    const targetTab = existing.find(
-      (n) => n.id === targetFlowId && (n.type === 'tab' || n.type === 'subflow')
-    );
-    if (!targetTab) {
-      throw new Error(`Target flow '${targetFlowId}' not found`);
-    }
-    if (targetTab.locked) {
-      throw new Error(`Target flow '${targetFlowId}' is locked`);
-    }
-  }
-
-  // Step 4: Normalize the incoming JSON
+  // Step 2: Normalize the incoming JSON (pure, no network)
   const importedNodes = normalizeFlowJson(flowJson);
 
-  // Step 5: Apply import destination + conflict strategy
+  // Step 3: Compute the nodes to merge (deterministic, no network dependency)
   let nodesToMerge;
-  let conflicts = 0;
-  let actualStrategy = conflictStrategy;
-
   if (targetFlowId) {
-    // Inject into existing flow: discard tabs, remap z, then regenerate IDs to avoid collisions
     const remapped = applyTargetFlow(importedNodes, targetFlowId);
     nodesToMerge = conflictStrategy === 'regenerate' ? regenerateIds(remapped) : remapped;
-    const merged = mergeFlows(existing, nodesToMerge, conflictStrategy === 'regenerate' ? 'regenerate' : 'overwrite');
-    conflicts = merged.conflicts;
-
-    // Step 6: Deploy
-    await client.putFlows({ rev, flows: merged.mergedFlows }, 'full');
-
-    const summary = summarizeImport(nodesToMerge, conflicts, actualStrategy, targetFlowId);
-    return {
-      content: [{ type: 'text', text: JSON.stringify(summary, null, 2) }],
-    };
-  }
-
-  // Standard import (no targetFlowId)
-  if (conflictStrategy === 'regenerate') {
+  } else if (conflictStrategy === 'regenerate') {
     nodesToMerge = regenerateIds(importedNodes);
-    const merged = mergeFlows(existing, nodesToMerge, 'regenerate');
-    conflicts = merged.conflicts;
-
-    await client.putFlows({ rev, flows: merged.mergedFlows }, 'full');
-
-    const summary = summarizeImport(nodesToMerge, conflicts, actualStrategy, null);
-    return {
-      content: [{ type: 'text', text: JSON.stringify(summary, null, 2) }],
-    };
+  } else {
+    nodesToMerge = importedNodes;
   }
 
-  // overwrite strategy
-  nodesToMerge = importedNodes;
-  const merged = mergeFlows(existing, nodesToMerge, 'overwrite');
-  conflicts = merged.conflicts;
+  // Step 4: Merge and deploy with retry on version conflicts
+  const mergeStrategy = (targetFlowId && conflictStrategy !== 'overwrite') ? 'regenerate' : conflictStrategy;
 
-  await client.putFlows({ rev, flows: merged.mergedFlows }, 'full');
+  const result = await withRetry(client, (rawResponse) => {
+    const existing = rawResponse.flows || [];
 
-  const summary = summarizeImport(nodesToMerge, conflicts, actualStrategy, null);
+    // Validate targetFlowId if provided
+    if (targetFlowId) {
+      const targetTab = existing.find(
+        (n) => n.id === targetFlowId && (n.type === 'tab' || n.type === 'subflow'),
+      );
+      if (!targetTab) {
+        throw new Error(`Target flow '${targetFlowId}' not found`);
+      }
+      if (targetTab.locked) {
+        throw new Error(`Target flow '${targetFlowId}' is locked`);
+      }
+    }
+
+    return mergeFlows(existing, nodesToMerge, mergeStrategy);
+  }, 'full');
+
+  const summary = summarizeImport(nodesToMerge, result.conflicts, conflictStrategy, targetFlowId ?? null);
+
   return {
     content: [{ type: 'text', text: JSON.stringify(summary, null, 2) }],
   };

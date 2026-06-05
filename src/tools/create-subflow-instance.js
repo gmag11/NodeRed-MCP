@@ -7,6 +7,7 @@
  */
 
 import { randomUUID } from 'crypto';
+import { withRetry } from './flow-utils.js';
 
 /**
  * Build a subflow instance node object.
@@ -96,22 +97,17 @@ export function applyCreateSubflowInstance(rawResponse, subflowId, flowId, name,
 export async function handleCreateSubflowInstance(client, params) {
   const { subflowId, flowId, name, env, x = 200, y = 200 } = params;
 
-  // GET current flows
-  const rawResponse = await client.request('GET', '/flows');
-  const { rev } = rawResponse;
-
-  const { updatedFlows, currentState } = applyCreateSubflowInstance(
-    rawResponse,
-    subflowId,
-    flowId,
-    name,
-    env,
-    x,
-    y,
-  );
-
-  // Deploy via POST /flows
-  await client.putFlows({ rev, flows: updatedFlows }, 'flows');
+  const { currentState } = await withRetry(client, (rawResponse) => {
+    return applyCreateSubflowInstance(
+      rawResponse,
+      subflowId,
+      flowId,
+      name,
+      env,
+      x,
+      y,
+    );
+  });
 
   return {
     content: [

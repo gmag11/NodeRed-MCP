@@ -6,6 +6,7 @@
  * are provided, all members are removed.
  */
 
+import { withRetry } from './flow-utils.js';
 /**
  * Apply the remove-nodes-from-group operation to the flows array.
  *
@@ -125,15 +126,12 @@ export function applyRemoveNodesFromGroup(rawResponse, groupId, options = {}) {
 export async function handleRemoveNodesFromGroup(client, params) {
   const { groupId, nodeIds, reposition } = params;
 
-  const rawResponse = await client.request('GET', '/flows');
-  const { rev } = rawResponse;
-
-  const result = applyRemoveNodesFromGroup(rawResponse, groupId, {
-    nodeIds,
-    reposition,
+  const result = await withRetry(client, (rawResponse) => {
+    return applyRemoveNodesFromGroup(rawResponse, groupId, {
+      nodeIds,
+      reposition,
+    });
   });
-
-  await client.putFlows({ rev, flows: result.updatedFlows }, 'flows');
 
   return {
     content: [

@@ -9,6 +9,7 @@
  * Errors if a wire does not exist.  Refuses to mutate nodes in locked flows.
  */
 
+import { withRetry } from './flow-utils.js';
 /**
  * Apply wire removal in the flows array.
  *
@@ -129,24 +130,19 @@ export function applyDisconnect(rawResponse, fromNodeId, outputPort = 0, toNodeI
 export async function handleDisconnectNodes(client, params) {
   const { fromNodeId, outputPort = 0, toNodeId, clearPort = false, connections } = params;
 
-  const rawResponse = await client.request('GET', '/flows');
-  const { rev } = rawResponse;
-
-  const { updatedFlows, previousWires, currentWires } = applyDisconnect(
-    rawResponse,
-    fromNodeId,
-    outputPort,
-    toNodeId,
-    clearPort,
-    connections,
-  );
-
-  // Skip deploy if no changes were made (clear-port no-op, or other idempotency cases)
-  const hasChanges = JSON.stringify(previousWires) !== JSON.stringify(currentWires);
-
-  if (hasChanges) {
-    await client.putFlows({ rev, flows: updatedFlows }, 'flows');
-  }
+const { previousWires, currentWires } = await withRetry(
+      client,
+      (rawResponse) => {
+        return applyDisconnect(
+          rawResponse,
+          fromNodeId,
+          outputPort,
+          toNodeId,
+          clearPort,
+          connections,
+        );
+      }
+    );
 
   // Build response shape based on mode
   let responseData;

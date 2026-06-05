@@ -7,6 +7,7 @@
  */
 
 import { applyNodeUpdate } from './update-node.js';
+import { withRetry } from './flow-utils.js';
 
 /**
  * Apply a property update to a group node in the flows array.
@@ -45,12 +46,9 @@ export function applyUpdateGroup(rawResponse, groupId, properties) {
 export async function handleUpdateGroup(client, params) {
   const { groupId, properties } = params;
 
-  const rawResponse = await client.request('GET', '/flows');
-  const { rev } = rawResponse;
-
-  const result = applyUpdateGroup(rawResponse, groupId, properties);
-
-  await client.putFlows({ rev, flows: result.updatedFlows }, 'flows');
+  const result = await withRetry(client, (rawResponse) => {
+    return applyUpdateGroup(rawResponse, groupId, properties);
+  });
 
   return {
     content: [

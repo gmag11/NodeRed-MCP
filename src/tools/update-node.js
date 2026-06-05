@@ -21,7 +21,7 @@
  * are updated; unspecified credential fields retain their previous values.
  */
 
-import { normalizeCredentials } from './flow-utils.js';
+import { normalizeCredentials, withRetry } from './flow-utils.js';
 
 /**
  * Apply a property update to a node in the flows array.
@@ -88,47 +88,34 @@ export function applyNodeUpdate(rawResponse, nodeId, properties, credentialKeys 
 export async function handleUpdateNode(client, params) {
   const { nodeId, properties } = params;
 
-  // GET current flows (includes rev for optimistic locking)
-  const rawResponse = await client.request('GET', '/flows');
-  const { rev } = rawResponse;
-
-  // Find the target node to get its type for credential detection
-  const flows = rawResponse.flows ?? rawResponse;
-  const node = flows.find((n) => n.id === nodeId);
-  if (!node) {
-    throw new Error(`Node '${nodeId}' not found`);
-  }
-
-  // Try to get credential field names from the Node-RED API.
-  // The /credentials/:type/:id endpoint returns the credential field names
-  // (with password values masked as has_<field>: true/false).
-  // This gives us an authoritative list of which properties are credentials.
+  // Fetch credential metadata once (outside retry loop — just for detection)
   let credentialKeys = null;
   try {
-    const credResponse = await client.request('GET', `/credentials/${encodeURIComponent(node.type)}/${encodeURIComponent(nodeId)}`);
-    if (credResponse && typeof credResponse === 'object') {
-      credentialKeys = Object.keys(credResponse).flatMap((k) => {
-        if (k.startsWith('has_')) {
-          // has_password → password
-          return [k.slice(4)];
+    const initialRaw = await client.request('GET', '/flows');
+    const initialFlows = initialRaw.flows ?? [];
+    const initialNode = initialFlows.find((n) => n.id === nodeId);
+    if (initialNode) {
+      try {
+        const credResponse = await client.request('GET', `/credentials/${encodeURIComponent(initialNode.type)}/${encodeURIComponent(nodeId)}`);
+        if (credResponse && typeof credResponse === 'object') {
+          credentialKeys = Object.keys(credResponse).flatMap((k) => {
+            if (k.startsWith('has_')) {
+              return [k.slice(4)]; // has_password → password
+            }
+            return [k];
+          });
         }
-        return [k];
-      });
+      } catch {
+        // Fall back to heuristic detection
+      }
     }
   } catch {
-    // Fall back to heuristic detection if the credentials endpoint is
-    // unavailable (e.g., editor disabled, auth mismatch, node has no creds).
+    // Node not found or other error — applyNodeUpdate will handle validation
   }
 
-  const { updatedFlows, previousState, currentState } = applyNodeUpdate(
-    rawResponse,
-    nodeId,
-    properties,
-    credentialKeys,
-  );
-
-  // PUT updated flows back with revision token
-  await client.putFlows({ rev, flows: updatedFlows }, 'flows');
+  const { previousState, currentState } = await withRetry(client, (rawResponse) => {
+    return applyNodeUpdate(rawResponse, nodeId, properties, credentialKeys);
+  });
 
   return {
     content: [

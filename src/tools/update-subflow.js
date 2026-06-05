@@ -7,6 +7,7 @@
  * Refuses to update a locked subflow.
  */
 
+import { withRetry } from './flow-utils.js';
 const ALLOWED_FIELDS = ['name', 'info', 'category', 'color', 'icon', 'in', 'out'];
 
 /**
@@ -54,26 +55,19 @@ export function applySubflowUpdate(currentSubflow, updates) {
 export async function handleUpdateSubflow(client, params) {
   const { subflowId, updates } = params;
 
-  const rawResponse = await client.request('GET', '/flows');
-  const flows = rawResponse.flows || [];
-  const { rev } = rawResponse;
-
-  // Find the subflow definition
-  const subflowIndex = flows.findIndex(
-    (n) => n.type === 'subflow' && n.id === subflowId,
-  );
-
-  if (subflowIndex === -1) {
-    throw new Error(`Subflow '${subflowId}' not found`);
-  }
-
-  const { updatedSubflow, previousState } = applySubflowUpdate(flows[subflowIndex], updates);
-
-  // Replace in flows array
-  const updatedFlows = [...flows];
-  updatedFlows[subflowIndex] = updatedSubflow;
-
-  await client.putFlows({ rev, flows: updatedFlows }, 'flows');
+  const { previousState, currentState: updatedSubflow } = await withRetry(client, (rawResponse) => {
+    const flows = rawResponse.flows || [];
+    const subflowIndex = flows.findIndex(
+      (n) => n.type === 'subflow' && n.id === subflowId,
+    );
+    if (subflowIndex === -1) {
+      throw new Error(`Subflow '${subflowId}' not found`);
+    }
+    const { updatedSubflow, previousState } = applySubflowUpdate(flows[subflowIndex], updates);
+    const updatedFlows = [...flows];
+    updatedFlows[subflowIndex] = updatedSubflow;
+    return { updatedFlows, previousState, updatedSubflow };
+  });
 
   return {
     content: [

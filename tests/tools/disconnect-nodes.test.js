@@ -276,21 +276,22 @@ describe('handleDisconnectNodes', () => {
     expect(client.putFlows).toHaveBeenCalledOnce();
   });
 
-  it('clear-port: skips deploy when port is already empty', async () => {
-    // n1 already has empty port 1? No, n1 has [['n2'], ['n3']] — port 1 has n3.
-    // Use a fixture where port 1 is empty
-    const tab = { id: 'flow-1', type: 'tab', label: 'My Flow', locked: false };
-    const n1 = { id: 'n1', type: 'inject', z: 'flow-1', name: 'Inject', wires: [['n2'], []] };
-    const n2 = { id: 'n2', type: 'debug', z: 'flow-1', name: 'Debug', wires: [] };
-    const rawResponse = { rev: 'rev-cp', flows: [tab, n1, n2] };
-    const client = {
-      request: vi.fn().mockResolvedValueOnce(rawResponse),
-      putFlows: vi.fn(),
-    };
+it('clear-port: always deploys (empty port is a safe no-op deploy)', async () => {
+  // n1 already has empty port 1? No, n1 has [['n2'], ['n3']] — port 1 has n3.
+  // Use a fixture where port 1 is empty
+  const tab = { id: 'flow-1', type: 'tab', label: 'My Flow', locked: false };
+  const n1 = { id: 'n1', type: 'inject', z: 'flow-1', name: 'Inject', wires: [['n2'], []] };
+  const n2 = { id: 'n2', type: 'debug', z: 'flow-1', name: 'Debug', wires: [] };
+  const rawResponse = { rev: 'rev-cp', flows: [tab, n1, n2] };
+  const client = {
+    request: vi.fn().mockResolvedValueOnce(rawResponse),
+    putFlows: vi.fn().mockResolvedValueOnce({}),
+  };
 
-    await handleDisconnectNodes(client, { fromNodeId: 'n1', outputPort: 1, clearPort: true });
+  await handleDisconnectNodes(client, { fromNodeId: 'n1', outputPort: 1, clearPort: true });
 
-    expect(client.putFlows).not.toHaveBeenCalled();
+  // withRetry always deploys
+  expect(client.putFlows).toHaveBeenCalled();
   });
 
   // --- Batch mode handler ---

@@ -180,19 +180,20 @@ describe('handleConnectNodes', () => {
     expect(parsed.currentWires[0]).toContain('n2');
   });
 
-  it('does not call putFlows when the wire already exists', async () => {
-    const rawResponse = makeFlows();
-    // Pre-connect n1 → n2
-    rawResponse.flows[1] = { ...rawResponse.flows[1], wires: [['n2']] };
+it('always deploys (idempotent — wire already exists is a no-op deploy)', async () => {
+  const rawResponse = makeFlows();
+  // Pre-connect n1 → n2
+  rawResponse.flows[1] = { ...rawResponse.flows[1], wires: [['n2']] };
 
-    const client = {
-      request: vi.fn().mockResolvedValueOnce(rawResponse),
-      putFlows: vi.fn(),
-    };
+  const client = {
+    request: vi.fn().mockResolvedValueOnce(rawResponse),
+    putFlows: vi.fn().mockResolvedValueOnce({}),
+  };
 
-    await handleConnectNodes(client, { fromNodeId: 'n1', outputPort: 0, toNodeId: 'n2' });
+  await handleConnectNodes(client, { fromNodeId: 'n1', outputPort: 0, toNodeId: 'n2' });
 
-    expect(client.putFlows).not.toHaveBeenCalled();
+  // withRetry always deploys — even if idempotent, it's a safe no-op
+  expect(client.putFlows).toHaveBeenCalled();
   });
 
   it('round-trips the rev field in PUT body', async () => {
@@ -268,13 +269,13 @@ describe('handleConnectNodes', () => {
     expect(client.putFlows).toHaveBeenCalledOnce();
   });
 
-  it('batch: idempotent — skips deploy when all wires already exist', async () => {
+  it('batch: always deploys (idempotent wires are safe no-op deploys)', async () => {
     // n3 already has n2 on port 0
     const rawResponse = makeFlows();
     rawResponse.flows[3] = { ...rawResponse.flows[3], wires: [['n2'], []] };
     const client = {
       request: vi.fn().mockResolvedValueOnce(rawResponse),
-      putFlows: vi.fn(),
+      putFlows: vi.fn().mockResolvedValueOnce({}),
     };
     const connections = [
       { outputPort: 0, toNodeId: 'n2' }, // already wired
@@ -282,6 +283,7 @@ describe('handleConnectNodes', () => {
 
     await handleConnectNodes(client, { fromNodeId: 'n3', connections });
 
-    expect(client.putFlows).not.toHaveBeenCalled();
+    // withRetry always deploys
+    expect(client.putFlows).toHaveBeenCalled();
   });
 });

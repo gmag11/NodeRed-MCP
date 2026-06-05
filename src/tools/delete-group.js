@@ -6,6 +6,7 @@
  * keep the nodes.
  */
 
+import { withRetry } from './flow-utils.js';
 /**
  * Apply the delete-group operation to the flows array.
  *
@@ -85,12 +86,9 @@ export function applyDeleteGroup(rawResponse, groupId, options = {}) {
 export async function handleDeleteGroup(client, params) {
   const { groupId, deleteMembers } = params;
 
-  const rawResponse = await client.request('GET', '/flows');
-  const { rev } = rawResponse;
-
-  const result = applyDeleteGroup(rawResponse, groupId, { deleteMembers });
-
-  await client.putFlows({ rev, flows: result.updatedFlows }, 'flows');
+  const result = await withRetry(client, (rawResponse) => {
+    return applyDeleteGroup(rawResponse, groupId, { deleteMembers });
+  });
 
   return {
     content: [

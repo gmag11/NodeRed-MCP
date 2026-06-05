@@ -49,17 +49,14 @@ export function applyDeleteNode(rawResponse, nodeId) {
  * @param {string} params.nodeId
  * @returns {Promise<{ content: Array<{ type: string, text: string }> }>}
  */
+import { withRetry } from './flow-utils.js';
+
 export async function handleDeleteNode(client, params) {
   const { nodeId } = params;
 
-  // GET current flows (includes rev for optimistic locking)
-  const rawResponse = await client.request('GET', '/flows');
-  const { rev } = rawResponse;
-
-  const { updatedFlows, previousState } = applyDeleteNode(rawResponse, nodeId);
-
-  // Deploy via POST /flows
-  await client.putFlows({ rev, flows: updatedFlows }, 'flows');
+  const { previousState } = await withRetry(client, (rawResponse) => {
+    return applyDeleteNode(rawResponse, nodeId);
+  });
 
   return {
     content: [

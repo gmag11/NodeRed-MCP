@@ -8,6 +8,7 @@
  */
 
 import { randomUUID } from 'crypto';
+import { withRetry } from './flow-utils.js';
 
 /**
  * Build a new subflow definition node.
@@ -80,14 +81,11 @@ export async function handleCreateSubflow(client, params) {
   const inPorts = params.in;
   const outPorts = params.out;
 
-  const rawResponse = await client.request('GET', '/flows');
-  const { rev } = rawResponse;
-
-  const { updatedFlows, currentState } = applyCreateSubflow(
-    rawResponse, name, info, category, color, icon, inPorts, outPorts,
-  );
-
-  await client.putFlows({ rev, flows: updatedFlows }, 'flows');
+  const { currentState } = await withRetry(client, (rawResponse) => {
+    return applyCreateSubflow(
+      rawResponse, name, info, category, color, icon, inPorts, outPorts,
+    );
+  });
 
   return {
     content: [

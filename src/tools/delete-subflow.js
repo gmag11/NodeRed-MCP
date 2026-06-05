@@ -6,6 +6,7 @@
  * Refuses to delete a locked subflow.
  */
 
+import { withRetry } from './flow-utils.js';
 /**
  * Collect the full previous state of a subflow before deletion.
  *
@@ -82,13 +83,10 @@ export function applyDeleteSubflow(flows, subflowId, deleteInstances) {
 export async function handleDeleteSubflow(client, params) {
   const { subflowId, deleteInstances = true } = params;
 
-  const rawResponse = await client.request('GET', '/flows');
-  const flows = rawResponse.flows || [];
-  const { rev } = rawResponse;
-
-  const { updatedFlows, previousState } = applyDeleteSubflow(flows, subflowId, deleteInstances);
-
-  await client.putFlows({ rev, flows: updatedFlows }, 'flows');
+  const { previousState } = await withRetry(client, (rawResponse) => {
+    const flows = rawResponse.flows || [];
+    return applyDeleteSubflow(flows, subflowId, deleteInstances);
+  });
 
   return {
     content: [

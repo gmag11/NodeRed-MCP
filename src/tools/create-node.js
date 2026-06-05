@@ -13,7 +13,7 @@
  */
 
 import { randomUUID } from 'crypto';
-import { normalizeCredentials } from './flow-utils.js';
+import { normalizeCredentials, withRetry } from './flow-utils.js';
 
 /**
  * Build a new node object with structural fields set and properties merged in.
@@ -95,21 +95,9 @@ export function applyCreateNode(rawResponse, type, flowId, properties, x, y) {
 export async function handleCreateNode(client, params) {
   const { type, flowId, properties = {}, x = 200, y = 200 } = params;
 
-  // GET current flows (includes rev for optimistic locking)
-  const rawResponse = await client.request('GET', '/flows');
-  const { rev } = rawResponse;
-
-  const { updatedFlows, currentState } = applyCreateNode(
-    rawResponse,
-    type,
-    flowId,
-    properties,
-    x,
-    y,
-  );
-
-  // Deploy via POST /flows
-  await client.putFlows({ rev, flows: updatedFlows }, 'flows');
+  const { currentState } = await withRetry(client, (rawResponse) => {
+    return applyCreateNode(rawResponse, type, flowId, properties, x, y);
+  });
 
   return {
     content: [
