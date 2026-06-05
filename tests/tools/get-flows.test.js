@@ -7,7 +7,7 @@ describe('transformFlows', () => {
     expect(result).toEqual([]);
   });
 
-  it('returns empty array when flows only has non-tab/non-subflow nodes', () => {
+  it('returns empty array when flows only has non-tab nodes', () => {
     const result = transformFlows({
       rev: '1',
       flows: [
@@ -45,7 +45,7 @@ describe('transformFlows', () => {
     ]);
   });
 
-  it('extracts subflows with correct nodeCount', () => {
+  it('excludes subflows from results', () => {
     const result = transformFlows({
       rev: '1',
       flows: [
@@ -55,18 +55,7 @@ describe('transformFlows', () => {
       ],
     });
 
-    expect(result).toEqual([
-      {
-        id: 'sub1',
-        label: 'My Subflow',
-        type: 'subflow',
-        disabled: false,
-        locked: false,
-        info: '',
-        nodeCount: 2,
-        nodeTypes: ['http request', 'function'],
-      },
-    ]);
+    expect(result).toEqual([]);
   });
 
   it('excludes global config nodes (no z property) from counts', () => {
@@ -155,7 +144,7 @@ describe('transformFlows', () => {
     expect(result[0].info).toBe('');
   });
 
-  it('handles mixed tabs and subflows', () => {
+  it('handles mixed tabs and subflows, returning only tabs', () => {
     const result = transformFlows({
       rev: '2',
       flows: [
@@ -166,10 +155,9 @@ describe('transformFlows', () => {
       ],
     });
 
-    expect(result).toHaveLength(2);
+    expect(result).toHaveLength(1);
     expect(result[0].id).toBe('tab1');
     expect(result[0].nodeCount).toBe(1);
-    expect(result[1].id).toBe('sub1');
-    expect(result[1].nodeCount).toBe(1);
+    // sub1 does not appear in results
   });
 });

@@ -8,6 +8,13 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { handleGetFlows } from './tools/get-flows.js';
+import { handleGetSubflows } from './tools/get-subflows.js';
+import { handleGetSubflowDetail } from './tools/get-subflow-detail.js';
+import { handleCreateSubflowInstance } from './tools/create-subflow-instance.js';
+import { handleExportSubflow } from './tools/export-subflow.js';
+import { handleCreateSubflow } from './tools/create-subflow.js';
+import { handleUpdateSubflow } from './tools/update-subflow.js';
+import { handleDeleteSubflow } from './tools/delete-subflow.js';
 import { handleGetFlowNodes } from './tools/get-flow-nodes.js';
 import { handleGetFlowDiagram } from './tools/get-flow-diagram.js';
 import { handleGetConfigNodes } from './tools/get-config-nodes.js';
@@ -55,11 +62,120 @@ export function createMcpServer(nodeRedClient, commsClient) {
   // Register: get-flows
   server.tool(
     'get-flows',
-    'Get a summarized list of all flows (tabs and subflows) from the Node-RED instance. ' +
-    'Returns each flow\'s id, label, enabled/disabled status, node count, and the types of nodes it contains. ' +
-    'Use this to understand what flows exist and what they do at a glance.',
+    'Get a summarized list of all flow tabs from the Node-RED instance. ' +
+    'Returns each tab\'s id, label, type, enabled/disabled status, node count, and the types of nodes it contains. ' +
+    'Use this to understand what flow tabs exist and what they do at a glance. ' +
+    'For subflow definitions, use get-subflows.',
     {},
     async () => handleGetFlows(nodeRedClient),
+  );
+
+  // Register: get-subflows
+  server.tool(
+    'get-subflows',
+    'Get a summarized list of all subflow definitions from the Node-RED instance. ' +
+    'Returns each subflow\'s id, name, info, input/output port counts, internal node count and types, ' +
+    'instance count, and the locations of each instance. ' +
+    'Use this to discover reusable subflows before building flows. ' +
+    'Use get-subflow-detail for deep inspection of a specific subflow.',
+    {},
+    async () => handleGetSubflows(nodeRedClient),
+  );
+
+  // Register: get-subflow-detail
+  server.tool(
+    'get-subflow-detail',
+    'Get the full detail of a single subflow definition. ' +
+    'Returns the subflow definition node, all internal nodes (with sanitized config), ' +
+    'all instances placed in flow tabs, and a Mermaid flowchart diagram of the internal wiring. ' +
+    'Use this to understand what a subflow does internally before instantiating or modifying it.',
+    {
+      subflowId: z.string().describe('ID of the subflow to inspect'),
+    },
+    async (params) => handleGetSubflowDetail(nodeRedClient, params),
+  );
+
+  // Register: create-subflow-instance
+  server.tool(
+    'create-subflow-instance',
+    'Create an instance of an existing subflow inside a flow tab. ' +
+    'Auto-sizes the output wires to match the subflow\'s output port count. ' +
+    'Validates that the subflow and target flow exist. ' +
+    'Use this to place a reusable subflow into a flow tab.',
+    {
+      subflowId: z.string().describe('ID of the subflow definition to instantiate'),
+      flowId: z.string().describe('ID of the target flow tab where the instance will be placed'),
+      name: z.string().optional().describe('Display name for the instance'),
+      env: z.array(z.object({
+        name: z.string().describe('Environment variable name'),
+        value: z.string().describe('Environment variable value'),
+        type: z.string().describe('Environment variable type (e.g. "str", "num", "bool")'),
+      })).optional().describe('Instance-level environment variables'),
+      x: z.number().int().optional().default(200).describe('X canvas position (default 200)'),
+      y: z.number().int().optional().default(200).describe('Y canvas position (default 200)'),
+    },
+    async (params) => handleCreateSubflowInstance(nodeRedClient, params),
+  );
+
+  // Register: export-subflow
+  server.tool(
+    'export-subflow',
+    'Export a Node-RED subflow definition, its internal nodes, and any referenced config nodes ' +
+    'as a JSON array string that can be passed to import-flow. ' +
+    'Use this to back up a subflow, share it, or duplicate it across instances.',
+    {
+      subflowId: z.string().describe('ID of the subflow to export'),
+    },
+    async (params) => handleExportSubflow(nodeRedClient, params),
+  );
+
+  // Register: create-subflow
+  server.tool(
+    'create-subflow',
+    'Create a new empty subflow definition. ' +
+    'Returns the subflowId which can then be used with create-node (flowId = subflowId) ' +
+    'and connect-nodes to populate internal nodes. Use update-subflow to define input/output ports.',
+    {
+      name: z.string().describe('Display name for the subflow'),
+      info: z.string().optional().describe('Markdown description for the subflow'),
+      category: z.string().optional().describe('Palette category (e.g. "subflow"). Omit to place in the default "subflows" section.'),
+      color: z.string().optional().describe('Palette node color (e.g. "#DDAA99")'),
+      icon: z.string().optional().describe('Palette icon path (e.g. "node-red/subflow.svg")'),
+      in: z.array(z.object({}).passthrough()).optional().describe('Input port definitions'),
+      out: z.array(z.object({}).passthrough()).optional().describe('Output port definitions'),
+    },
+    async (params) => handleCreateSubflow(nodeRedClient, params),
+  );
+
+  // Register: update-subflow
+  server.tool(
+    'update-subflow',
+    'Update metadata fields of an existing subflow definition. ' +
+    'Allowed fields: name, info, category, color, icon, in, out. ' +
+    'Performs a partial merge — unspecified fields are preserved. ' +
+    'Refuses to update a locked subflow. ' +
+    'Use this to rename a subflow or redefine its input/output port wiring.',
+    {
+      subflowId: z.string().describe('ID of the subflow to update'),
+      updates: z.object({}).passthrough().describe('Fields to update: name, info, category, color, icon, in, out'),
+    },
+    async (params) => handleUpdateSubflow(nodeRedClient, params),
+  );
+
+  // Register: delete-subflow
+  server.tool(
+    'delete-subflow',
+    'Delete a subflow definition, its internal nodes, and optionally its instances. ' +
+    'By default (deleteInstances: true), all instances are also removed. ' +
+    'Set deleteInstances: false to keep orphan instances. ' +
+    'Returns previousState with definition, internalNodes, and instances for undo support. ' +
+    'Refuses to delete a locked subflow.',
+    {
+      subflowId: z.string().describe('ID of the subflow to delete'),
+      deleteInstances: z.boolean().optional().default(true)
+        .describe('Whether to also delete all instances of this subflow (default true)'),
+    },
+    async (params) => handleDeleteSubflow(nodeRedClient, params),
   );
 
   // Register: get-flow-nodes
