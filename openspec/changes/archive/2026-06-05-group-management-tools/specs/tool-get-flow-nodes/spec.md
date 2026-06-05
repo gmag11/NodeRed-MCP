@@ -1,8 +1,5 @@
-# tool-get-flow-nodes Specification
+## MODIFIED Requirements
 
-## Purpose
-TBD - created by archiving change tool-get-flow-nodes. Update Purpose after archive.
-## Requirements
 ### Requirement: get-flow-nodes MCP tool
 The system SHALL expose an MCP tool named `get-flow-nodes` that accepts a `flowId` (required) and returns a paginated list of nodes within that flow, with metadata and sanitized configuration. The response SHALL include group nodes (`type: "group"`) alongside flow nodes, and each node object SHALL include a `g` property when the node belongs to a group.
 
@@ -116,4 +113,3 @@ The tool SHALL accept optional `offset` (default 0) and `limit` (default 50) par
 #### Scenario: Last page
 - **WHEN** `get-flow-nodes` is invoked with `offset: 100, limit: 50` on a flow with 120 nodes
 - **THEN** the response contains the remaining 20 nodes, `offset: 100`, `hasMore: false`
-

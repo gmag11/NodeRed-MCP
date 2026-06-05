@@ -23,7 +23,7 @@ export const BLOCKLISTED_FIELDS = new Set([
  *
  * @type {Set<string>}
  */
-const METADATA_FIELDS = new Set(['id', 'type', 'z', 'x', 'y', 'wires', 'd', 'name', 'g']);
+const METADATA_FIELDS = new Set(['id', 'type', 'z', 'x', 'y', 'wires', 'd', 'name']);
 
 /**
  * Return a sanitized copy of a node's configuration fields,
@@ -47,7 +47,8 @@ export function sanitizeNodeConfig(node) {
  * Throws if the flowId does not match any known tab or subflow.
  *
  * Only returns flow-level nodes — config nodes (nodes without a `wires`
- * property) are excluded even if they share the same `z`.
+ * property) are excluded even if they share the same `z`. Group nodes
+ * (`type: "group"`) are included since they are visual elements on the canvas.
  *
  * @param {object[]} allNodes - All nodes from the /flows response
  * @param {string} flowId - Target flow ID
@@ -64,7 +65,7 @@ export function getFlowNodes(allNodes, flowId) {
   }
 
   return allNodes.filter(
-    (n) => n.z === flowId && ('wires' in n)
+    (n) => n.z === flowId && (('wires' in n) || n.type === 'group')
   );
 }
 
@@ -225,6 +226,37 @@ export function paginate(items, offset = 0, limit = 50) {
     offset,
     limit,
     hasMore: offset + limit < totalCount,
+  };
+}
+
+/**
+ * Compute a bounding rectangle that encloses a set of nodes.
+ * Returns `{ x, y, w, h }` with optional padding on all sides.
+ *
+ * If the nodes array is empty, returns a zero-sized box at origin.
+ *
+ * @param {object[]} nodes - Array of nodes with `x` and `y` properties
+ * @param {number} [padding=20] - Padding to add on all sides
+ * @returns {{ x: number, y: number, w: number, h: number }}
+ */
+export function computeBoundingBox(nodes, padding = 20) {
+  if (nodes.length === 0) {
+    return { x: 0, y: 0, w: 0, h: 0 };
+  }
+
+  const xs = nodes.map((n) => n.x ?? 0);
+  const ys = nodes.map((n) => n.y ?? 0);
+
+  const minX = Math.min(...xs);
+  const minY = Math.min(...ys);
+  const maxX = Math.max(...xs);
+  const maxY = Math.max(...ys);
+
+  return {
+    x: minX - padding,
+    y: minY - padding,
+    w: maxX - minX + 2 * padding,
+    h: maxY - minY + 2 * padding,
   };
 }
 

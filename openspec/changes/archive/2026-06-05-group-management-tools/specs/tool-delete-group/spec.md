@@ -1,0 +1,31 @@
+## ADDED Requirements
+
+### Requirement: delete-group MCP tool
+The system SHALL expose an MCP tool named `delete-group` that accepts `groupId` (required string) and optional `deleteMembers` (boolean, default `true`). The tool SHALL remove the group node from the flows and optionally delete its member nodes.
+
+#### Scenario: Delete group with members
+- **WHEN** `delete-group` is invoked with `groupId: "grp1"` and `deleteMembers: true` (or default)
+- **THEN** all member nodes and the group node itself are removed from the flows and deployed
+
+#### Scenario: Delete group without members
+- **WHEN** `delete-group` is invoked with `groupId: "grp1"` and `deleteMembers: false`
+- **THEN** the `g` property is removed from all member nodes, their IDs are removed from the group's `nodes[]` array, and only the group node is deleted
+
+#### Scenario: Empty group deletion
+- **WHEN** a group has no remaining members (`nodes[]` is empty)
+- **THEN** deleting the group removes only the group node regardless of `deleteMembers` value
+
+#### Scenario: Group not found
+- **WHEN** `groupId` does not match any `type: "group"` node
+- **THEN** the tool returns an error: `Group '<groupId>' not found`
+
+#### Scenario: Locked flow
+- **WHEN** the group's parent flow has `locked: true`
+- **THEN** the tool returns an error: `Flow '<flowId>' is locked`
+
+### Requirement: delete-group returns deleted state for undo
+The tool SHALL return `previousState` (an object containing `group` — the full group node before deletion, and `members` — an array of full member node objects before deletion) in its response, enabling the agent to reconstruct the group if needed.
+
+#### Scenario: Response includes full previous state
+- **WHEN** a group with 3 members is deleted
+- **THEN** `previousState.group` contains the full group node, and `previousState.members` contains all 3 member node objects as they were before deletion

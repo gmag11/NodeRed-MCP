@@ -49,16 +49,37 @@ export function transformFlowNodes(rawResponse, flowId, options = {}) {
   const page = paginate(filtered, offset, limit);
 
   // Shape each node: top-level metadata + sanitized config
-  const nodes = page.items.map((node) => ({
-    id: node.id,
-    type: node.type,
-    name: node.name || '',
-    disabled: node.d === true,
-    x: node.x,
-    y: node.y,
-    wires: node.wires || [],
-    config: sanitizeNodeConfig(node),
-  }));
+  const nodes = page.items.map((node) => {
+    // Group nodes have a distinct shape: no wires, but style + member nodes array
+    if (node.type === 'group') {
+      return {
+        id: node.id,
+        type: 'group',
+        name: node.name || '',
+        disabled: node.d === true,
+        g: null,
+        x: node.x,
+        y: node.y,
+        w: node.w,
+        h: node.h,
+        style: node.style || {},
+        nodes: node.nodes || [],
+        config: {}, // no blocklisted fields on group nodes
+      };
+    }
+
+    return {
+      id: node.id,
+      type: node.type,
+      name: node.name || '',
+      disabled: node.d === true,
+      g: node.g || null,
+      x: node.x,
+      y: node.y,
+      wires: node.wires || [],
+      config: sanitizeNodeConfig(node),
+    };
+  });
 
   return {
     flowId,
