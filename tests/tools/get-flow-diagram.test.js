@@ -80,6 +80,55 @@ describe('generateMermaidDiagram', () => {
     const diagram = generateMermaidDiagram([]);
     expect(diagram).toContain('%% Empty flow');
   });
+
+  // ── Group rendering ──
+  it('renders group as Mermaid subgraph', () => {
+    const group = { id: 'grp1', type: 'group', name: 'Inputs', style: {}, nodes: ['A', 'B'] };
+    const diagram = generateMermaidDiagram([group, INJECT, FUNC]);
+    expect(diagram).toContain('subgraph grp1["Inputs"]');
+    expect(diagram).toContain('end');
+  });
+
+  it('places group members inside subgraph', () => {
+    const group = { id: 'grp1', type: 'group', name: 'G', style: {}, nodes: ['A'] };
+    const diagram = generateMermaidDiagram([group, INJECT, FUNC]);
+    // Member node A should appear inside the subgraph block (indented)
+    expect(diagram).toMatch(/subgraph grp1.*\n.*A\["Start"\]/s);
+  });
+
+  it('ungrouped nodes rendered at top level outside subgraph', () => {
+    const group = { id: 'grp1', type: 'group', name: 'G', style: {}, nodes: ['A'] };
+    const diagram = generateMermaidDiagram([group, INJECT, FUNC, DEBUG]);
+    // B should be outside subgraph (not indented)
+    const lines = diagram.split('\n');
+    const bLine = lines.find((l) => l.includes('B['));
+    expect(bLine).toBeDefined();
+    expect(bLine).not.toMatch(/^\s{4}/); // not indented
+  });
+
+  it('maps group style to Mermaid style attributes', () => {
+    const group = {
+      id: 'grp1', type: 'group', name: 'G',
+      style: { fill: '#ff0', stroke: '#000', color: '#333', 'fill-opacity': '0.5' },
+      nodes: ['A'],
+    };
+    const diagram = generateMermaidDiagram([group, INJECT]);
+    expect(diagram).toContain('style grp1 fill:#ff0,stroke:#000,color:#333,fill-opacity:0.5');
+  });
+
+  it('skips style line when group has no style', () => {
+    const group = { id: 'grp1', type: 'group', name: 'G', style: {}, nodes: [] };
+    const diagram = generateMermaidDiagram([group]);
+    expect(diagram).not.toContain('style grp1');
+  });
+
+  it('renders multiple groups as separate subgraphs', () => {
+    const g1 = { id: 'g1', type: 'group', name: 'One', style: {}, nodes: ['A'] };
+    const g2 = { id: 'g2', type: 'group', name: 'Two', style: {}, nodes: ['B'] };
+    const diagram = generateMermaidDiagram([g1, g2, INJECT, FUNC]);
+    expect(diagram).toContain('subgraph g1["One"]');
+    expect(diagram).toContain('subgraph g2["Two"]');
+  });
 });
 
 // ---------------------------------------------------------------------------

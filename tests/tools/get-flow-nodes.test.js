@@ -25,7 +25,18 @@ const DISABLED_NODE = makeNode({
   id: 'n4', type: 'inject', z: 'tab1', name: 'Timer', d: true, wires: [['n1']],
 });
 
-const ALL_NODES = [TAB1, TAB2, FUNC_NODE, TMPL_NODE, DEBUG_NODE, DISABLED_NODE];
+// Group node and a grouped member
+const GROUP1 = {
+  id: 'grp1', type: 'group', z: 'tab1', name: 'My Group',
+  style: { fill: '#ff0', stroke: '#000', label: true, 'label-position': 'nw', color: '#000' },
+  nodes: ['n5'], x: 80, y: 80, w: 200, h: 100,
+};
+const GROUPED_NODE = makeNode({
+  id: 'n5', type: 'debug', z: 'tab1', name: 'Grouped Debug',
+  g: 'grp1', active: true, wires: [],
+});
+
+const ALL_NODES = [TAB1, TAB2, FUNC_NODE, TMPL_NODE, DEBUG_NODE, DISABLED_NODE, GROUP1, GROUPED_NODE];
 const RAW = { flows: ALL_NODES };
 
 // ---------------------------------------------------------------------------
@@ -36,9 +47,38 @@ describe('transformFlowNodes', () => {
     it('returns nodes for a valid flowId', () => {
       const result = transformFlowNodes(RAW, 'tab1');
       expect(result.flowId).toBe('tab1');
-      expect(result.nodes).toHaveLength(4);
-      expect(result.totalCount).toBe(4);
+      expect(result.nodes).toHaveLength(6); // 4 flow nodes + 1 group + 1 member
+      expect(result.totalCount).toBe(6);
       expect(result.hasMore).toBe(false);
+    });
+
+    it('exposes g property on member nodes and null for ungrouped', () => {
+      const result = transformFlowNodes(RAW, 'tab1');
+      const grouped = result.nodes.find((n) => n.id === 'n5');
+      const ungrouped = result.nodes.find((n) => n.id === 'n1');
+      expect(grouped.g).toBe('grp1');
+      expect(ungrouped.g).toBeNull();
+    });
+
+    it('returns group node with style, nodes array, and dimensions', () => {
+      const result = transformFlowNodes(RAW, 'tab1');
+      const group = result.nodes.find((n) => n.id === 'grp1');
+      expect(group).toMatchObject({
+        id: 'grp1',
+        type: 'group',
+        name: 'My Group',
+        g: null,
+        w: 200,
+        h: 100,
+      });
+      expect(group.style.fill).toBe('#ff0');
+      expect(group.nodes).toEqual(['n5']);
+    });
+
+    it('filters by nodeType: "group"', () => {
+      const result = transformFlowNodes(RAW, 'tab1', { nodeType: 'group' });
+      expect(result.nodes).toHaveLength(1);
+      expect(result.nodes[0].id).toBe('grp1');
     });
 
     it('returns top-level metadata for each node', () => {
@@ -108,15 +148,17 @@ describe('transformFlowNodes', () => {
 
     it('returns all nodes when disabledOnly not set', () => {
       const result = transformFlowNodes(RAW, 'tab1');
-      expect(result.nodes).toHaveLength(4);
+      expect(result.nodes).toHaveLength(6);
     });
   });
 
   describe('nodeType filter', () => {
     it('returns only matching node types', () => {
       const result = transformFlowNodes(RAW, 'tab1', { nodeType: 'debug' });
-      expect(result.nodes).toHaveLength(1);
-      expect(result.nodes[0].id).toBe('n3');
+      // n3 and n5 are both debug nodes
+      expect(result.nodes).toHaveLength(2);
+      const ids = result.nodes.map((n) => n.id).sort();
+      expect(ids).toEqual(['n3', 'n5']);
     });
 
     it('returns empty when no nodes match type', () => {

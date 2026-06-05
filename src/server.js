@@ -31,6 +31,10 @@ import { handleInjectMessage } from './tools/inject-message.js';
 import { handleReadDebugMessages } from './tools/read-debug-messages.js';
 import { handleInstallNode } from './tools/install-node.js';
 import { handleUninstallNode } from './tools/uninstall-node.js';
+import { handleAddNodesToGroup } from './tools/add-nodes-to-group.js';
+import { handleRemoveNodesFromGroup } from './tools/remove-nodes-from-group.js';
+import { handleUpdateGroup } from './tools/update-group.js';
+import { handleDeleteGroup } from './tools/delete-group.js';
 import { loadSkills } from './skills/loader.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -62,9 +66,10 @@ export function createMcpServer(nodeRedClient, commsClient) {
   server.tool(
     'get-flow-nodes',
     'Get a detailed, paginated list of nodes within a specific Node-RED flow. ' +
-    'Returns each node\'s id, type, name, disabled state, position (x/y), wires (connections), and sanitized configuration. ' +
+    'Returns each node\'s id, type, name, disabled state, position (x/y), wires (connections), group membership (g), and sanitized configuration. ' +
+    'Group nodes (type: "group") are included with their style, member list (nodes[]), and dimensions (w/h). ' +
     'Large text fields (func, template, format, html, css) are excluded to save context. ' +
-    'Supports filtering by disabled state, node type, and connected subgraph (upstream/downstream from a specific node). ' +
+    'Supports filtering by disabled state, node type (including "group"), and connected subgraph (upstream/downstream from a specific node). ' +
     'Use offset/limit for pagination on large flows. ' +
     '⚠️ Credential field values (passwords, API keys) are stripped by Node-RED and NOT included here. ' +
     'Use get-node-detail on a specific config node to see credential metadata (field names and has_<field> flags).',
@@ -85,7 +90,7 @@ export function createMcpServer(nodeRedClient, commsClient) {
   server.tool(
     'get-flow-diagram',
     'Get a Mermaid flowchart diagram (flowchart TD) representing the topology of a Node-RED flow. ' +
-    'Shows node names/types as labeled boxes connected by wires. ' +
+    'Shows node names/types as labeled boxes connected by wires. Groups are rendered as Mermaid subgraph containers with their style colors. ' +
     'Disabled nodes are styled with dashed borders. Multi-output nodes show output port labels. ' +
     'Supports the same filtering options as get-flow-nodes (disabled, type, subgraph direction) and pagination. ' +
     'Use this to visualize flow structure or share with users.',
@@ -472,6 +477,70 @@ export function createMcpServer(nodeRedClient, commsClient) {
       module: z.string().describe('Module identifier to uninstall, as shown in get-palette-nodes, e.g. "node-red-node-suncalc"'),
     },
     async (params) => handleUninstallNode(nodeRedClient, params),
+  );
+
+  // Register: add-nodes-to-group
+  server.tool(
+    'add-nodes-to-group',
+    'Add nodes to a Node-RED group. If the group does not exist, it is created ' +
+    'with a bounding rectangle that encloses all specified nodes. ' +
+    'Nodes already in another group are automatically reassigned. ' +
+    'Returns the groupId, whether the group was newly created, and the final bounding box.',
+    {
+      flowId: z.string().describe('ID of the flow tab where the nodes and group reside'),
+      nodeIds: z.array(z.string()).describe('Array of node IDs to add to the group'),
+      groupId: z.string().optional().describe('ID of an existing group. If omitted, a new group is created'),
+      groupName: z.string().optional().describe('Name for a new group (ignored if groupId is provided). Defaults to "Group"'),
+      style: z.object({
+        label: z.boolean().optional(),
+        fill: z.string().optional(),
+        'fill-opacity': z.string().optional(),
+        stroke: z.string().optional(),
+        'label-position': z.string().optional(),
+        color: z.string().optional(),
+      }).optional().describe('Style overrides for a new group (merged with defaults). Ignored if groupId is provided'),
+    },
+    async (params) => handleAddNodesToGroup(nodeRedClient, params),
+  );
+
+  // Register: remove-nodes-from-group
+  server.tool(
+    'remove-nodes-from-group',
+    'Remove nodes from a Node-RED group. If no specific node IDs are provided, ' +
+    'all members are removed. Optionally repositions removed nodes outside the ' +
+    'group\'s bounding rectangle. Nodes not in the group are silently skipped.',
+    {
+      groupId: z.string().describe('ID of the group to remove nodes from'),
+      nodeIds: z.array(z.string()).optional().describe('Specific node IDs to remove. If omitted, all members are removed'),
+      reposition: z.boolean().optional().default(false).describe('If true, reposition removed nodes to the right of the group bounds'),
+    },
+    async (params) => handleRemoveNodesFromGroup(nodeRedClient, params),
+  );
+
+  // Register: update-group
+  server.tool(
+    'update-group',
+    'Update a Node-RED group\'s metadata: name, style (colors, label position), ' +
+    'or bounding box dimensions. Validates that the target is a group node. ' +
+    'Returns previous and current state for undo support.',
+    {
+      groupId: z.string().describe('ID of the group node to update'),
+      properties: z.object({}).passthrough().describe('Properties to shallow-merge onto the group (name, style, x, y, w, h)'),
+    },
+    async (params) => handleUpdateGroup(nodeRedClient, params),
+  );
+
+  // Register: delete-group
+  server.tool(
+    'delete-group',
+    'Delete a Node-RED group. By default, all member nodes are also deleted. ' +
+    'Set deleteMembers to false to keep the nodes and only delete the group rectangle. ' +
+    'Returns the full previous state (group + members) for undo support.',
+    {
+      groupId: z.string().describe('ID of the group to delete'),
+      deleteMembers: z.boolean().optional().default(true).describe('Whether to also delete member nodes (default true). Set to false to keep nodes'),
+    },
+    async (params) => handleDeleteGroup(nodeRedClient, params),
   );
 
   // Register: read-debug-messages

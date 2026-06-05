@@ -8,6 +8,7 @@ import {
   getConnectedSubgraph,
   applyFilters,
   paginate,
+  computeBoundingBox,
 } from '../../src/tools/flow-utils.js';
 
 // ---------------------------------------------------------------------------
@@ -32,7 +33,10 @@ const NODE_E = makeNode({ id: 'E', type: 'debug', z: 'tab2', wires: [] });
 // Global config node (no z)
 const CONFIG_NODE = makeNode({ id: 'cfg1', type: 'mqtt-broker', broker: 'localhost', port: 1883 });
 
-const ALL_NODES = [TAB1, TAB2, NODE_A, NODE_B, NODE_C, NODE_D, NODE_E, CONFIG_NODE];
+// Group node (no wires, has z)
+const GROUP1 = { id: 'grp1', type: 'group', z: 'tab1', name: 'Group 1', style: { fill: '#ffff7f' }, nodes: ['A', 'B'], x: 80, y: 80, w: 200, h: 100 };
+
+const ALL_NODES = [TAB1, TAB2, NODE_A, NODE_B, NODE_C, NODE_D, NODE_E, CONFIG_NODE, GROUP1];
 
 // ---------------------------------------------------------------------------
 // BLOCKLISTED_FIELDS
@@ -94,7 +98,23 @@ describe('sanitizeNodeConfig', () => {
 describe('getFlowNodes', () => {
   it('returns nodes belonging to the specified flow', () => {
     const result = getFlowNodes(ALL_NODES, 'tab1');
-    expect(result.map((n) => n.id).sort()).toEqual(['A', 'B', 'C', 'D']);
+    expect(result.map((n) => n.id).sort()).toEqual(['A', 'B', 'C', 'D', 'grp1']);
+  });
+
+  it('includes group nodes (type: "group") in results', () => {
+    const result = getFlowNodes(ALL_NODES, 'tab1');
+    const groupNode = result.find((n) => n.id === 'grp1');
+    expect(groupNode).toBeDefined();
+    expect(groupNode.type).toBe('group');
+    expect(groupNode.name).toBe('Group 1');
+  });
+
+  it('excludes config nodes (no wires, not a group)', () => {
+    // Config nodes truly have NO wires property (not even empty array)
+    const cfgWithZ = { id: 'cfg2', type: 'mqtt-broker', z: 'tab1', broker: 'localhost' };
+    const nodes = [TAB1, NODE_A, cfgWithZ];
+    const result = getFlowNodes(nodes, 'tab1');
+    expect(result.map((n) => n.id)).not.toContain('cfg2');
   });
 
   it('returns empty array for a flow with no nodes', () => {
@@ -281,5 +301,55 @@ describe('paginate', () => {
     expect(result.items).toEqual([]);
     expect(result.totalCount).toBe(0);
     expect(result.hasMore).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// computeBoundingBox
+// ---------------------------------------------------------------------------
+describe('computeBoundingBox', () => {
+  it('returns bounding box enclosing all nodes with default padding', () => {
+    const nodes = [
+      { x: 100, y: 100 },
+      { x: 300, y: 300 },
+    ];
+    const box = computeBoundingBox(nodes);
+    expect(box).toEqual({ x: 80, y: 80, w: 240, h: 240 });
+  });
+
+  it('uses custom padding', () => {
+    const nodes = [{ x: 100, y: 100 }];
+    const box = computeBoundingBox(nodes, 50);
+    expect(box).toEqual({ x: 50, y: 50, w: 100, h: 100 });
+  });
+
+  it('handles single node', () => {
+    const nodes = [{ x: 200, y: 150 }];
+    const box = computeBoundingBox(nodes, 10);
+    expect(box).toEqual({ x: 190, y: 140, w: 20, h: 20 });
+  });
+
+  it('returns zero box for empty array', () => {
+    const box = computeBoundingBox([]);
+    expect(box).toEqual({ x: 0, y: 0, w: 0, h: 0 });
+  });
+
+  it('handles nodes with missing x/y (defaults to 0)', () => {
+    const nodes = [
+      { x: 100, y: undefined },
+      { y: 200 },
+    ];
+    const box = computeBoundingBox(nodes, 0);
+    expect(box).toEqual({ x: 0, y: 0, w: 100, h: 200 });
+  });
+
+  it('computes correct box for three nodes', () => {
+    const nodes = [
+      { x: 100, y: 100 },
+      { x: 300, y: 100 },
+      { x: 100, y: 300 },
+    ];
+    const box = computeBoundingBox(nodes, 20);
+    expect(box).toEqual({ x: 80, y: 80, w: 240, h: 240 });
   });
 });
