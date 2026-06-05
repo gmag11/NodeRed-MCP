@@ -1,8 +1,9 @@
 /**
  * MCP tool: get-flows
  *
- * Returns a summarized list of flows (tabs and subflows) from the connected
+ * Returns a summarized list of flow tabs from the connected
  * Node-RED instance, optimized for LLM consumption.
+ * Use get-subflows for subflow definitions.
  */
 
 /**
@@ -14,9 +15,9 @@
 export function transformFlows(rawResponse) {
   const allNodes = rawResponse.flows || [];
 
-  // Identify flows: tabs and subflows
+  // Identify flows: tabs only (subflows are handled by get-subflows)
   const flows = allNodes.filter(
-    (node) => node.type === 'tab' || node.type === 'subflow'
+    (node) => node.type === 'tab'
   );
 
   // Group child nodes by their parent flow (z property)
