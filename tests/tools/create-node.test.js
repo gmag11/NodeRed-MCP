@@ -252,7 +252,7 @@ describe('handleCreateNode', () => {
     expect(parsed.currentState.type).toBe('debug');
   });
 
-  it('defaults x and y to 200 when omitted', async () => {
+  it('defaults x to 300 and y to 200 when omitted', async () => {
     const rawResponse = makeFlows();
     const client = {
       request: vi.fn().mockResolvedValueOnce(rawResponse),
@@ -263,7 +263,7 @@ describe('handleCreateNode', () => {
 
     const [putPayload] = client.putFlows.mock.calls[0];
     const newNode = putPayload.flows[putPayload.flows.length - 1];
-    expect(newNode.x).toBe(200);
+    expect(newNode.x).toBe(300);
     expect(newNode.y).toBe(200);
   });
 

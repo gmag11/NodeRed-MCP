@@ -23,7 +23,7 @@ import { normalizeCredentials, withRetry } from './flow-utils.js';
  * @param {string} type - Palette node type (e.g. "function", "debug")
  * @param {string} flowId - ID of the flow (tab or subflow) to place the node in
  * @param {object} properties - Optional extra fields to merge onto the node
- * @param {number} x - X position (default 200)
+ * @param {number} x - X position (default 300)
  * @param {number} y - Y position (default 200)
  * @returns {object} New node object
  */
