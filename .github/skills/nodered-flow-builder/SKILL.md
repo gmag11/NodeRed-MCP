@@ -219,6 +219,53 @@ Returns `previousState` with ALL nodes in the tab. Refuses to delete locked flow
 
 ---
 
+## 🐛 Build & Debug Step-by-Step (RECOMMENDED)
+
+**When building a new flow, validate each node's output before adding the next node.** This catches format errors, type mismatches, and missing properties early — before you've built 10 nodes on top of a broken foundation.
+
+### The Golden Rule
+> After EVERY processing node you add, wire it to a `debug` node, deploy, inject, and verify the output. Only then add the next node.
+
+### Step-by-step pattern
+
+```
+// 1. Create first processing node + debug after it
+create-node(type: "inject", flowId: "<fid>", properties: { name: "Start", payload: "test", payloadType: "str" }, x: 100, y: 100)
+create-node(type: "debug", flowId: "<fid>", properties: { name: "Debug1", complete: "true", targetType: "full" }, x: 300, y: 100)
+connect-nodes(fromNodeId: "<injectId>", toNodeId: "<debug1Id>")
+
+// 2. Deploy — changes are NOT live until you do this
+deploy()
+
+// 3. Inject and check output format
+inject-message(nodeId: "<injectId>")
+read-debug-messages(last: 1)
+
+// 4. If output looks good, remove the debug node (or keep it) and add next node
+delete-node(nodeId: "<debug1Id>")
+create-node(type: "function", flowId: "<fid>", properties: { name: "Process", func: "msg.payload = msg.payload * 2;\nreturn msg;", outputs: 1 }, x: 300, y: 100)
+connect-nodes(fromNodeId: "<injectId>", toNodeId: "<functionId>")
+create-node(type: "debug", flowId: "<fid>", properties: { name: "Debug2", complete: "true", targetType: "full" }, x: 500, y: 100)
+connect-nodes(fromNodeId: "<functionId>", toNodeId: "<debug2Id>")
+
+// 5. Deploy again and verify
+deploy()
+inject-message(nodeId: "<injectId>")
+read-debug-messages(last: 1)
+
+// 6. Repeat until flow is complete
+```
+
+**Why this matters:**
+- A `function` node might return `undefined` or the wrong type — you catch it immediately
+- A `change` node might not set the right property — you see it in debug output
+- An `http request` might return unexpected JSON structure — you can adjust before building downstream nodes
+- You avoid debugging a 10-node chain where the error is in node #2
+
+**⚠️ NEVER FORGET TO DEPLOY.** Every edit is staged. If `inject-message` errors with "undeployed changes", call `deploy` first.
+
+---
+
 ## Debug Workflow
 
 Follow this numbered sequence whenever a flow doesn't behave as expected:
