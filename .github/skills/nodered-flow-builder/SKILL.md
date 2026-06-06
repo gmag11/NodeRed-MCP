@@ -49,6 +49,12 @@ create-node(type: "debug", flowId: "<flowId>", properties: { name: "Output", com
 ```
 Save all returned `nodeId` values.
 
+**💡 Setting a node description:** Add `info` to the `properties` object:
+```
+create-node(type: "ping", flowId: "<flowId>", properties: { name: "Ping", host: "192.168.1.1", info: "Pings the main server" }, x: 300, y: 100)
+```
+The `info` field corresponds to the **Description** shown in the Node-RED editor UI. When a user asks to "add a description" or "describe the node", they mean setting `info`.
+
 ### Step 3: Wire nodes together
 ```
 connect-nodes(fromNodeId: "<injectId>", outputPort: 0, toNodeId: "<functionId>")
@@ -165,6 +171,11 @@ Review the returned node object to understand current configuration.
 update-node(nodeId: "<nodeId>", properties: { name: "New Name", func: "return msg;" })
 ```
 Only include fields you want to change. Omitted fields are preserved.
+
+**💡 Adding or updating a description:** Set the `info` property — the **Description** field in the Node-RED editor UI:
+```
+update-node(nodeId: "<nodeId>", properties: { info: "This node filters messages with temperature > 30°C" })
+```
 
 ### Step 3: Verify
 ```

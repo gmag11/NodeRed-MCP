@@ -29,6 +29,19 @@ Categorized catalog of built-in core node types with key properties for `create-
 
 ---
 
+## Common Node Properties
+
+All node types share these universal fields. Use `update-node` to modify them and `get-node-detail` to read them.
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `name` | string | Display label shown on the node in the editor |
+| `info` | string | **Description** field in the Node-RED editor UI. Rich text describing what the node does. When a user says "add a description to this node" or "describe what this node does", they mean setting `info`. Read with `get-node-detail`, set with `update-node` or `create-node` via `properties: { info: "my description" }`. |
+
+Most node types also have type-specific properties documented in the sections below.
+
+---
+
 ## Common Nodes
 
 ### inject
@@ -91,11 +104,12 @@ Categorized catalog of built-in core node types with key properties for `create-
 
 ### comment
 `type: "comment"` — Text annotation on the canvas. Not a functional node.
+See [Common Node Properties](#common-node-properties) for `name` and `info`.
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `name` | string | The text displayed on the canvas |
-| `info` | string | Optional rich text description |
+| `name` | string | The text displayed on the canvas (see Common Node Properties) |
+| `info` | string | Description shown in the editor (see Common Node Properties) |
 
 ---
 
