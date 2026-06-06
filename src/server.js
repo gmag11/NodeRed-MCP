@@ -248,7 +248,8 @@ export function createMcpServer(nodeRedClient, commsClient) {
     'Returns all node fields including large text fields (func, template, format, html, css) ' +
     'that are intentionally excluded from get-flow-nodes to save context. ' +
     'Use this when you need to read the actual logic or content of a specific node (e.g. a function node\'s JavaScript code or a template node\'s markup). ' +
-    '🔑 CREDENTIAL METADATA: For config nodes (mqtt-broker, http-proxy, tls-config, etc.), ' +
+    '� The `info` field (labeled "Description" in the Node-RED editor UI) contains the node\'s description text. ' +
+    '�🔑 CREDENTIAL METADATA: For config nodes (mqtt-broker, http-proxy, tls-config, etc.), ' +
     'includes a `_credentials` field with credential field names and whether each password is set (has_<field>: true/false). ' +
     'Password VALUES are never exposed — only their presence/absence. Non-credential text fields (like username) are shown in plain text.',
     {
@@ -349,7 +350,10 @@ export function createMcpServer(nodeRedClient, commsClient) {
     'Fields in properties overwrite the matching node fields; fields not mentioned are preserved. ' +
     'Returns previousState and currentState for review or undo. ' +
     'Refuses to update a node in a locked flow. ' +
-    '🔑 CREDENTIALS: For config nodes (mqtt-broker, http-proxy, tls-config, etc.), put credential fields ' +
+    '� COMMON PROPERTIES: All nodes accept `name` (label) and `info` (Description field in the Node-RED editor UI). ' +
+    'When a user says "add a description to this node" or "describe what this node does", set `info`. ' +
+    'Example: `properties: { info: "Pings the main server every 30 seconds" }`. ' +
+    '�🔑 CREDENTIALS: For config nodes (mqtt-broker, http-proxy, tls-config, etc.), put credential fields ' +
     '(username, password, key, cert, token) inside a `credentials` object: ' +
     'e.g. `properties: { broker: "localhost", credentials: { username: "user", password: "pass" } }`. ' +
     'The tool auto-detects and nests credential fields correctly. Partial updates are supported — ' +
