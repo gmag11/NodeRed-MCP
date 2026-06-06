@@ -68,11 +68,25 @@ get-flow-diagram(flowId: "<flowId>")
 ```
 Review the Mermaid diagram. Confirm all nodes appear and wires connect as expected.
 
-### Step 5: Test the flow
+### Step 5: Deploy changes
+**CRITICAL — Changes are staged, not live!** All create-node, connect-nodes, update-node, etc. operations stage changes in a local workspace. They are NOT active until you deploy:
+```
+deploy(deployType: "nodes")
+```
+Default deploy type is `"nodes"` (least disruptive — only modified nodes restart). Use `"flows"` to restart modified flow tabs, or `"full"` for a complete restart.
+
+Check what's pending before deploying:
+```
+get-staging-status()
+```
+
+### Step 6: Test the flow
 ```
 inject-message(nodeId: "<injectId>")
 read-debug-messages(nodeName: "<debugNodeName>", last: 5)
 ```
+
+**⚠️ Important:** You MUST deploy before testing. `inject-message` will error if there are undeployed changes.
 
 ---
 

@@ -13,7 +13,7 @@
  */
 
 import { randomUUID } from 'crypto';
-import { normalizeCredentials, withRetry } from './flow-utils.js';
+import { normalizeCredentials } from './flow-utils.js';
 
 /**
  * Build a new node object with structural fields set and properties merged in.
@@ -88,14 +88,14 @@ export function applyCreateNode(rawResponse, type, flowId, properties, x, y) {
  * @param {string} params.type
  * @param {string} params.flowId
  * @param {object} [params.properties={}]
- * @param {number} [params.x=200]
+ * @param {number} [params.x=300]
  * @param {number} [params.y=200]
  * @returns {Promise<{ content: Array<{ type: string, text: string }> }>}
  */
-export async function handleCreateNode(client, params) {
-  const { type, flowId, properties = {}, x = 200, y = 200 } = params;
+export async function handleCreateNode(staging, client, params) {
+  const { type, flowId, properties = {}, x = 300, y = 200 } = params;
 
-  const { currentState } = await withRetry(client, (rawResponse) => {
+  const { currentState } = await staging.applyMutation((rawResponse) => {
     return applyCreateNode(rawResponse, type, flowId, properties, x, y);
   });
 
@@ -103,7 +103,7 @@ export async function handleCreateNode(client, params) {
     content: [
       {
         type: 'text',
-        text: JSON.stringify({ nodeId: currentState.id, currentState }, null, 2),
+        text: JSON.stringify({ nodeId: currentState.id, currentState, staging: staging.getStagingSummary() }, null, 2),
       },
     ],
   };

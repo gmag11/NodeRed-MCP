@@ -2,6 +2,7 @@
  * MCP tool: update-flow
  *
  * Updates metadata fields (label, disabled, info, env) of an existing Node-RED flow tab.
+ * Stages the change locally — call `deploy` to push to Node-RED.
  * Preserves the nodes array unchanged. Refuses to update a locked flow.
  */
 
@@ -10,7 +11,7 @@ const ALLOWED_FIELDS = ['label', 'disabled', 'info', 'env'];
 /**
  * Apply updates to a flow object, returning the merged result and the original.
  *
- * @param {object} currentFlow - Full flow object from GET /flow/:id
+ * @param {object} currentFlow - Full flow object
  * @param {object} updates - Fields to update (only label/disabled/info/env honoured)
  * @returns {{ updatedFlow: object, previousState: object }}
  */
@@ -36,38 +37,53 @@ export function applyFlowUpdate(currentFlow, updates) {
 }
 
 /**
+ * Apply an update-flow mutation to the flows array.
+ *
+ * Finds the tab by ID, applies updates, replaces it in the array.
+ * No HTTP — pure data transformation.
+ *
+ * @param {object} rawResponse - Wrapper with `flows` array
+ * @param {string} flowId - ID of the flow tab to update
+ * @param {object} updates - Fields to update
+ * @returns {{ updatedFlows: object[], previousState: object, currentState: object }}
+ * @throws {Error} If flow not found or locked
+ */
+export function applyUpdateFlow(rawResponse, flowId, updates) {
+  const flows = rawResponse.flows ?? rawResponse;
+
+  const tabIndex = flows.findIndex((n) => n.type === 'tab' && n.id === flowId);
+  if (tabIndex === -1) {
+    throw new Error(`Flow '${flowId}' not found`);
+  }
+
+  const { updatedFlow, previousState } = applyFlowUpdate(flows[tabIndex], updates);
+
+  const updatedFlows = flows.map((n, i) => (i === tabIndex ? updatedFlow : n));
+
+  return { updatedFlows, previousState, currentState: updatedFlow };
+}
+
+/**
  * Handler for the update-flow MCP tool.
  *
- * @param {ReturnType<import('../nodered/client.js').createNodeRedClient>} client
+ * @param {import('../staging-store.js').StagingStore} staging
  * @param {object} params
  * @param {string} params.flowId
  * @param {object} params.updates
  * @returns {Promise<{ content: Array<{ type: string, text: string }> }>}
  */
-export async function handleUpdateFlow(client, params) {
+export async function handleUpdateFlow(staging, params) {
   const { flowId, updates } = params;
 
-  // Fetch current flow state
-  let currentFlow;
-  try {
-    currentFlow = await client.request('GET', `/flow/${flowId}`);
-  } catch (err) {
-    if (err.message.includes('404')) {
-      throw new Error(`Flow '${flowId}' not found`);
-    }
-    throw err;
-  }
-
-  const { updatedFlow, previousState } = applyFlowUpdate(currentFlow, updates);
-
-  // Persist the updated flow
-  const currentState = await client.request('PUT', `/flow/${flowId}`, updatedFlow);
+  const { previousState, currentState } = await staging.applyMutation((rawResponse) => {
+    return applyUpdateFlow(rawResponse, flowId, updates);
+  });
 
   return {
     content: [
       {
         type: 'text',
-        text: JSON.stringify({ flowId, previousState, currentState }, null, 2),
+        text: JSON.stringify({ flowId, previousState, currentState, staging: staging.getStagingSummary() }, null, 2),
       },
     ],
   };

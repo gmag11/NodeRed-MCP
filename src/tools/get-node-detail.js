@@ -36,9 +36,9 @@ export function transformNodeDetail(rawResponse, nodeId) {
  * @param {string} params.nodeId - ID of the node to retrieve
  * @returns {Promise<{ content: Array<{ type: string, text: string }> }>}
  */
-export async function handleGetNodeDetail(client, params) {
-  const rawResponse = await client.request('GET', '/flows');
-  const node = transformNodeDetail(rawResponse, params.nodeId);
+export async function handleGetNodeDetail(staging, client, params) {
+  const flows = await staging.getFlows();
+  const node = transformNodeDetail({ flows }, params.nodeId);
 
   // Fetch credential metadata if the node type may have credentials.
   // The /credentials/:type/:id endpoint returns field names and

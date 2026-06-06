@@ -21,6 +21,8 @@ tools:
 
 Ready-to-use flow patterns. Each recipe lists the nodes, key properties, and wiring calls. Copy the pattern, adapt properties to your use case, and wire exactly as shown.
 
+> **⚠️ Staging reminder:** All create-node/connect-nodes calls stage changes locally. After building any pattern, call `deploy()` to push to Node-RED. Then use `inject-message` + `read-debug-messages` to test.
+
 > **Prerequisites:** Read `nodered-fundamentals` first for core vocabulary. Use `nodered-flow-builder` for the step-by-step build workflow.
 
 ---

@@ -261,67 +261,6 @@ export function computeBoundingBox(nodes, padding = 20) {
 }
 
 // ---------------------------------------------------------------------------
-// Deploy retry helper (automatic retry on version conflicts)
-// ---------------------------------------------------------------------------
-
-/**
- * Maximum number of retry attempts for deploy operations that encounter
- * a 409 version_mismatch from Node-RED.
- *
- * @type {number}
- */
-const MAX_RETRY_ATTEMPTS = 3;
-
-/**
- * Execute a flow-modifying operation with automatic retry on version conflicts (409).
- *
- * Node-RED uses optimistic concurrency control via a `rev` counter. When two
- * operations read the same `rev` and try to deploy, the second one gets a 409
- * `version_mismatch`. This helper wraps the GET → modify → POST cycle and
- * retries up to {@link MAX_RETRY_ATTEMPTS} times when a 409 occurs.
- *
- * @param {ReturnType<import('../nodered/client.js').createNodeRedClient>} client
- * @param {(rawResponse: object) => { updatedFlows: object[], [key: string]: any }} modifyFn
- *   Called with the raw GET /flows response. Must return an object containing
- *   at least `updatedFlows` (the modified flows array). Extra properties are
- *   passed through in the returned result.
- * @param {string} [deployType='flows'] - Value for the `Node-RED-Deployment-Type` header
- * @returns {Promise<object>} The result from modifyFn, excluding `updatedFlows`
- * @throws {Error} On non-409 errors, or if max retries exhausted
- */
-export async function withRetry(client, modifyFn, deployType = 'flows') {
-  let lastError;
-
-  for (let attempt = 0; attempt < MAX_RETRY_ATTEMPTS; attempt++) {
-    const rawResponse = await client.request('GET', '/flows');
-    const rev = rawResponse?.rev;
-
-    const result = modifyFn(rawResponse);
-
-    try {
-      await client.putFlows({ rev, flows: result.updatedFlows }, deployType);
-      // Return everything except updatedFlows (internal detail)
-      const { updatedFlows, ...output } = result;
-      return output;
-    } catch (err) {
-      lastError = err;
-      const msg = err.message || '';
-      const isVersionMismatch = msg.includes('version_mismatch') || msg.includes('409');
-
-      if (!isVersionMismatch) {
-        throw err; // Non-409 error: throw immediately
-      }
-      // 409: retry with fresh data on next iteration
-    }
-  }
-
-  throw new Error(
-    `Deploy failed after ${MAX_RETRY_ATTEMPTS} retries due to version conflicts. ` +
-    `Last error: ${lastError?.message || 'unknown'}`,
-  );
-}
-
-// ---------------------------------------------------------------------------
 // Credential normalization (shared by update-node and create-node)
 // ---------------------------------------------------------------------------
 

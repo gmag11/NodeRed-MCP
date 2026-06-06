@@ -98,9 +98,9 @@ export function transformFlowNodes(rawResponse, flowId, options = {}) {
  * @param {object} params - Validated input parameters
  * @returns {Promise<{ content: Array<{ type: string, text: string }> }>}
  */
-export async function handleGetFlowNodes(client, params) {
-  const rawResponse = await client.request('GET', '/flows');
-  const result = transformFlowNodes(rawResponse, params.flowId, params);
+export async function handleGetFlowNodes(staging, params) {
+  const flows = await staging.getFlows();
+  const result = transformFlowNodes({ flows }, params.flowId, params);
 
   return {
     content: [

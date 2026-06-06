@@ -6,7 +6,6 @@
  * keep the nodes.
  */
 
-import { withRetry } from './flow-utils.js';
 /**
  * Apply the delete-group operation to the flows array.
  *
@@ -83,10 +82,10 @@ export function applyDeleteGroup(rawResponse, groupId, options = {}) {
  * @param {boolean} [params.deleteMembers=true]
  * @returns {Promise<{ content: Array<{ type: string, text: string }> }>}
  */
-export async function handleDeleteGroup(client, params) {
+export async function handleDeleteGroup(staging, client, params) {
   const { groupId, deleteMembers } = params;
 
-  const result = await withRetry(client, (rawResponse) => {
+  const result = await staging.applyMutation((rawResponse) => {
     return applyDeleteGroup(rawResponse, groupId, { deleteMembers });
   });
 
@@ -98,6 +97,7 @@ export async function handleDeleteGroup(client, params) {
           {
             groupId,
             previousState: result.previousState,
+            staging: staging.getStagingSummary(),
           },
           null,
           2,

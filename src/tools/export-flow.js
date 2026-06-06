@@ -94,11 +94,10 @@ export function trimWires(nodes, allowedIds) {
  * @param {string[]} [params.nodeIds] - Node IDs for nodes mode
  * @returns {Promise<{ content: Array<{ type: string, text: string }> }>}
  */
-export async function handleExportFlowJson(client, params) {
+export async function handleExportFlowJson(staging, params) {
   const { exportMode = 'flow', flowId, nodeIds } = params;
 
-  const rawResponse = await client.request('GET', '/flows');
-  const allNodes = rawResponse.flows || [];
+  const allNodes = await staging.getFlows();
 
   let result;
 

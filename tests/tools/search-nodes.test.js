@@ -178,34 +178,34 @@ describe('searchNodes', () => {
 // ---------------------------------------------------------------------------
 
 describe('handleSearchNodes', () => {
+  function makeStaging(flows) {
+    return { getFlows: vi.fn().mockResolvedValue([...flows]) };
+  }
+
   // 3.10 — query empty or missing
   it('returns error when query is missing', async () => {
-    const mockClient = { request: vi.fn() };
-    await expect(handleSearchNodes(mockClient, { query: '' }))
+    const staging = makeStaging([]);
+    await expect(handleSearchNodes(staging, { query: '' }))
       .rejects.toThrow(/required and must be non-empty/);
   });
 
   it('returns error when query is empty string', async () => {
-    const mockClient = { request: vi.fn() };
-    await expect(handleSearchNodes(mockClient, { query: '  ' }))
+    const staging = makeStaging([]);
+    await expect(handleSearchNodes(staging, { query: '  ' }))
       .rejects.toThrow(/required and must be non-empty/);
   });
 
   // 3.13 — invalid flowId
   it('returns error when flowId is provided but does not exist', async () => {
-    const mockClient = {
-      request: vi.fn().mockResolvedValue({ flows: ALL_NODES }),
-    };
-    await expect(handleSearchNodes(mockClient, { query: 'test', flowId: 'nonexistent' }))
+    const staging = makeStaging(ALL_NODES);
+    await expect(handleSearchNodes(staging, { query: 'test', flowId: 'nonexistent' }))
       .rejects.toThrow(/Flow not found/);
   });
 
   // Happy path test
   it('returns search results for a valid query', async () => {
-    const mockClient = {
-      request: vi.fn().mockResolvedValue({ flows: ALL_NODES }),
-    };
-    const response = await handleSearchNodes(mockClient, { query: 'Transform' });
+    const staging = makeStaging(ALL_NODES);
+    const response = await handleSearchNodes(staging, { query: 'Transform' });
     const result = JSON.parse(response.content[0].text);
     expect(result.total).toBe(1);
     expect(result.results[0].nodeId).toBe('n1');
@@ -213,10 +213,8 @@ describe('handleSearchNodes', () => {
   });
 
   it('works with valid flowId scoping', async () => {
-    const mockClient = {
-      request: vi.fn().mockResolvedValue({ flows: ALL_NODES }),
-    };
-    const response = await handleSearchNodes(mockClient, { query: 'sensor', flowId: 'tab2' });
+    const staging = makeStaging(ALL_NODES);
+    const response = await handleSearchNodes(staging, { query: 'sensor', flowId: 'tab2' });
     const result = JSON.parse(response.content[0].text);
     expect(result.total).toBe(2);
     for (const r of result.results) {
@@ -225,10 +223,8 @@ describe('handleSearchNodes', () => {
   });
 
   it('passes regex and limit options through', async () => {
-    const mockClient = {
-      request: vi.fn().mockResolvedValue({ flows: ALL_NODES }),
-    };
-    const response = await handleSearchNodes(mockClient, {
+    const staging = makeStaging(ALL_NODES);
+    const response = await handleSearchNodes(staging, {
       query: '"type"',
       regex: true,
       limit: 1,

@@ -9,7 +9,6 @@
  */
 
 import { randomUUID } from 'crypto';
-import { withRetry } from './flow-utils.js';
 
 /**
  * Parse and normalize a flowJson string to a flat node array.
@@ -195,7 +194,7 @@ export function summarizeImport(importedNodes, conflicts, strategy, targetFlowId
  * @param {string} [params.targetFlowId]
  * @returns {Promise<{ content: Array<{ type: string, text: string }> }>}
  */
-export async function handleImportFlow(client, params) {
+export async function handleImportFlow(staging, client, params) {
   const { flowJson, conflictStrategy = 'regenerate', targetFlowId } = params;
 
   // Step 1: validate conflictStrategy early (before any network calls)
@@ -217,10 +216,10 @@ export async function handleImportFlow(client, params) {
     nodesToMerge = importedNodes;
   }
 
-  // Step 4: Merge and deploy with retry on version conflicts
+  // Step 4: Merge and stage locally
   const mergeStrategy = (targetFlowId && conflictStrategy !== 'overwrite') ? 'regenerate' : conflictStrategy;
 
-  const result = await withRetry(client, (rawResponse) => {
+  const result = await staging.applyMutation((rawResponse) => {
     const existing = rawResponse.flows || [];
 
     // Validate targetFlowId if provided
@@ -237,11 +236,11 @@ export async function handleImportFlow(client, params) {
     }
 
     return mergeFlows(existing, nodesToMerge, mergeStrategy);
-  }, 'full');
+  });
 
   const summary = summarizeImport(nodesToMerge, result.conflicts, conflictStrategy, targetFlowId ?? null);
 
   return {
-    content: [{ type: 'text', text: JSON.stringify(summary, null, 2) }],
+    content: [{ type: 'text', text: JSON.stringify({ ...summary, staging: staging.getStagingSummary() }, null, 2) }],
   };
 }

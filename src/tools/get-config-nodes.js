@@ -68,9 +68,9 @@ export function transformConfigNodes(rawResponse, options = {}) {
  * @param {object} params - Validated input parameters
  * @returns {Promise<{ content: Array<{ type: string, text: string }> }>}
  */
-export async function handleGetConfigNodes(client, params) {
-  const rawResponse = await client.request('GET', '/flows');
-  const result = transformConfigNodes(rawResponse, params);
+export async function handleGetConfigNodes(staging, params) {
+  const flows = await staging.getFlows();
+  const result = transformConfigNodes({ flows }, params);
 
   return {
     content: [

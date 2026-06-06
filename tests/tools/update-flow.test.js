@@ -89,95 +89,54 @@ describe('applyFlowUpdate', () => {
 // ---------------------------------------------------------------------------
 
 describe('handleUpdateFlow', () => {
-  it('GETs the current flow then PUTs the updated flow', async () => {
-    const flow = makeFlow();
-    const updated = { ...flow, label: 'Renamed' };
-    const client = {
-      request: vi.fn()
-        .mockResolvedValueOnce(flow)    // GET
-        .mockResolvedValueOnce(updated), // PUT
+  function makeFlows(overrides = {}) {
+    const tab = {
+      id: 'flow-1', type: 'tab', label: 'My Flow',
+      disabled: false, locked: false, info: '', env: [],
+      ...overrides,
     };
+    const n1 = { id: 'n1', type: 'inject', z: 'flow-1' };
+    const n2 = { id: 'n2', type: 'debug', z: 'flow-1' };
+    return [tab, n1, n2];
+  }
 
-    await handleUpdateFlow(client, { flowId: 'flow-1', updates: { label: 'Renamed' } });
-
-    expect(client.request).toHaveBeenCalledTimes(2);
-    expect(client.request).toHaveBeenNthCalledWith(1, 'GET', '/flow/flow-1');
-    const putCall = client.request.mock.calls[1];
-    expect(putCall[0]).toBe('PUT');
-    expect(putCall[1]).toBe('/flow/flow-1');
-    expect(putCall[2].label).toBe('Renamed');
-  });
-
-  it('returns previousState and currentState', async () => {
-    const flow = makeFlow();
-    const updated = { ...flow, label: 'Renamed' };
-    const client = {
-      request: vi.fn()
-        .mockResolvedValueOnce(flow)
-        .mockResolvedValueOnce(updated),
+  function makeStaging(flowsArray) {
+    return {
+      applyMutation: vi.fn().mockImplementation(async (fn) => {
+        const result = fn({ flows: [...flowsArray] });
+        const { updatedFlows, ...output } = result;
+        return output;
+      }),
+      getStagingSummary: vi.fn().mockReturnValue({
+        pendingChanges: 0, dirtyNodeIds: [], dirtyFlowIds: [], deployed: true,
+      }),
     };
+  }
 
-    const result = await handleUpdateFlow(client, { flowId: 'flow-1', updates: { label: 'Renamed' } });
+  it('stages the update via staging.applyMutation', async () => {
+    const staging = makeStaging(makeFlows());
+
+    const result = await handleUpdateFlow(staging, { flowId: 'flow-1', updates: { label: 'Renamed' } });
     const parsed = JSON.parse(result.content[0].text);
 
     expect(parsed.flowId).toBe('flow-1');
     expect(parsed.previousState.label).toBe('My Flow');
     expect(parsed.currentState.label).toBe('Renamed');
+    expect(parsed.staging).toBeDefined();
+    expect(staging.applyMutation).toHaveBeenCalledOnce();
   });
 
-  it('preserves nodes in the PUT body', async () => {
-    const flow = makeFlow();
-    const client = {
-      request: vi.fn()
-        .mockResolvedValueOnce(flow)
-        .mockResolvedValueOnce({ ...flow, info: 'Updated' }),
-    };
+  it('throws when flow is not found', async () => {
+    const staging = makeStaging(makeFlows());
 
-    await handleUpdateFlow(client, { flowId: 'flow-1', updates: { info: 'Updated' } });
-
-    const putBody = client.request.mock.calls[1][2];
-    expect(putBody.nodes).toEqual(flow.nodes);
-  });
-
-  it('throws a friendly error when the flow is not found (404)', async () => {
-    const client = {
-      request: vi.fn().mockRejectedValue(
-        new Error('Node-RED API error: GET /flow/missing returned 404'),
-      ),
-    };
-
-    await expect(handleUpdateFlow(client, { flowId: 'missing', updates: { label: 'X' } }))
+    await expect(handleUpdateFlow(staging, { flowId: 'missing', updates: { label: 'X' } }))
       .rejects.toThrow("Flow 'missing' not found");
   });
 
-  it('re-throws non-404 errors from GET', async () => {
-    const client = {
-      request: vi.fn().mockRejectedValue(
-        new Error('Node-RED API error: GET /flow/flow-1 returned 500'),
-      ),
-    };
+  it('throws when flow is locked', async () => {
+    const staging = makeStaging(makeFlows({ locked: true }));
 
-    await expect(handleUpdateFlow(client, { flowId: 'flow-1', updates: { label: 'X' } }))
-      .rejects.toThrow('500');
-  });
-
-  it('throws a locked error when the flow is locked', async () => {
-    const flow = makeFlow({ locked: true });
-    const client = {
-      request: vi.fn().mockResolvedValueOnce(flow),
-    };
-
-    await expect(handleUpdateFlow(client, { flowId: 'flow-1', updates: { label: 'X' } }))
+    await expect(handleUpdateFlow(staging, { flowId: 'flow-1', updates: { label: 'X' } }))
       .rejects.toThrow("Flow 'flow-1' is locked");
-  });
-
-  it('does not call PUT when the flow is locked', async () => {
-    const flow = makeFlow({ locked: true });
-    const client = {
-      request: vi.fn().mockResolvedValueOnce(flow),
-    };
-
-    await expect(handleUpdateFlow(client, { flowId: 'flow-1', updates: { label: 'X' } })).rejects.toThrow();
-    expect(client.request).toHaveBeenCalledTimes(1);
   });
 });

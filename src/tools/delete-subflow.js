@@ -6,7 +6,6 @@
  * Refuses to delete a locked subflow.
  */
 
-import { withRetry } from './flow-utils.js';
 /**
  * Collect the full previous state of a subflow before deletion.
  *
@@ -80,10 +79,10 @@ export function applyDeleteSubflow(flows, subflowId, deleteInstances) {
  * @param {boolean} [params.deleteInstances=true]
  * @returns {Promise<{ content: Array<{ type: string, text: string }> }>}
  */
-export async function handleDeleteSubflow(client, params) {
+export async function handleDeleteSubflow(staging, client, params) {
   const { subflowId, deleteInstances = true } = params;
 
-  const { previousState } = await withRetry(client, (rawResponse) => {
+  const { previousState } = await staging.applyMutation((rawResponse) => {
     const flows = rawResponse.flows || [];
     return applyDeleteSubflow(flows, subflowId, deleteInstances);
   });
@@ -92,7 +91,7 @@ export async function handleDeleteSubflow(client, params) {
     content: [
       {
         type: 'text',
-        text: JSON.stringify({ subflowId, previousState }, null, 2),
+        text: JSON.stringify({ subflowId, previousState, staging: staging.getStagingSummary() }, null, 2),
       },
     ],
   };

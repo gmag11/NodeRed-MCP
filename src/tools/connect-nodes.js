@@ -7,7 +7,6 @@
  * Refuses to wire nodes in locked flows.
  */
 
-import { withRetry } from './flow-utils.js';
 /**
  * Apply a wire connection in the flows array.
  *
@@ -93,32 +92,18 @@ export function applyConnect(rawResponse, fromNodeId, outputPort = 0, toNodeId, 
  * @param {Array<{ outputPort: number, toNodeId: string }>} [params.connections]
  * @returns {Promise<{ content: Array<{ type: string, text: string }> }>}
  */
-export async function handleConnectNodes(client, params) {
+export async function handleConnectNodes(staging, client, params) {
   const { fromNodeId, outputPort = 0, toNodeId, connections } = params;
 
-  const { previousWires, currentWires } = await withRetry(
-    client,
-    (rawResponse) => {
-      return applyConnect(
-        rawResponse,
-        fromNodeId,
-        outputPort,
-        toNodeId,
-        connections,
-      );
-    }
-  );
-
-  // Build response shape: batch mode echoes connections, single mode echoes outputPort + toNodeId
-  const responseData = connections
-    ? { fromNodeId, connections, previousWires, currentWires }
-    : { fromNodeId, outputPort, toNodeId, previousWires, currentWires };
+  const { previousWires, currentWires } = await staging.applyMutation((rawResponse) => {
+    return applyConnect(rawResponse, fromNodeId, outputPort, toNodeId, connections);
+  });
 
   return {
     content: [
       {
         type: 'text',
-        text: JSON.stringify(responseData, null, 2),
+        text: JSON.stringify({ fromNodeId, previousWires, currentWires, staging: staging.getStagingSummary() }, null, 2),
       },
     ],
   };

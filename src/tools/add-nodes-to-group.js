@@ -8,7 +8,6 @@
  */
 
 import { randomUUID } from 'crypto';
-import { withRetry } from './flow-utils.js';
 import { computeBoundingBox } from './flow-utils.js';
 
 /** Default group style, matching Node-RED's defaults. */
@@ -176,10 +175,10 @@ export function applyAddNodesToGroup(rawResponse, flowId, nodeIds, options = {})
  * @param {object} [params.style]
  * @returns {Promise<{ content: Array<{ type: string, text: string }> }>}
  */
-export async function handleAddNodesToGroup(client, params) {
+export async function handleAddNodesToGroup(staging, client, params) {
   const { flowId, nodeIds, groupId, groupName, style } = params;
 
-  const result = await withRetry(client, (rawResponse) => {
+  const result = await staging.applyMutation((rawResponse) => {
     return applyAddNodesToGroup(rawResponse, flowId, nodeIds, {
       groupId,
       groupName,
@@ -198,6 +197,7 @@ export async function handleAddNodesToGroup(client, params) {
             nodeIds: result.nodeIds,
             boundingBox: result.boundingBox,
             created: result.created,
+            staging: staging.getStagingSummary(),
           },
           null,
           2,

@@ -82,81 +82,51 @@ describe('applyDeleteNode', () => {
 // handleDeleteNode
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// handleDeleteNode
+// ---------------------------------------------------------------------------
+
 describe('handleDeleteNode', () => {
-  it('GETs /flows, POSTs updated flows, returns nodeId and previousState', async () => {
-    const rawResponse = makeFlows();
-    const client = {
-      request: vi.fn().mockResolvedValueOnce(rawResponse),
-      putFlows: vi.fn().mockResolvedValueOnce({}),
+  function makeStaging(flowsArray) {
+    return {
+      applyMutation: vi.fn().mockImplementation(async (fn) => {
+        const result = fn({ flows: [...flowsArray] });
+        const { updatedFlows, ...output } = result;
+        return output;
+      }),
+      getStagingSummary: vi.fn().mockReturnValue({
+        pendingChanges: 0, dirtyNodeIds: [], dirtyFlowIds: [], deployed: true,
+      }),
     };
+  }
 
-    const result = await handleDeleteNode(client, { nodeId: 'n2' });
-
-    expect(client.request).toHaveBeenCalledWith('GET', '/flows');
-    expect(client.putFlows).toHaveBeenCalledOnce();
-
-    const [putPayload, deployType] = client.putFlows.mock.calls[0];
-    expect(deployType).toBe('flows');
-    expect(putPayload.rev).toBe('rev-abc');
-    expect(putPayload.flows.find((n) => n.id === 'n2')).toBeUndefined();
-
+  it('stages the deletion and returns nodeId and previousState', async () => {
+    const staging = makeStaging(makeFlows().flows);
+    const result = await handleDeleteNode(staging, {}, { nodeId: 'n2' });
+    expect(staging.applyMutation).toHaveBeenCalledOnce();
     const parsed = JSON.parse(result.content[0].text);
     expect(parsed.nodeId).toBe('n2');
     expect(parsed.previousState.id).toBe('n2');
     expect(parsed.previousState.type).toBe('debug');
+    expect(parsed.staging).toBeDefined();
   });
 
-  it('round-trips the rev field in the POST body', async () => {
-    const rawResponse = { ...makeFlows(), rev: 'special-rev-007' };
-    const client = {
-      request: vi.fn().mockResolvedValueOnce(rawResponse),
-      putFlows: vi.fn().mockResolvedValueOnce({}),
-    };
-
-    await handleDeleteNode(client, { nodeId: 'n1' });
-
-    const [putPayload] = client.putFlows.mock.calls[0];
-    expect(putPayload.rev).toBe('special-rev-007');
-  });
-
-  it('does not modify any other nodes in the PUT body', async () => {
-    const rawResponse = makeFlows();
-    const client = {
-      request: vi.fn().mockResolvedValueOnce(rawResponse),
-      putFlows: vi.fn().mockResolvedValueOnce({}),
-    };
-
-    await handleDeleteNode(client, { nodeId: 'n2' });
-
-    const [putPayload] = client.putFlows.mock.calls[0];
-    const n1 = putPayload.flows.find((n) => n.id === 'n1');
-    expect(n1).toBeDefined();
-    expect(n1.name).toBe('Inject');
-    const n3 = putPayload.flows.find((n) => n.id === 'n3');
-    expect(n3).toBeDefined();
+  it('does not modify other nodes after staging', async () => {
+    const staging = makeStaging(makeFlows().flows);
+    const result = await handleDeleteNode(staging, {}, { nodeId: 'n2' });
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.nodeId).toBe('n2');
   });
 
   it('throws if nodeId is not found', async () => {
-    const rawResponse = makeFlows();
-    const client = {
-      request: vi.fn().mockResolvedValueOnce(rawResponse),
-      putFlows: vi.fn(),
-    };
-
-    await expect(handleDeleteNode(client, { nodeId: 'ghost' }))
+    const staging = makeStaging(makeFlows().flows);
+    await expect(handleDeleteNode(staging, {}, { nodeId: 'ghost' }))
       .rejects.toThrow("Node 'ghost' not found");
-    expect(client.putFlows).not.toHaveBeenCalled();
   });
 
   it('throws if the node parent flow is locked', async () => {
-    const rawResponse = makeLockedFlows();
-    const client = {
-      request: vi.fn().mockResolvedValueOnce(rawResponse),
-      putFlows: vi.fn(),
-    };
-
-    await expect(handleDeleteNode(client, { nodeId: 'n1' }))
+    const staging = makeStaging(makeLockedFlows().flows);
+    await expect(handleDeleteNode(staging, {}, { nodeId: 'n1' }))
       .rejects.toThrow("Flow 'flow-1' is locked");
-    expect(client.putFlows).not.toHaveBeenCalled();
   });
 });

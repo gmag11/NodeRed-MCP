@@ -85,9 +85,9 @@ export function transformSubflows(rawResponse) {
  * @param {ReturnType<import('../nodered/client.js').createNodeRedClient>} client
  * @returns {Promise<{ content: Array<{ type: string, text: string }> }>}
  */
-export async function handleGetSubflows(client) {
-  const rawResponse = await client.request('GET', '/flows');
-  const subflows = transformSubflows(rawResponse);
+export async function handleGetSubflows(staging) {
+  const flows = await staging.getFlows();
+  const subflows = transformSubflows({ flows });
 
   return {
     content: [
