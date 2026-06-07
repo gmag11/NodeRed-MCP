@@ -45,6 +45,7 @@ import { handleUpdateGroup } from './tools/update-group.js';
 import { handleDeleteGroup } from './tools/delete-group.js';
 import { handleDeploy } from './tools/deploy.js';
 import { handleGetStagingStatus } from './tools/get-staging-status.js';
+import { handleRefreshStaging } from './tools/refresh-staging.js';
 import { loadSkills } from './skills/loader.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -716,6 +717,20 @@ export function createMcpServer(nodeRedClient, commsClient) {
     'or to verify that a deploy was successful.',
     {},
     async () => handleGetStagingStatus(staging)(),
+  );
+
+  // Register: refresh-staging
+  server.tool(
+    'refresh-staging',
+    '⚠️ DESTRUCTIVE — Discards ALL un-deployed staged changes and re-fetches the latest flow ' +
+    'state from the Node-RED backend (GET /flows). ' +
+    'Use this when flows have been modified externally (e.g., via the Node-RED editor UI) ' +
+    'and the MCP staging state is out of sync. ' +
+    'Returns the previous staging state (what was discarded) and the new staging state (confirming sync). ' +
+    'Any edits made via MCP tools that were NOT yet deployed will be permanently lost. ' +
+    'Use get-staging-status first to review what would be discarded.',
+    {},
+    async () => handleRefreshStaging(staging)(),
   );
 
   // Register: read-debug-messages
