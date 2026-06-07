@@ -31,6 +31,23 @@ Step-by-step operational guide for building, editing, testing, and debugging Nod
 
 ---
 
+## 🔄 ALWAYS Sync Before Editing
+
+**Before starting ANY workflow** (create, edit, delete, import), you MUST refresh your view of the server state:
+
+```
+get-flows()
+```
+
+This returns the current list of flow tabs, their IDs, labels, node counts, and lock status. Use this information to:
+- Confirm the target flow exists and get its correct `flowId`
+- Check if a flow is **locked** before attempting edits (locked flows reject modifications)
+- Identify which flow to work on when the user refers to it by name
+
+**After every `deploy`**, the staging store automatically re-fetches flows from the server — you do NOT need to call `get-flows` manually after deploy. The internal state is already synced.
+
+---
+
 ## Workflow A — Build a Flow from Scratch
 
 The primary workflow for creating a new flow. Follow these steps in order:
@@ -79,6 +96,8 @@ Check what's pending before deploying:
 ```
 get-staging-status()
 ```
+
+**🔄 Post-deploy sync:** The deploy tool automatically refreshes all flows from the server after a successful deploy. The staging store is always in sync with Node-RED after deploy completes — no manual refresh needed.
 
 ### Step 6: Test the flow
 ```

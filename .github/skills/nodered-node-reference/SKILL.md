@@ -118,14 +118,53 @@ See [Common Node Properties](#common-node-properties) for `name` and `info`.
 ### switch
 `type: "switch"` — Routes messages to different outputs based on rules.
 
+**⚠️ CRITICAL — Mandatory fields for correct rendering:**
+- **`outputs`** (number): MUST be set and MUST equal the number of rules. If omitted, the Node-RED editor defaults to 1 visible output port, hiding any wires connected to ports 2+. This causes the node to appear disconnected from downstream nodes even though `wires` contains the connections. Set `outputs` to `rules.length`.
+- **`repair`** (boolean): Should be explicitly set to `false` (or `true` to forward unmatched messages to a catch node). Omitting this field can cause rendering inconsistencies.
+- **`checkall`** (string, NOT boolean): Node-RED expects `"true"` or `"false"` as strings. Despite being conceptually boolean, the value must be a JSON string.
+
 | Property | Type | Description |
 |----------|------|-------------|
 | `name` | string | Label |
 | `property` | string | Property to test (e.g., `"payload"`, `"topic"`) |
 | `propertyType` | string | How to interpret property: `"msg"`, `"flow"`, `"global"`, `"env"` |
-| `rules` | array | Array of `{ t: "eq"|"neq"|"lt"|"lte"|"gt"|"gte"|"btwn"|"cont"|"regex"|"true"|"false"|"null"|"nnull"|"istype"|"empty"|"nempty"|"hask"|"jsonata_exp", v: <value>, vt: <valueType> }` |
-| `checkall` | string | `"true"` = evaluate all rules; `"false"` = stop at first match |
-| `repair` | boolean | Send unmatched messages to a catch node |
+| `rules` | array | Array of `{ t: <operator>, v: <value>, vt: <valueType> }`. Each rule maps to output port `index`. See operator reference below. |
+| `checkall` | string | `"true"` = evaluate all rules (multiple outputs possible); `"false"` = stop at first match (single output). **Must be string, not boolean.** |
+| `outputs` | number | **REQUIRED.** Number of output ports. Must match `rules.length`. Without this, the editor shows only 1 port. |
+| `repair` | boolean | **REQUIRED.** Send unmatched messages to a catch node. Default `false`. Set explicitly. |
+
+**Switch rule operators (`t` field):**
+
+| Operator | Description | Example |
+|----------|-------------|---------|
+| `eq` | Equal to | `{ t: "eq", v: "hello", vt: "str" }` |
+| `neq` | Not equal to | `{ t: "neq", v: "0", vt: "num" }` |
+| `lt` | Less than | `{ t: "lt", v: "15", vt: "num" }` |
+| `lte` | Less than or equal | `{ t: "lte", v: "100", vt: "num" }` |
+| `gt` | Greater than | `{ t: "gt", v: "0", vt: "num" }` |
+| `gte` | Greater than or equal | `{ t: "gte", v: "30", vt: "num" }` |
+| `btwn` | Between (inclusive) | `{ t: "btwn", v: "10", vt: "num", v2: "20", vt2: "num" }` |
+| `cont` | Contains substring | `{ t: "cont", v: "error", vt: "str" }` |
+| `regex` | Matches regex | `{ t: "regex", v: "^\\d{3}$", vt: "str" }` |
+| `true` | Boolean true | `{ t: "true" }` |
+| `false` | Boolean false | `{ t: "false" }` |
+| `null` | Is null | `{ t: "null" }` |
+| `nnull` | Is not null | `{ t: "nnull" }` |
+| `istype` | Is type | `{ t: "istype", v: "string" }` (types: "string", "number", "boolean", "object", "array", "buffer", "null", "undefined") |
+| `empty` | Is empty | `{ t: "empty" }` |
+| `nempty` | Is not empty | `{ t: "nempty" }` |
+| `hask` | Has key | `{ t: "hask", v: "temperature", vt: "str" }` |
+| `jsonata_exp` | JSONata expression | `{ t: "jsonata_exp", v: "payload.temp > 30", vt: "str" }` |
+| `otherwise` | Catch-all (always matches) | `{ t: "otherwise" }` — **Use with caution: may not work in all Node-RED versions.** Prefer explicit `{ t: "lt", v: "15", vt: "num" }` over `otherwise` for the last rule. |
+
+**⚠️ `otherwise` operator caveat:** The `otherwise` operator may throw `"operators[rule.t] is not a function"` in certain Node-RED versions. When in doubt, replace `{ t: "otherwise" }` with an explicit inverse rule (e.g., if previous rules check `gte 30` and `gte 15`, the last rule should be `lt 15`).
+
+**Best practices for `switch` node:**
+- Always set `outputs` to `rules.length`.
+- Always set `repair` explicitly (usually `false`).
+- With `checkall: "false"`, rules are evaluated top-to-bottom and the first match wins. Ensure rules are ordered from most specific to least specific.
+- For numeric ranges, use `lte`/`gte`/`lt`/`gt` operators in descending or ascending order, ensuring no overlaps when `checkall: "false"`.
+- For `btwn` (between), provide both `v`/`vt` (lower bound) and `v2`/`vt2` (upper bound).
 
 ### change
 `type: "change"` — Set, change, delete, or move message properties.
