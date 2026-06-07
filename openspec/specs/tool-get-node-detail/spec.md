@@ -45,3 +45,6 @@ For nodes that support credentials, the tool SHALL include a `_credentials` obje
 #### Scenario: Credential metadata absent for non-config nodes
 - **WHEN** `get-node-detail` is invoked on a `function` or `debug` node
 - **THEN** the `_credentials` field is absent (these node types don't have credentials)
+
+### Requirement: Read from staging
+The tool SHALL read flow data from the local staging store instead of making an HTTP request to Node-RED's `/flows` endpoint.

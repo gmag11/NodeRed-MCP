@@ -1,4 +1,4 @@
-## ADDED Requirements
+## Requirements
 
 ### Requirement: create-subflow-instance MCP tool
 The system SHALL expose an MCP tool named `create-subflow-instance` that accepts `subflowId` (required string), `flowId` (required string), `name` (optional string), `env` (optional array of `{ name, value, type }`), `x` (optional number, default 200), and `y` (optional number, default 200). It SHALL create a new node of type `subflow:<subflowId>` in the specified flow tab and deploy immediately.
@@ -34,3 +34,11 @@ The system SHALL expose an MCP tool named `create-subflow-instance` that accepts
 #### Scenario: Position defaults
 - **WHEN** `create-subflow-instance` is invoked without `x` or `y`
 - **THEN** the instance SHALL be placed at `x: 200, y: 200`
+
+### Requirement: Stage edits locally
+The tool SHALL modify the local staging store instead of deploying to Node-RED.
+
+#### Scenario: Tool is executed
+- **WHEN** the tool is executed successfully
+- **THEN** it mutates the staging store
+- **THEN** the response includes a `staging` summary object containing `pendingChanges`, `dirtyNodeIds`, `dirtyFlowIds`, and `deployed`

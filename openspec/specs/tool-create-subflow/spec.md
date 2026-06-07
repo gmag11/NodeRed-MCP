@@ -1,4 +1,4 @@
-## ADDED Requirements
+## Requirements
 
 ### Requirement: create-subflow MCP tool
 The system SHALL expose an MCP tool named `create-subflow` that accepts `name` (required string), `info` (optional string), `category` (optional string), `color` (optional string), `icon` (optional string), `in` (optional array of port definitions), and `out` (optional array of port definitions). It SHALL create a new `type: "subflow"` node and deploy immediately.
@@ -25,3 +25,11 @@ The tool SHALL generate a UUID for the new subflow definition using `crypto.rand
 #### Scenario: Generated ID is a valid UUID
 - **WHEN** a subflow is created
 - **THEN** the `subflowId` in the response SHALL be a valid UUID v4 string
+
+### Requirement: Stage edits locally
+The tool SHALL modify the local staging store instead of deploying to Node-RED.
+
+#### Scenario: Tool is executed
+- **WHEN** the tool is executed successfully
+- **THEN** it mutates the staging store
+- **THEN** the response includes a `staging` summary object containing `pendingChanges`, `dirtyNodeIds`, `dirtyFlowIds`, and `deployed`

@@ -1,4 +1,4 @@
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Automatic authentication mode detection
 The client SHALL call `GET /auth/login` on initialization to detect the authentication type required by the Node-RED instance. If `NODERED_API_KEY` is defined in the environment, it SHALL skip detection and use the API key directly as a Bearer token.

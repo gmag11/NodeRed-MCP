@@ -33,3 +33,13 @@ tools:
 
 ## Description
 This specification outlines the procedural steps that an LLM agent should follow to correctly author and test flows, from coordinate systems to 0-indexed port numbering and reliable asynchronous debugging using inject-message and read-debug-messages.
+
+## Requirements
+
+### Requirement: Teach staging and deploy workflow
+The skill instructions SHALL be updated to explain the in-memory staging model and mandate explicit deployment.
+
+#### Scenario: LLM reads skill
+- **WHEN** the LLM retrieves the skill
+- **THEN** it learns that write tools only stage changes locally
+- **THEN** it learns that it must explicitly call the `deploy` tool before testing with `inject-message`

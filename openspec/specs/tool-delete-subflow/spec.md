@@ -1,4 +1,4 @@
-## ADDED Requirements
+## Requirements
 
 ### Requirement: delete-subflow MCP tool
 The system SHALL expose an MCP tool named `delete-subflow` that accepts `subflowId` (required string) and `deleteInstances` (optional boolean, default `true`). It SHALL remove the subflow definition and all its internal nodes from the flows, and optionally remove all its instances.
@@ -26,3 +26,11 @@ The system SHALL expose an MCP tool named `delete-subflow` that accepts `subflow
 #### Scenario: No orphan internal nodes
 - **WHEN** a subflow is deleted with `deleteInstances: true`
 - **THEN** no node with `z === subflowId` or `type === "subflow:<subflowId>"` SHALL remain in the flows array
+
+### Requirement: Stage edits locally
+The tool SHALL modify the local staging store instead of deploying to Node-RED.
+
+#### Scenario: Tool is executed
+- **WHEN** the tool is executed successfully
+- **THEN** it mutates the staging store
+- **THEN** the response includes a `staging` summary object containing `pendingChanges`, `dirtyNodeIds`, `dirtyFlowIds`, and `deployed`

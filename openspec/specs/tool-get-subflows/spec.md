@@ -1,4 +1,4 @@
-## ADDED Requirements
+## Requirements
 
 ### Requirement: get-subflows MCP tool
 The system SHALL expose an MCP tool named `get-subflows` that returns a list of all subflow definitions from the Node-RED instance, with enriched summary information. It SHALL accept no parameters.
@@ -29,3 +29,6 @@ The tool SHALL only return nodes with `type: "subflow"`. Nodes with `type: "tab"
 #### Scenario: Flow tabs are not included
 - **WHEN** `get-subflows` is invoked and the instance has both flow tabs and subflows
 - **THEN** only subflow definitions appear in the response; flow tabs are excluded
+
+### Requirement: Read from staging
+The tool SHALL read flow data from the local staging store instead of making an HTTP request to Node-RED's `/flows` endpoint.

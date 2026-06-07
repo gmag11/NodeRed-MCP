@@ -28,3 +28,11 @@ The tool SHALL return `nodeId` and `previousState` (the full node object as it w
 #### Scenario: Response shape
 - **WHEN** a node is successfully deleted
 - **THEN** the response contains `nodeId` and `previousState` as a JSON object
+
+### Requirement: Stage edits locally
+The tool SHALL modify the local staging store instead of deploying to Node-RED.
+
+#### Scenario: Tool is executed
+- **WHEN** the tool is executed successfully
+- **THEN** it mutates the staging store
+- **THEN** the response includes a `staging` summary object containing `pendingChanges`, `dirtyNodeIds`, `dirtyFlowIds`, and `deployed`

@@ -39,3 +39,6 @@ The tool SHALL include config nodes (nodes with no `z` property) that are refere
 #### Scenario: Config nodes are not auto-included in nodes mode
 - **WHEN** `exportMode: "nodes"` is used and a selected node references a config node
 - **THEN** the config node is NOT included unless its ID is explicitly in `nodeIds`
+
+### Requirement: Read from staging
+The tool SHALL read flow data from the local staging store instead of making an HTTP request to Node-RED's `/flows` endpoint.

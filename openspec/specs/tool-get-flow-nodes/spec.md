@@ -117,3 +117,6 @@ The tool SHALL accept optional `offset` (default 0) and `limit` (default 50) par
 - **WHEN** `get-flow-nodes` is invoked with `offset: 100, limit: 50` on a flow with 120 nodes
 - **THEN** the response contains the remaining 20 nodes, `offset: 100`, `hasMore: false`
 
+
+### Requirement: Read from staging
+The tool SHALL read flow data from the local staging store instead of making an HTTP request to Node-RED's `/flows` endpoint.

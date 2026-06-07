@@ -110,3 +110,11 @@ The tool SHALL return `fromNodeId`, `previousWires`, and `currentWires`. In sing
 #### Scenario: Batch response shape
 - **WHEN** `disconnect-nodes` is called with `connections`
 - **THEN** the response includes `fromNodeId`, `connections`, `previousWires`, and `currentWires`
+
+### Requirement: Stage edits locally
+The tool SHALL modify the local staging store instead of deploying to Node-RED.
+
+#### Scenario: Tool is executed
+- **WHEN** the tool is executed successfully
+- **THEN** it mutates the staging store
+- **THEN** the response includes a `staging` summary object containing `pendingChanges`, `dirtyNodeIds`, `dirtyFlowIds`, and `deployed`

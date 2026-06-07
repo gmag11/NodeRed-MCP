@@ -1,4 +1,4 @@
-## ADDED Requirements
+## Requirements
 
 ### Requirement: refresh-staging MCP tool
 The system SHALL expose an MCP tool named `refresh-staging` that requires no input parameters. It SHALL discard all un-deployed staged changes in the in-memory staging store and re-fetch the latest flow state from the Node-RED Admin API (`GET /flows`). It SHALL return a response containing: the previous staging summary (what was discarded), a warning message that un-deployed edits were lost, and the new staging summary (confirming the sync is complete and clean).

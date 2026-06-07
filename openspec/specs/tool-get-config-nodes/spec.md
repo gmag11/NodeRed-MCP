@@ -35,3 +35,6 @@ The tool SHALL accept an optional `nodeType` string parameter. When provided, on
 - **WHEN** `get-config-nodes` is invoked with `nodeType: "mqtt-broker"`
 - **THEN** only config nodes with `type: "mqtt-broker"` are returned
 
+
+### Requirement: Read from staging
+The tool SHALL read flow data from the local staging store instead of making an HTTP request to Node-RED's `/flows` endpoint.

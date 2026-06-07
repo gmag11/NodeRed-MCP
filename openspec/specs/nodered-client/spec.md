@@ -1,4 +1,4 @@
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Generic HTTP client for the Node-RED Admin API
 The system SHALL provide an HTTP client that wraps native fetch for all calls to the Node-RED Admin API. The client SHALL automatically include the `Node-RED-API-Version: v2` header and the `Authorization` header when appropriate based on the active auth mode.

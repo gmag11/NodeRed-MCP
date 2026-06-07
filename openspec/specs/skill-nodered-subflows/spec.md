@@ -1,4 +1,12 @@
-## ADDED Requirements
+## Requirements
+
+### Requirement: Teach staging and deploy workflow
+The skill instructions SHALL be updated to explain the in-memory staging model and mandate explicit deployment.
+
+#### Scenario: LLM reads skill
+- **WHEN** the LLM retrieves the skill
+- **THEN** it learns that write tools only stage changes locally
+- **THEN** it learns that it must explicitly call the `deploy` tool before testing with `inject-message`
 
 ### Requirement: nodered-subflows skill
 The system SHALL include a skill file at `.github/skills/nodered-subflows/SKILL.md` with valid YAML frontmatter containing `name`, `description`, and `tools` fields. The skill SHALL provide LLM guidance on working with Node-RED subflows via MCP tools.

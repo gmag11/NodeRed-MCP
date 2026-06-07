@@ -50,3 +50,6 @@ The system SHALL expose an MCP tool named `search-nodes` that accepts `query` (r
 #### Scenario: Invalid flowId
 - **WHEN** `search-nodes` is called with `flowId: "nonexistent"`
 - **THEN** the tool returns an error indicating the flow was not found
+
+### Requirement: Read from staging
+The tool SHALL read flow data from the local staging store instead of making an HTTP request to Node-RED's `/flows` endpoint.

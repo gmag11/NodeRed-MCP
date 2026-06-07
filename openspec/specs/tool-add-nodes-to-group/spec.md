@@ -36,3 +36,11 @@ The tool SHALL return `groupId`, `nodeIds` (members after the operation), `bound
 #### Scenario: Response for new group
 - **WHEN** a new group is created
 - **THEN** the response includes `created: true`, the new `groupId`, and the computed `boundingBox`
+
+### Requirement: Stage edits locally
+The tool SHALL modify the local staging store instead of deploying to Node-RED.
+
+#### Scenario: Tool is executed
+- **WHEN** the tool is executed successfully
+- **THEN** it mutates the staging store
+- **THEN** the response includes a `staging` summary object containing `pendingChanges`, `dirtyNodeIds`, `dirtyFlowIds`, and `deployed`
