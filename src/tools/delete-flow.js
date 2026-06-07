@@ -16,7 +16,7 @@
  * @param {object} rawResponse - Wrapper with `flows` array
  * @param {string} flowId - ID of the flow tab to delete
  * @returns {{ updatedFlows: object[], previousState: object|null }}
- * @throws {Error} If flow not found or locked
+ * @throws {Error} If flow not found, is the last remaining flow, or is locked
  */
 export function applyDeleteFlow(rawResponse, flowId) {
   const flows = rawResponse.flows ?? rawResponse;
@@ -30,6 +30,14 @@ export function applyDeleteFlow(rawResponse, flowId) {
 
   if (tab.locked) {
     throw new Error(`Flow '${flowId}' is locked`);
+  }
+
+  // Guard: Node-RED requires at least one flow tab to exist
+  const tabCount = flows.filter((n) => n.type === 'tab').length;
+  if (tabCount <= 1) {
+    throw new Error(
+      'Cannot delete the last flow — at least one flow tab must exist'
+    );
   }
 
   // Collect all child nodes
