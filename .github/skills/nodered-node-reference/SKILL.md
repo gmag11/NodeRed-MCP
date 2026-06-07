@@ -300,7 +300,9 @@ See [Common Node Properties](#common-node-properties) for `name` and `info`.
 |----------|------|-------------|
 | `name` | string | Label |
 | `url` | string | URL path (e.g., `"/api/data"`) |
-| `method` | string | `"get"`, `"post"`, `"put"`, `"delete"`, `"patch"` |
+| `method` | string | **⚠️ SOLO minúsculas.** `"get"`, `"post"`, `"put"`, `"delete"`, `"patch"` — **NO usar mayúsculas** (`"GET"` no funciona). Contraste: `http request` usa mayúsculas. |
+
+**⚠️ CRITICAL — method debe ir en minúsculas:** El nodo `http in` NO acepta `"GET"` (mayúsculas). Si usas `"GET"` el endpoint se registra pero nunca responde (errores 404). Usa siempre `"get"`. El nodo `http request` SÍ usa mayúsculas (`"GET"`, `"POST"`, etc.) — no confundir.
 
 **Response:** Must be paired with an `http response` node. `msg.req` and `msg.res` are available. Set `msg.payload` for the response body, `msg.statusCode` for status, and `msg.headers` for response headers.
 
