@@ -1,7 +1,7 @@
 ## Requirements
 
 ### Requirement: delete-flow MCP tool
-The system SHALL expose an MCP tool named `delete-flow` that accepts `flowId` (required string). It SHALL fetch the current flow state via `GET /flow/:id`, then delete it via `DELETE /flow/:id`, and return the full previous state (tab metadata and contained nodes).
+The system SHALL expose an MCP tool named `delete-flow` that accepts `flowId` (required string). It SHALL fetch the current flow state, validate the deletion against business rules, then stage the deletion, and return the full previous state (tab metadata and contained nodes).
 
 #### Scenario: Delete an existing flow
 - **WHEN** `delete-flow` is invoked with a valid `flowId`
