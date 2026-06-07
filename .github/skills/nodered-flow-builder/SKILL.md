@@ -141,27 +141,196 @@ connect-nodes(fromNodeId: "<switchId>", connections: [
 
 ---
 
-## Coordinate Grid
+## Coordinate Grid & Node Dimensions
 
-Node positions on the canvas follow a grid pattern to keep flows readable and avoid overlapping nodes.
+Node positions on the canvas follow a grid pattern to keep flows readable and avoid overlapping nodes. Understanding node dimensions is critical for calculating proper coordinates.
+
+###  Standard Node Dimensions
+
+Based on empirical measurements from Node-RED editor:
+
+| Node Type | Width (px) | Height (px) | Notes |
+|-----------|------------|-------------|-------|
+| **Standard function/debug/inject** | ~160 | ~40 | Short names (≤20 chars) |
+| **Long name function** | ~320+ | ~40 | Names >30 chars expand width |
+| **Config nodes** | ~180 | ~40 | Slightly wider than standard |
+| **Function w/ 1-3 outputs** | ~160 | ~40 | Height stays at ~40px |
+| **Function w/ 4-5 outputs** | ~160 | ~60 | Height jumps ~20px at 4+ outputs |
+| **Higher outputs (6+)** | ~160 | ~80+ | Extrapolated; verify empirically |
+
+**Key observations:**
+- All nodes have consistent **width** (~160px for standard names) regardless of output count
+- Width varies based on node name length, NOT number of outputs
+- Multiple output ports stack vertically on the right side — they do NOT expand width
+- Height is stable (~40px) for 1-3 outputs, then jumps to ~60px at 4+ outputs
+- Ports are positioned ~15px from left/right edges
+- Minimum safe horizontal spacing between connected nodes: **120px center-to-center** (160px recommended)
+- Minimum safe vertical spacing between rows: **40px center-to-center** for 1-3 outputs, **60px** for 4+ outputs
+
+**Important:** When placing nodes with many outputs (4+), increase vertical spacing to avoid port overlap with adjacent rows. Use +60px Y delta instead of +40px.
+
+### 📐 Height Formula (by output count)
+
+Node height is **fixed at ~40px** for up to 3 outputs, then increases in ~20px steps for every additional group of 3 outputs:
+
+```javascript
+/**
+ * Estimate a function node's height based on output count.
+ * @param {number} outputs - Number of output ports (1-based)
+ * @returns {number} Estimated height in pixels
+ */
+function estimateNodeHeight(outputs) {
+  const baseHeight = 40;   // minimum height for 1-3 outputs
+  const stepHeight = 20;   // extra height per group of 3 additional outputs
+  const groupSize  = 3;    // outputs per height group
+  const extra = Math.max(0, Math.floor((outputs - 1) / groupSize));
+  return baseHeight + extra * stepHeight;
+}
+```
+
+**Quick reference:**
+| Outputs | Height | ΔY to next row |
+|---------|--------|----------------|
+| 1–3     | 40px   | +40px          |
+| 4–6     | 60px   | +60px          |
+| 7–9     | 80px   | +80px          |
+| 10–12   | 100px  | +100px         |
+
+```javascript
+// When placing the next row, use the taller node's height:
+const nextY = currentY + estimateNodeHeight(currentOutputs);
+```
+
+### 🎯 Positioning Guidelines
+
+**📍 CRITICAL: First Node Position**
+
+The first node in ANY flow MUST start at coordinates **(x=120, y=80)**. This is the absolute top-left starting point — nothing should be placed above y=80 or to the left of x=120.
 
 | Convention | X | Y | Use Case |
 |------------|---|---|----------|
-| First node | 100 | 100 | Starting point for every flow |
-| Inline next node | +200 | same Y | Sequential nodes on the same row |
-| Branch down | same X | +100 | Alternative path (switch output 1+) |
-| Branch row | +200 | +100 | Alternative row for complex branches |
+| **FIRST NODE (mandatory)** | **120** | **80** | **Absolute starting point — no exceptions** |
+| Inline next node | +120 | same Y | Sequential nodes on the same row (minimum) |
+| Recommended inline | +200 | same Y | Better visual spacing for readability |
+| Branch down | same X | +40 | Alternative path (switch output 1+) |
+| Recommended branch | same X | +60 | More comfortable vertical spacing |
+| Branch row | +200 | +60 | Alternative row for complex branches |
 
 ```
-Row 1: [inject]──(+200)──[function]──(+200)──[debug]
-                          │
-Row 2:                    └─(+200, +100)──[debug:error]
+─────────────────────────────────────────────────────────┐
+│  CANVAS BOUNDARY                                         │
+│  ┌─────────────────────────────────────────────────────┐ │
+│  │                                                     │ │
+│  │   [120,80] ← FIRST NODE STARTS HERE                │ │
+│  │      ↓                                              │ │
+│  │   Row 1: [inject]──(+200)──[function]──(+200)──[debug] │
+│  │                             │                        │ │
+│  │   Row 2:                    └─(+200, +60)──[debug:error] │
+│  │                                                     │ │
+│  │  ⚠️ Nothing above y=80 or left of x=120            │ │
+│  └─────────────────────────────────────────────────────┘ │
+─────────────────────────────────────────────────────────┘
 ```
 
-**Important rules:**
-- Never place two nodes at the same (x, y) — they visually overlap.
-- Keep connected nodes within ~400px horizontally for readability.
-- Locked flows: `create-node`, `update-node`, `delete-node`, `connect-nodes`, and `disconnect-nodes` all refuse to modify nodes in a locked flow. Check flow lock status with `get-flows`.
+**Why (120, 80)?**
+- Provides adequate margin from canvas edges
+- Matches Node-RED's default grid alignment
+- Ensures consistent positioning across all flows
+- Leaves room for node icons and ports without clipping
+
+### 📐 Calculating Coordinates for Long Names
+
+When placing nodes with long names, calculate width dynamically:
+
+```javascript
+// Estimate node width based on name length
+function estimateNodeWidth(nodeName) {
+  const baseWidth = 160; // minimum width for short names
+  const charWidth = 8;   // approximate pixels per character
+  const padding = 40;    // icon + ports padding
+  
+  const textWidth = nodeName.length * charWidth;
+  return Math.max(baseWidth, textWidth + padding);
+}
+
+// Example calculations:
+estimateNodeWidth("function 1")           // → 160px
+estimateNodeWidth("This is a very long function name")  // → ~320px
+```
+
+**Placement strategy for long-name nodes:**
+1. Calculate estimated width using formula above
+2. Add extra horizontal spacing: `nextX = currentX + estimatedWidth + 40`
+3. This ensures cables remain visible and nodes don't overlap
+
+### ️ Important Rules
+
+- **Never place two nodes at the same (x, y)** — they visually overlap
+- **Keep connected nodes within ~400px horizontally** for readability
+- **Account for name length** when positioning — long names need more space
+- **Locked flows**: `create-node`, `update-node`, `delete-node`, `connect-nodes`, and `disconnect-nodes` all refuse to modify nodes in a locked flow. Check flow lock status with `get-flows`.
+
+### 🔍 Real-World Example
+
+From actual Node-RED deployment analysis:
+
+```
+Flow layout with 8 function nodes:
+
+Row 1 (y=80):
+  • function 1: x=120, y=80
+  • function 2: x=240, y=80   ← Δx = 120px (standard spacing)
+
+Row 2 (y=120):
+  • function 3: x=120, y=120
+  • function 4: x=240, y=120  ← Δx = 120px
+
+Row 3 (y=160):
+  • function 5: x=120, y=160
+  • function 6: x=240, y=160  ← Δx = 120px
+
+Row 4 (y=200):
+  • Long name node: x=200, y=200
+  • function 7:     x=400, y=200  ← Δx = 200px (extra space for long name)
+```
+
+**Takeaway:** Standard nodes use 120px spacing, but long-name nodes require 200px+ to prevent overlap.
+
+### 🧪 Multi-Output Node Height Test
+
+Empirical test with function nodes (1-5 outputs) placed at y=80 with debug reference nodes below:
+
+```
+Test flow: "Node Dimensions Test"
+
+Row 1 (y=80):  [1 output] [2 outputs] [3 outputs] [4 outputs] [5 outputs]
+                 x=120      x=280       x=440       x=600       x=760
+
+Row 2 (debug):  [Debug 1]  [Debug 2]   [Debug 3]   [Debug 4]   [Debug 5]
+                  y=120      y=120       y=120       y=140       y=140
+```
+
+**Results:**
+| Outputs | Function Y | Debug Y | ΔY (height) | Node Height |
+|---------|-----------|---------|-------------|-------------|
+| 1       | 80        | 120     | 40px        | ~40px       |
+| 2       | 80        | 120     | 40px        | ~40px       |
+| 3       | 80        | 120     | 40px        | ~40px       |
+| 4       | 80        | 140     | 60px        | ~60px       |
+| 5       | 80        | 140     | 60px        | ~60px       |
+
+**Key findings:**
+- **Width is constant** (~160px) regardless of output count — extra ports stack vertically
+- **Height is stable** (~40px) for 1-3 outputs
+- **Height jumps** to ~60px at 4+ outputs
+- **Horizontal spacing**: 160px between centers works for all output counts
+- **Vertical spacing**: Use +40px for 1-3 outputs, +60px for 4+ outputs
+
+**Placement rule for multi-output nodes:**
+```javascript
+// Use the estimateNodeHeight() formula from the Height section above
+const nextY = currentY + estimateNodeHeight(currentOutputs);
+```
 
 ---
 
