@@ -1,4 +1,4 @@
-## ADDED Requirements
+## Requirements
 
 ### Requirement: update-subflow MCP tool
 The system SHALL expose an MCP tool named `update-subflow` that accepts `subflowId` (required string) and `updates` (required object). It SHALL merge the provided fields into the existing subflow definition and deploy immediately. Allowed fields SHALL be: `name`, `info`, `category`, `color`, `icon`, `in`, `out`.
@@ -34,3 +34,11 @@ The system SHALL expose an MCP tool named `update-subflow` that accepts `subflow
 #### Scenario: Response includes previous and current state
 - **WHEN** a subflow is successfully updated
 - **THEN** the response SHALL contain `subflowId`, `previousState`, and `currentState`
+
+### Requirement: Stage edits locally
+The tool SHALL modify the local staging store instead of deploying to Node-RED.
+
+#### Scenario: Tool is executed
+- **WHEN** the tool is executed successfully
+- **THEN** it mutates the staging store
+- **THEN** the response includes a `staging` summary object containing `pendingChanges`, `dirtyNodeIds`, `dirtyFlowIds`, and `deployed`

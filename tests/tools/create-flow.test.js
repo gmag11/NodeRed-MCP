@@ -39,39 +39,45 @@ describe('buildCreateFlowPayload', () => {
 // ---------------------------------------------------------------------------
 
 describe('handleCreateFlow', () => {
-  it('POSTs to /flow with the assembled payload', async () => {
-    const fakeResult = { id: 'new-flow-1', label: 'Test', disabled: false, info: '', env: [], nodes: [] };
-    const client = { request: vi.fn().mockResolvedValue(fakeResult) };
+  function makeStaging() {
+    return {
+      applyMutation: vi.fn().mockImplementation(async (fn) => {
+        const result = fn({ flows: [] });
+        const { updatedFlows, ...output } = result;
+        return output;
+      }),
+      getStagingSummary: vi.fn().mockReturnValue({
+        pendingChanges: 0, dirtyNodeIds: [], dirtyFlowIds: [], deployed: true,
+      }),
+    };
+  }
 
-    await handleCreateFlow(client, { label: 'Test' });
+  it('stages a new flow via staging.applyMutation', async () => {
+    const staging = makeStaging();
 
-    expect(client.request).toHaveBeenCalledWith('POST', '/flow', {
-      label: 'Test',
-      disabled: false,
-      info: '',
-      env: [],
-      nodes: [],
-    });
-  });
-
-  it('returns flowId and currentState from API response', async () => {
-    const fakeResult = { id: 'new-flow-1', label: 'Test', disabled: false, info: '', env: [], nodes: [] };
-    const client = { request: vi.fn().mockResolvedValue(fakeResult) };
-
-    const result = await handleCreateFlow(client, { label: 'Test' });
+    const result = await handleCreateFlow(staging, { label: 'Test' });
     const parsed = JSON.parse(result.content[0].text);
 
-    expect(parsed.flowId).toBe('new-flow-1');
-    expect(parsed.currentState).toEqual(fakeResult);
+    expect(staging.applyMutation).toHaveBeenCalledOnce();
+    expect(parsed.flowId).toBeTruthy();
+    expect(parsed.currentState.type).toBe('tab');
+    expect(parsed.currentState.label).toBe('Test');
+    expect(parsed.currentState.disabled).toBe(false);
+    expect(parsed.currentState.info).toBe('');
+    expect(parsed.staging).toBeDefined();
+    expect(parsed.staging.deployed).toBe(true);
   });
 
-  it('includes env in the POST payload when provided', async () => {
+  it('includes env and disabled in the staged flow', async () => {
+    const staging = makeStaging();
     const env = [{ name: 'PORT', value: '1880', type: 'num' }];
-    const fakeResult = { id: 'f2', label: 'X', disabled: false, info: '', env, nodes: [] };
-    const client = { request: vi.fn().mockResolvedValue(fakeResult) };
 
-    await handleCreateFlow(client, { label: 'X', env });
+    const result = await handleCreateFlow(staging, { label: 'X', disabled: true, info: 'Notes', env });
+    const parsed = JSON.parse(result.content[0].text);
 
-    expect(client.request.mock.calls[0][2].env).toEqual(env);
+    expect(parsed.currentState.label).toBe('X');
+    expect(parsed.currentState.disabled).toBe(true);
+    expect(parsed.currentState.info).toBe('Notes');
+    expect(parsed.currentState.env).toEqual(env);
   });
 });

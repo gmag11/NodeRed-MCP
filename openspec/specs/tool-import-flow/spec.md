@@ -43,3 +43,11 @@ The tool SHALL return an object with `imported` (counts of `flows`, `nodes`, `co
 #### Scenario: Summary counts are accurate
 - **WHEN** a flow JSON with 1 tab, 5 regular nodes, and 1 config node is imported
 - **THEN** the response contains `imported: { flows: 1, nodes: 5, configNodes: 1 }`
+
+### Requirement: Stage edits locally
+The tool SHALL modify the local staging store instead of deploying to Node-RED.
+
+#### Scenario: Tool is executed
+- **WHEN** the tool is executed successfully
+- **THEN** it mutates the staging store
+- **THEN** the response includes a `staging` summary object containing `pendingChanges`, `dirtyNodeIds`, `dirtyFlowIds`, and `deployed`

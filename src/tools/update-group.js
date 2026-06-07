@@ -7,7 +7,6 @@
  */
 
 import { applyNodeUpdate } from './update-node.js';
-import { withRetry } from './flow-utils.js';
 
 /**
  * Apply a property update to a group node in the flows array.
@@ -43,10 +42,10 @@ export function applyUpdateGroup(rawResponse, groupId, properties) {
  * @param {object} params.properties
  * @returns {Promise<{ content: Array<{ type: string, text: string }> }>}
  */
-export async function handleUpdateGroup(client, params) {
+export async function handleUpdateGroup(staging, client, params) {
   const { groupId, properties } = params;
 
-  const result = await withRetry(client, (rawResponse) => {
+  const result = await staging.applyMutation((rawResponse) => {
     return applyUpdateGroup(rawResponse, groupId, properties);
   });
 
@@ -59,6 +58,7 @@ export async function handleUpdateGroup(client, params) {
             groupId,
             previousState: result.previousState,
             currentState: result.currentState,
+            staging: staging.getStagingSummary(),
           },
           null,
           2,

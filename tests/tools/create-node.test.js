@@ -223,99 +223,60 @@ describe('applyCreateNode', () => {
 // handleCreateNode
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// handleCreateNode
+// ---------------------------------------------------------------------------
+
 describe('handleCreateNode', () => {
-  it('GETs /flows, POSTs updated flows, returns nodeId and currentState', async () => {
-    const rawResponse = makeFlows();
-    const client = {
-      request: vi.fn().mockResolvedValueOnce(rawResponse),
-      putFlows: vi.fn().mockResolvedValueOnce({}),
+  function makeStaging(flowsArray) {
+    return {
+      applyMutation: vi.fn().mockImplementation(async (fn) => {
+        const result = fn({ flows: [...flowsArray] });
+        const { updatedFlows, ...output } = result;
+        return output;
+      }),
+      getStagingSummary: vi.fn().mockReturnValue({
+        pendingChanges: 0, dirtyNodeIds: [], dirtyFlowIds: [], deployed: true,
+      }),
     };
+  }
 
-    const result = await handleCreateNode(client, {
-      type: 'debug',
-      flowId: 'flow-1',
-    });
-
-    expect(client.request).toHaveBeenCalledWith('GET', '/flows');
-    expect(client.putFlows).toHaveBeenCalledOnce();
-
-    const [putPayload, deployType] = client.putFlows.mock.calls[0];
-    expect(deployType).toBe('flows');
-    expect(putPayload.rev).toBe('rev-abc');
-    // New node should be appended
-    const newNode = putPayload.flows[putPayload.flows.length - 1];
-    expect(newNode.type).toBe('debug');
-    expect(newNode.z).toBe('flow-1');
-
+  it('stages a new node and returns nodeId and currentState', async () => {
+    const staging = makeStaging(makeFlows().flows);
+    const result = await handleCreateNode(staging, {}, { type: 'debug', flowId: 'flow-1' });
+    expect(staging.applyMutation).toHaveBeenCalledOnce();
     const parsed = JSON.parse(result.content[0].text);
     expect(parsed.nodeId).toBeTruthy();
     expect(parsed.currentState.type).toBe('debug');
+    expect(parsed.currentState.z).toBe('flow-1');
+    expect(parsed.staging).toBeDefined();
   });
 
-  it('defaults x to 300 and y to 200 when omitted', async () => {
-    const rawResponse = makeFlows();
-    const client = {
-      request: vi.fn().mockResolvedValueOnce(rawResponse),
-      putFlows: vi.fn().mockResolvedValueOnce({}),
-    };
-
-    await handleCreateNode(client, { type: 'debug', flowId: 'flow-1' });
-
-    const [putPayload] = client.putFlows.mock.calls[0];
-    const newNode = putPayload.flows[putPayload.flows.length - 1];
-    expect(newNode.x).toBe(300);
-    expect(newNode.y).toBe(200);
+  it('defaults x to 300 and y to 200', async () => {
+    const staging = makeStaging(makeFlows().flows);
+    const result = await handleCreateNode(staging, {}, { type: 'debug', flowId: 'flow-1' });
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.currentState.x).toBe(300);
+    expect(parsed.currentState.y).toBe(200);
   });
 
-  it('uses custom x and y when provided', async () => {
-    const rawResponse = makeFlows();
-    const client = {
-      request: vi.fn().mockResolvedValueOnce(rawResponse),
-      putFlows: vi.fn().mockResolvedValueOnce({}),
-    };
-
-    await handleCreateNode(client, { type: 'debug', flowId: 'flow-1', x: 500, y: 300 });
-
-    const [putPayload] = client.putFlows.mock.calls[0];
-    const newNode = putPayload.flows[putPayload.flows.length - 1];
-    expect(newNode.x).toBe(500);
-    expect(newNode.y).toBe(300);
-  });
-
-  it('round-trips the rev field in the POST body', async () => {
-    const rawResponse = { ...makeFlows(), rev: 'specific-rev-999' };
-    const client = {
-      request: vi.fn().mockResolvedValueOnce(rawResponse),
-      putFlows: vi.fn().mockResolvedValueOnce({}),
-    };
-
-    await handleCreateNode(client, { type: 'debug', flowId: 'flow-1' });
-
-    const [putPayload] = client.putFlows.mock.calls[0];
-    expect(putPayload.rev).toBe('specific-rev-999');
+  it('uses custom x and y', async () => {
+    const staging = makeStaging(makeFlows().flows);
+    const result = await handleCreateNode(staging, {}, { type: 'debug', flowId: 'flow-1', x: 500, y: 300 });
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.currentState.x).toBe(500);
+    expect(parsed.currentState.y).toBe(300);
   });
 
   it('throws if flowId is not found', async () => {
-    const rawResponse = makeFlows();
-    const client = {
-      request: vi.fn().mockResolvedValueOnce(rawResponse),
-      putFlows: vi.fn(),
-    };
-
-    await expect(handleCreateNode(client, { type: 'debug', flowId: 'ghost-flow' }))
+    const staging = makeStaging(makeFlows().flows);
+    await expect(handleCreateNode(staging, {}, { type: 'debug', flowId: 'ghost-flow' }))
       .rejects.toThrow("Flow 'ghost-flow' not found");
-    expect(client.putFlows).not.toHaveBeenCalled();
   });
 
   it('throws if the target flow is locked', async () => {
-    const rawResponse = makeLockedFlows();
-    const client = {
-      request: vi.fn().mockResolvedValueOnce(rawResponse),
-      putFlows: vi.fn(),
-    };
-
-    await expect(handleCreateNode(client, { type: 'debug', flowId: 'flow-1' }))
+    const staging = makeStaging(makeLockedFlows().flows);
+    await expect(handleCreateNode(staging, {}, { type: 'debug', flowId: 'flow-1' }))
       .rejects.toThrow("Flow 'flow-1' is locked");
-    expect(client.putFlows).not.toHaveBeenCalled();
   });
 });

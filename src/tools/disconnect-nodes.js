@@ -9,7 +9,6 @@
  * Errors if a wire does not exist.  Refuses to mutate nodes in locked flows.
  */
 
-import { withRetry } from './flow-utils.js';
 /**
  * Apply wire removal in the flows array.
  *
@@ -127,38 +126,27 @@ export function applyDisconnect(rawResponse, fromNodeId, outputPort = 0, toNodeI
  * @param {Array<{ outputPort: number, toNodeId: string }>} [params.connections]
  * @returns {Promise<{ content: Array<{ type: string, text: string }> }>}
  */
-export async function handleDisconnectNodes(client, params) {
+export async function handleDisconnectNodes(staging, client, params) {
   const { fromNodeId, outputPort = 0, toNodeId, clearPort = false, connections } = params;
 
-const { previousWires, currentWires } = await withRetry(
-      client,
-      (rawResponse) => {
-        return applyDisconnect(
-          rawResponse,
-          fromNodeId,
-          outputPort,
-          toNodeId,
-          clearPort,
-          connections,
-        );
-      }
-    );
-
-  // Build response shape based on mode
-  let responseData;
-  if (connections) {
-    responseData = { fromNodeId, connections, previousWires, currentWires };
-  } else if (clearPort && !toNodeId) {
-    responseData = { fromNodeId, outputPort, clearPort: true, previousWires, currentWires };
-  } else {
-    responseData = { fromNodeId, outputPort, toNodeId, previousWires, currentWires };
-  }
+  const { previousWires, currentWires } = await staging.applyMutation(
+    (rawResponse) => {
+      return applyDisconnect(
+        rawResponse,
+        fromNodeId,
+        outputPort,
+        toNodeId,
+        clearPort,
+        connections,
+      );
+    }
+  );
 
   return {
     content: [
       {
         type: 'text',
-        text: JSON.stringify(responseData, null, 2),
+        text: JSON.stringify({ fromNodeId, previousWires, currentWires, staging: staging.getStagingSummary() }, null, 2),
       },
     ],
   };

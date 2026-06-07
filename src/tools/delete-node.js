@@ -49,12 +49,11 @@ export function applyDeleteNode(rawResponse, nodeId) {
  * @param {string} params.nodeId
  * @returns {Promise<{ content: Array<{ type: string, text: string }> }>}
  */
-import { withRetry } from './flow-utils.js';
 
-export async function handleDeleteNode(client, params) {
+export async function handleDeleteNode(staging, client, params) {
   const { nodeId } = params;
 
-  const { previousState } = await withRetry(client, (rawResponse) => {
+  const { previousState } = await staging.applyMutation((rawResponse) => {
     return applyDeleteNode(rawResponse, nodeId);
   });
 
@@ -62,7 +61,7 @@ export async function handleDeleteNode(client, params) {
     content: [
       {
         type: 'text',
-        text: JSON.stringify({ nodeId, previousState }, null, 2),
+        text: JSON.stringify({ nodeId, previousState, staging: staging.getStagingSummary() }, null, 2),
       },
     ],
   };

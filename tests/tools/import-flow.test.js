@@ -204,62 +204,66 @@ describe('applyTargetFlow', () => {
 // ---------------------------------------------------------------------------
 
 describe('handleImportFlow', () => {
-  const makeClient = (flows) => ({
-    request: vi.fn().mockResolvedValue({ rev: 'abc', flows }),
-    putFlows: vi.fn().mockResolvedValue({}),
-  });
+  function makeStaging(flowsArray) {
+    return {
+      applyMutation: vi.fn().mockImplementation(async (fn) => {
+        const result = fn({ flows: [...flowsArray] });
+        const { updatedFlows, ...output } = result;
+        return output;
+      }),
+      getStagingSummary: vi.fn().mockReturnValue({
+        pendingChanges: 0, dirtyNodeIds: [], dirtyFlowIds: [], deployed: true,
+      }),
+    };
+  }
 
   const simpleFlowJson = JSON.stringify([TAB2, { id: 'n-X', type: 'inject', z: 'tab2', wires: [] }]);
 
-  it('calls PUT /flows with merged payload on a valid import', async () => {
-    const client = makeClient(EXISTING);
-    await handleImportFlow(client, { flowJson: simpleFlowJson });
-    expect(client.putFlows).toHaveBeenCalledOnce();
+  it('stages the import via staging.applyMutation', async () => {
+    const staging = makeStaging(EXISTING);
+    await handleImportFlow(staging, {}, { flowJson: simpleFlowJson });
+    expect(staging.applyMutation).toHaveBeenCalledOnce();
   });
 
-  it('returns a valid summary on success', async () => {
-    const client = makeClient(EXISTING);
-    const response = await handleImportFlow(client, { flowJson: simpleFlowJson, conflictStrategy: 'regenerate' });
+  it('returns a valid summary on success with staging info', async () => {
+    const staging = makeStaging(EXISTING);
+    const response = await handleImportFlow(staging, {}, { flowJson: simpleFlowJson, conflictStrategy: 'regenerate' });
     const result = JSON.parse(response.content[0].text);
     expect(result.strategy).toBe('regenerate');
     expect(result.conflicts).toBe(0);
     expect(result.imported.flows).toBe(1);
     expect(result.imported.nodes).toBe(1);
+    expect(result.staging).toBeDefined();
   });
 
-  // Task 3.12: handler returns error when targetFlowId does not match any existing flow
   it('throws when targetFlowId does not match any existing flow', async () => {
-    const client = makeClient(EXISTING);
+    const staging = makeStaging(EXISTING);
     await expect(
-      handleImportFlow(client, { flowJson: simpleFlowJson, targetFlowId: 'nonexistent' })
+      handleImportFlow(staging, {}, { flowJson: simpleFlowJson, targetFlowId: 'nonexistent' })
     ).rejects.toThrow("Target flow 'nonexistent' not found");
   });
 
-  // Task 3.13: handler returns error when targetFlowId matches a locked flow
   it('throws when targetFlowId matches a locked flow', async () => {
-    const client = makeClient([TAB1_LOCKED, FUNC_NODE]);
+    const staging = makeStaging([TAB1_LOCKED, FUNC_NODE]);
     await expect(
-      handleImportFlow(client, { flowJson: simpleFlowJson, targetFlowId: 'tab1' })
+      handleImportFlow(staging, {}, { flowJson: simpleFlowJson, targetFlowId: 'tab1' })
     ).rejects.toThrow("Target flow 'tab1' is locked");
   });
 
   it('remaps z to targetFlowId when targetFlowId is provided', async () => {
-    const client = makeClient(EXISTING);
-    const response = await handleImportFlow(client, {
-      flowJson: simpleFlowJson,
-      targetFlowId: 'tab1',
-      conflictStrategy: 'regenerate',
+    const staging = makeStaging(EXISTING);
+    const response = await handleImportFlow(staging, {}, {
+      flowJson: simpleFlowJson, targetFlowId: 'tab1', conflictStrategy: 'regenerate',
     });
     const result = JSON.parse(response.content[0].text);
     expect(result.targetFlowId).toBe('tab1');
-    // Tab nodes from imported JSON are discarded → flows count should be 0
     expect(result.imported.flows).toBe(0);
   });
 
   it('throws on unknown conflictStrategy', async () => {
-    const client = makeClient(EXISTING);
+    const staging = makeStaging(EXISTING);
     await expect(
-      handleImportFlow(client, { flowJson: simpleFlowJson, conflictStrategy: 'unknown' })
+      handleImportFlow(staging, {}, { flowJson: simpleFlowJson, conflictStrategy: 'unknown' })
     ).rejects.toThrow('Unknown conflictStrategy');
   });
 });

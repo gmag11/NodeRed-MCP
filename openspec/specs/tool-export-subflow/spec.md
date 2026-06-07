@@ -1,4 +1,4 @@
-## ADDED Requirements
+## Requirements
 
 ### Requirement: export-subflow MCP tool
 The system SHALL expose an MCP tool named `export-subflow` that accepts `subflowId` (required string) and returns the subflow definition, all its internal nodes, and any referenced config nodes as a JSON array string compatible with `import-flow`.
@@ -26,3 +26,6 @@ The system SHALL expose an MCP tool named `export-subflow` that accepts `subflow
 #### Scenario: Empty subflow export
 - **WHEN** a subflow has no internal nodes
 - **THEN** the exported JSON SHALL contain only the subflow definition node and any referenced config nodes
+
+### Requirement: Read from staging
+The tool SHALL read flow data from the local staging store instead of making an HTTP request to Node-RED's `/flows` endpoint.

@@ -32,3 +32,11 @@ The tool SHALL return `removedNodeIds`, `remainingNodeIds`, and `repositionedNod
 #### Scenario: Response includes removal details
 - **WHEN** nodes are successfully removed from a group
 - **THEN** the response lists which nodes were removed and which remain
+
+### Requirement: Stage edits locally
+The tool SHALL modify the local staging store instead of deploying to Node-RED.
+
+#### Scenario: Tool is executed
+- **WHEN** the tool is executed successfully
+- **THEN** it mutates the staging store
+- **THEN** the response includes a `staging` summary object containing `pendingChanges`, `dirtyNodeIds`, `dirtyFlowIds`, and `deployed`

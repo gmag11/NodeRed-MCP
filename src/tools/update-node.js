@@ -21,7 +21,7 @@
  * are updated; unspecified credential fields retain their previous values.
  */
 
-import { normalizeCredentials, withRetry } from './flow-utils.js';
+import { normalizeCredentials } from './flow-utils.js';
 
 /**
  * Apply a property update to a node in the flows array.
@@ -79,20 +79,20 @@ export function applyNodeUpdate(rawResponse, nodeId, properties, credentialKeys 
 /**
  * Handler for the update-node MCP tool.
  *
+ * @param {import('../staging-store.js').StagingStore} staging
  * @param {ReturnType<import('../nodered/client.js').createNodeRedClient>} client
  * @param {object} params
  * @param {string} params.nodeId
  * @param {object} params.properties
  * @returns {Promise<{ content: Array<{ type: string, text: string }> }>}
  */
-export async function handleUpdateNode(client, params) {
+export async function handleUpdateNode(staging, client, params) {
   const { nodeId, properties } = params;
 
-  // Fetch credential metadata once (outside retry loop — just for detection)
+  // Fetch credential metadata once (outside mutation — just for detection)
   let credentialKeys = null;
   try {
-    const initialRaw = await client.request('GET', '/flows');
-    const initialFlows = initialRaw.flows ?? [];
+    const initialFlows = await staging.getFlows();
     const initialNode = initialFlows.find((n) => n.id === nodeId);
     if (initialNode) {
       try {
@@ -113,7 +113,7 @@ export async function handleUpdateNode(client, params) {
     // Node not found or other error — applyNodeUpdate will handle validation
   }
 
-  const { previousState, currentState } = await withRetry(client, (rawResponse) => {
+  const { previousState, currentState } = await staging.applyMutation((rawResponse) => {
     return applyNodeUpdate(rawResponse, nodeId, properties, credentialKeys);
   });
 
@@ -121,7 +121,7 @@ export async function handleUpdateNode(client, params) {
     content: [
       {
         type: 'text',
-        text: JSON.stringify({ nodeId, previousState, currentState }, null, 2),
+        text: JSON.stringify({ nodeId, previousState, currentState, staging: staging.getStagingSummary() }, null, 2),
       },
     ],
   };

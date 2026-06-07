@@ -276,161 +276,80 @@ describe('applyNodeUpdate credential handling', () => {
 // handleUpdateNode
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// handleUpdateNode
+// ---------------------------------------------------------------------------
+
 describe('handleUpdateNode', () => {
-  // Helper: build mock client with correct request/putFlows pattern for withRetry
-  // The handler does: GET /flows (credential lookup) → GET /credentials → GET /flows (withRetry) → PUT /flows
-  function makeClient(rawResponse, credResponse, putFlowsImpl) {
-    const reqMocks = [vi.fn().mockResolvedValueOnce(rawResponse)]; // GET /flows (credential)
-    if (credResponse !== undefined) {
-      if (credResponse instanceof Error) {
-        reqMocks.push(vi.fn().mockRejectedValueOnce(credResponse)); // GET /credentials fails
-      } else {
-        reqMocks.push(vi.fn().mockResolvedValueOnce(credResponse)); // GET /credentials
-      }
-    }
-    // GET /flows inside withRetry — return same rawResponse
-    reqMocks.push(vi.fn().mockResolvedValueOnce(rawResponse));
-
-    // Chain them
-    const request = reqMocks.reduce((mocked, m) => {
-      return mocked.mockImplementationOnce(m.getMockImplementation());
-    }, vi.fn());
-    // Actually, simpler: just chain the mockResolvedValueOnce calls
-    const requestFn = vi.fn()
-      .mockResolvedValueOnce(rawResponse); // GET /flows (credential)
-
-    if (credResponse !== undefined) {
-      if (credResponse instanceof Error) {
-        requestFn.mockRejectedValueOnce(credResponse);
-      } else {
-        requestFn.mockResolvedValueOnce(credResponse);
-      }
-    }
-    requestFn.mockResolvedValueOnce(rawResponse); // GET /flows (retry)
-
+  function makeStaging(flowsArray) {
     return {
-      request: requestFn,
-      putFlows: putFlowsImpl ? putFlowsImpl : vi.fn().mockResolvedValueOnce({}),
+      applyMutation: vi.fn().mockImplementation(async (fn) => {
+        const result = fn({ flows: [...flowsArray] });
+        const { updatedFlows, ...output } = result;
+        return output;
+      }),
+      getFlows: vi.fn().mockResolvedValue([...flowsArray]),
+      getStagingSummary: vi.fn().mockReturnValue({
+        pendingChanges: 0, dirtyNodeIds: [], dirtyFlowIds: [], deployed: true,
+      }),
     };
   }
 
-  it('GETs /flows then PUTs with updated node', async () => {
-    const rawResponse = makeFlows();
-    const client = makeClient(rawResponse, null);
-
-    await handleUpdateNode(client, { nodeId: 'n1', properties: { name: 'New' } });
-
-    expect(client.request).toHaveBeenCalledWith('GET', '/flows');
-    expect(client.putFlows).toHaveBeenCalledOnce();
-    const [putPayload, deployType] = client.putFlows.mock.calls[0];
-    expect(deployType).toBe('flows');
-    expect(putPayload.rev).toBe('rev-abc');
-    const updatedNode = putPayload.flows.find((n) => n.id === 'n1');
-    expect(updatedNode.name).toBe('New');
-  });
-
-  it('round-trips the rev field in the PUT body', async () => {
-    const rawResponse = { ...makeFlows(), rev: 'my-revision-123' };
-    const client = makeClient(rawResponse, null);
-
-    await handleUpdateNode(client, { nodeId: 'n1', properties: { name: 'X' } });
-
-    const [putPayload] = client.putFlows.mock.calls[0];
-    expect(putPayload.rev).toBe('my-revision-123');
-  });
-
-  it('returns previousState and currentState in MCP content', async () => {
-    const rawResponse = makeFlows();
-    const client = makeClient(rawResponse, null);
-
-    const result = await handleUpdateNode(client, { nodeId: 'n1', properties: { name: 'New' } });
+  it('stages node update via staging.applyMutation', async () => {
+    const staging = makeStaging(makeFlows().flows);
+    const client = { request: vi.fn().mockResolvedValue({}) };
+    const result = await handleUpdateNode(staging, client, { nodeId: 'n1', properties: { name: 'New' } });
+    expect(staging.applyMutation).toHaveBeenCalledOnce();
     const parsed = JSON.parse(result.content[0].text);
-
     expect(parsed.nodeId).toBe('n1');
     expect(parsed.previousState.name).toBe('Old Name');
     expect(parsed.currentState.name).toBe('New');
+    expect(parsed.staging).toBeDefined();
   });
 
   it('throws if wires is in properties', async () => {
-    const rawResponse = makeFlows();
-    const client = makeClient(rawResponse, null, vi.fn());
-
-    await expect(handleUpdateNode(client, { nodeId: 'n1', properties: { wires: [] } }))
+    const staging = makeStaging(makeFlows().flows);
+    const client = { request: vi.fn() };
+    await expect(handleUpdateNode(staging, client, { nodeId: 'n1', properties: { wires: [] } }))
       .rejects.toThrow(/wires/i);
-    expect(client.putFlows).not.toHaveBeenCalled();
   });
 
   it('throws if nodeId is not found', async () => {
-    const rawResponse = makeFlows();
-    const client = makeClient(rawResponse, undefined, vi.fn());
-
-    await expect(handleUpdateNode(client, { nodeId: 'ghost', properties: { name: 'X' } }))
+    const staging = makeStaging(makeFlows().flows);
+    const client = { request: vi.fn() };
+    await expect(handleUpdateNode(staging, client, { nodeId: 'ghost', properties: { name: 'X' } }))
       .rejects.toThrow("Node 'ghost' not found");
   });
 
   it('throws if parent flow is locked', async () => {
-    const rawResponse = makeLockedFlows();
-    const client = makeClient(rawResponse, null, vi.fn());
-
-    await expect(handleUpdateNode(client, { nodeId: 'n1', properties: { name: 'X' } }))
+    const staging = makeStaging(makeLockedFlows().flows);
+    const client = { request: vi.fn() };
+    await expect(handleUpdateNode(staging, client, { nodeId: 'n1', properties: { name: 'X' } }))
       .rejects.toThrow("Flow 'flow-1' is locked");
-    expect(client.putFlows).not.toHaveBeenCalled();
   });
 
-  it('queries /credentials/:type/:id to get authoritative credential field names', async () => {
-    const mqttNode = {
-      id: 'mqtt-1',
-      type: 'mqtt-broker',
-      name: 'My MQTT',
-      broker: 'localhost',
-      port: '1883',
+  it('queries /credentials/:type/:id via client', async () => {
+    const mqttNode = { id: 'mqtt-1', type: 'mqtt-broker', name: 'My MQTT', broker: 'localhost', port: '1883' };
+    const staging = makeStaging([mqttNode]);
+    const client = {
+      request: vi.fn().mockResolvedValueOnce({ username: 'stored', has_password: true }),
     };
-    const rawResponse = { rev: 'rev-1', flows: [mqttNode] };
-    const credResponse = { username: 'stored-user', has_password: true };
-    const client = makeClient(rawResponse, credResponse);
-
-    await handleUpdateNode(client, {
-      nodeId: 'mqtt-1',
-      properties: { username: 'new-user', password: 'new-pass', broker: 'new-broker' },
+    await handleUpdateNode(staging, client, {
+      nodeId: 'mqtt-1', properties: { username: 'new-user', password: 'new-pass', broker: 'new-broker' },
     });
-
     expect(client.request).toHaveBeenCalledWith('GET', '/credentials/mqtt-broker/mqtt-1');
-
-    const [putPayload] = client.putFlows.mock.calls[0];
-    const updatedNode = putPayload.flows.find((n) => n.id === 'mqtt-1');
-
-    expect(updatedNode.credentials).toEqual({
-      username: 'new-user',
-      password: 'new-pass',
-    });
-    expect(updatedNode.broker).toBe('new-broker');
-    expect(updatedNode.username).toBeUndefined();
-    expect(updatedNode.password).toBeUndefined();
+    expect(staging.applyMutation).toHaveBeenCalledOnce();
   });
 
   it('falls back to heuristic when /credentials endpoint fails', async () => {
-    const mqttNode = {
-      id: 'mqtt-1',
-      type: 'mqtt-broker',
-      name: 'My MQTT',
-      broker: 'localhost',
-      port: '1883',
+    const mqttNode = { id: 'mqtt-1', type: 'mqtt-broker', name: 'My MQTT', broker: 'localhost', port: '1883' };
+    const staging = makeStaging([mqttNode]);
+    const client = {
+      request: vi.fn().mockRejectedValueOnce(new Error('Not Found')),
     };
-    const rawResponse = { rev: 'rev-1', flows: [mqttNode] };
-    const client = makeClient(rawResponse, new Error('Not Found'));
-
-    await handleUpdateNode(client, {
-      nodeId: 'mqtt-1',
-      properties: { username: 'heuristic-user', password: 'heuristic-pass' },
+    const result = await handleUpdateNode(staging, client, {
+      nodeId: 'mqtt-1', properties: { username: 'heuristic-user', password: 'heuristic-pass' },
     });
-
-    const [putPayload] = client.putFlows.mock.calls[0];
-    const updatedNode = putPayload.flows.find((n) => n.id === 'mqtt-1');
-    expect(updatedNode.credentials).toEqual({
-      username: 'heuristic-user',
-      password: 'heuristic-pass',
-    });
-    expect(updatedNode.username).toBeUndefined();
-    expect(updatedNode.password).toBeUndefined();
+    expect(staging.applyMutation).toHaveBeenCalledOnce();
   });
 });

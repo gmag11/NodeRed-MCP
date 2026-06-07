@@ -160,22 +160,22 @@ describe('trimWires', () => {
 // ---------------------------------------------------------------------------
 
 describe('handleExportFlowJson', () => {
-  const makeClient = (flows) => ({
-    request: vi.fn().mockResolvedValue({ flows }),
-  });
+  function makeStaging(flows) {
+    return { getFlows: vi.fn().mockResolvedValue([...flows]) };
+  }
 
   // Task 3.5: handler (flow mode) returns error when flowId is not found
   it('throws when flowId is not found in flow mode', async () => {
-    const client = makeClient(ALL_NODES);
+    const staging = makeStaging(ALL_NODES);
     await expect(
-      handleExportFlowJson(client, { exportMode: 'flow', flowId: 'nonexistent' })
+      handleExportFlowJson(staging, { exportMode: 'flow', flowId: 'nonexistent' })
     ).rejects.toThrow("Flow 'nonexistent' not found");
   });
 
   // Task 3.6: handler (flow mode) with no flowId returns all nodes as JSON string
   it('returns all nodes as JSON string when no flowId given in flow mode', async () => {
-    const client = makeClient(ALL_NODES);
-    const response = await handleExportFlowJson(client, { exportMode: 'flow' });
+    const staging = makeStaging(ALL_NODES);
+    const response = await handleExportFlowJson(staging, { exportMode: 'flow' });
     const result = JSON.parse(response.content[0].text);
     expect(result.exportMode).toBe('flow');
     expect(result.nodeCount).toBe(ALL_NODES.length);
@@ -184,8 +184,8 @@ describe('handleExportFlowJson', () => {
   });
 
   it('returns flow + config nodes for a valid flowId', async () => {
-    const client = makeClient(ALL_NODES);
-    const response = await handleExportFlowJson(client, { exportMode: 'flow', flowId: 'tab1' });
+    const staging = makeStaging(ALL_NODES);
+    const response = await handleExportFlowJson(staging, { exportMode: 'flow', flowId: 'tab1' });
     const result = JSON.parse(response.content[0].text);
     expect(result.exportMode).toBe('flow');
     expect(result.flowId).toBe('tab1');
@@ -204,24 +204,24 @@ describe('handleExportFlowJson', () => {
 
   // Task 3.9: handler (nodes mode) returns error when nodeIds is empty or omitted
   it('throws when exportMode is "nodes" and nodeIds is empty', async () => {
-    const client = makeClient(ALL_NODES);
+    const staging = makeStaging(ALL_NODES);
     await expect(
-      handleExportFlowJson(client, { exportMode: 'nodes', nodeIds: [] })
+      handleExportFlowJson(staging, { exportMode: 'nodes', nodeIds: [] })
     ).rejects.toThrow('exportMode "nodes" requires a non-empty nodeIds array');
   });
 
   it('throws when exportMode is "nodes" and nodeIds is omitted', async () => {
-    const client = makeClient(ALL_NODES);
+    const staging = makeStaging(ALL_NODES);
     await expect(
-      handleExportFlowJson(client, { exportMode: 'nodes' })
+      handleExportFlowJson(staging, { exportMode: 'nodes' })
     ).rejects.toThrow('exportMode "nodes" requires a non-empty nodeIds array');
   });
 
   // Task 3.10: handler (nodes mode) returns trimmed node array with correct nodeCount
   it('returns trimmed node array with correct nodeCount in nodes mode', async () => {
-    const client = makeClient(ALL_NODES);
+    const staging = makeStaging(ALL_NODES);
     // Select n1 and n2; n1 wires to n2 and n3 — n3 not in selection so wire trimmed
-    const response = await handleExportFlowJson(client, {
+    const response = await handleExportFlowJson(staging, {
       exportMode: 'nodes',
       nodeIds: ['n1', 'n2'],
     });

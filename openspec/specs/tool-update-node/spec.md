@@ -80,3 +80,11 @@ The tool SHALL deep-merge credential updates with existing credentials: only the
 #### Scenario: No credentials property created when no credential fields present
 - **WHEN** `update-node` is invoked with `properties: { name: "Renamed", broker: "new-broker" }`
 - **THEN** no `credentials` property is added to the node
+
+### Requirement: Stage edits locally
+The tool SHALL modify the local staging store instead of deploying to Node-RED.
+
+#### Scenario: Tool is executed
+- **WHEN** the tool is executed successfully
+- **THEN** it mutates the staging store
+- **THEN** the response includes a `staging` summary object containing `pendingChanges`, `dirtyNodeIds`, `dirtyFlowIds`, and `deployed`

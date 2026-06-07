@@ -60,16 +60,27 @@ export function resolveInjectNode(allNodes, { nodeId, name, flowId } = {}) {
 /**
  * Handler for the inject-message MCP tool.
  *
+ * @param {import('../staging-store.js').StagingStore} staging
  * @param {ReturnType<import('../nodered/client.js').createNodeRedClient>} client
  * @returns {(params: { nodeId?: string, name?: string, flowId?: string }) => Promise<{ content: Array<{ type: string, text: string }> }>}
  */
-export function handleInjectMessage(client) {
+export function handleInjectMessage(staging, client) {
   return async (params) => {
     const { nodeId, name, flowId } = params;
 
-    // Fetch all flows to resolve the inject node
-    const rawResponse = await client.request('GET', '/flows');
-    const allNodes = rawResponse.flows || [];
+    // Pre-deploy guard: refuse to inject if there are undeployed changes
+    if (staging.hasPendingChanges()) {
+      const summary = staging.getStagingSummary();
+      throw new Error(
+        `Cannot inject: there are ${summary.pendingChanges} undeployed change(s). ` +
+        `Call \`deploy\` first to push your pending changes to Node-RED. ` +
+        `Dirty nodes: ${summary.dirtyNodeIds.join(', ') || 'none'}. ` +
+        `Dirty flows: ${summary.dirtyFlowIds.join(', ') || 'none'}.`,
+      );
+    }
+
+    // Fetch all flows from staging to resolve the inject node
+    const allNodes = await staging.getFlows();
 
     // Resolve the target inject node
     const resolved = resolveInjectNode(allNodes, { nodeId, name, flowId });

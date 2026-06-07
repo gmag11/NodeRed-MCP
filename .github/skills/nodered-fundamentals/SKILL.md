@@ -78,6 +78,29 @@ A **node** is the fundamental building block. Each node has a type that determin
 1. **Flow tab** (also called "flow" or "sheet"): A named tab in the editor that groups related nodes. Every node belongs to exactly one flow tab (its `z` field).
 2. **Message flow** (also called "wired flow"): The path messages take through connected nodes — inject → function → debug.
 
+---
+
+## Staging and Deploy
+
+🚨 **CRITICAL CONCEPT — Edits are NOT live until you deploy.**
+
+The MCP tools use a **staging workspace** model, identical to the Node-RED editor:
+
+- **All write operations stage locally**: `create-node`, `connect-nodes`, `update-node`, `delete-node`, etc. modify an in-memory copy of the flows. Nothing is sent to the Node-RED runtime until you explicitly deploy.
+- **If you forget to deploy, your changes are LOST.** They only exist in staging memory.
+- **All read operations read from staging**: `get-flows`, `get-flow-nodes`, `get-flow-diagram`, etc. return data from the staged copy, reflecting all pending changes.
+- **Deploy pushes to runtime**: Call `deploy` to send all staged changes to Node-RED. Three deploy types:
+  - `"nodes"` (default) — restart only modified nodes (least disruptive)
+  - `"flows"` — restart only modified flow tabs
+  - `"full"` — restart everything
+- **Check pending changes**: Use `get-staging-status` to see what's pending before deploying.
+- **Staging guard**: `inject-message` refuses to inject if there are undeployed changes — deploy first, then test.
+- **Batch then deploy**: Create several nodes + wire them, then call `deploy` once. Don't deploy after every single operation — batch your edits.
+
+**Rule**: After ANY write operation, check the `staging.deployed` field in the response. If `false`, you have pending changes. Call `deploy` before testing with `inject-message`.
+
+**Workflow**: Edit → Read (verify with diagram) → Deploy → Test (inject + debug)
+
 In MCP contexts, "flow" typically means the tab. Use `flowId` to specify which tab to operate on.
 
 **MCP tools for flows:**

@@ -1,4 +1,4 @@
-## ADDED Requirements
+## Requirements
 
 ### Requirement: create-flow MCP tool
 The system SHALL expose an MCP tool named `create-flow` that accepts `label` (required string), `disabled` (optional boolean, default false), `info` (optional string), and `env` (optional array of `{ name, value, type }` objects). It SHALL call `POST /flow` on the Node-RED Admin API and return the new flow's `id` and `currentState`.
@@ -25,3 +25,11 @@ The tool SHALL include `flowId` (the ID assigned by Node-RED) and `currentState`
 #### Scenario: Response includes assigned ID
 - **WHEN** a flow is successfully created
 - **THEN** the response contains `flowId` and `currentState` as a JSON object
+
+### Requirement: Stage flow operations locally
+The tool SHALL modify the local staging store using a pure `apply*` function on the flows array, rather than calling the individual Node-RED flow API endpoints (`POST /flow`, `PUT /flow/:id`, `DELETE /flow/:id`).
+
+#### Scenario: Flow operation is executed
+- **WHEN** the tool is executed successfully
+- **THEN** it mutates the staging store flows array
+- **THEN** the response includes a `staging` summary object containing `pendingChanges`, `dirtyNodeIds`, `dirtyFlowIds`, and `deployed`

@@ -7,7 +7,6 @@
  */
 
 import { randomUUID } from 'crypto';
-import { withRetry } from './flow-utils.js';
 
 /**
  * Build a subflow instance node object.
@@ -94,10 +93,10 @@ export function applyCreateSubflowInstance(rawResponse, subflowId, flowId, name,
  * @param {number} [params.y=200]
  * @returns {Promise<{ content: Array<{ type: string, text: string }> }>}
  */
-export async function handleCreateSubflowInstance(client, params) {
+export async function handleCreateSubflowInstance(staging, client, params) {
   const { subflowId, flowId, name, env, x = 200, y = 200 } = params;
 
-  const { currentState } = await withRetry(client, (rawResponse) => {
+  const { currentState } = await staging.applyMutation((rawResponse) => {
     return applyCreateSubflowInstance(
       rawResponse,
       subflowId,
@@ -113,7 +112,7 @@ export async function handleCreateSubflowInstance(client, params) {
     content: [
       {
         type: 'text',
-        text: JSON.stringify({ nodeId: currentState.id, currentState }, null, 2),
+        text: JSON.stringify({ nodeId: currentState.id, currentState, staging: staging.getStagingSummary() }, null, 2),
       },
     ],
   };

@@ -75,18 +75,18 @@ describe('handleGetNodeDetail credential metadata', () => {
       broker: 'localhost',
       port: '1883',
     };
-    return { rev: 'rev-1', flows: [mqttNode] };
+    return [mqttNode];
   };
 
   it('includes _credentials metadata when the credentials endpoint returns data', async () => {
-    const rawResponse = makeFlowsWithBroker();
+    const flows = makeFlowsWithBroker();
+    const staging = { getFlows: vi.fn().mockResolvedValue(flows) };
     const client = {
       request: vi.fn()
-        .mockResolvedValueOnce(rawResponse)                          // GET /flows
         .mockResolvedValueOnce({ user: 'test67', has_password: true }), // GET /credentials
     };
 
-    const result = await handleGetNodeDetail(client, { nodeId: 'mqtt-1' });
+    const result = await handleGetNodeDetail(staging, client, { nodeId: 'mqtt-1' });
     const parsed = JSON.parse(result.content[0].text);
 
     // Node fields should be present
@@ -104,14 +104,14 @@ describe('handleGetNodeDetail credential metadata', () => {
   });
 
   it('does not include _credentials when the endpoint returns empty object', async () => {
-    const rawResponse = makeFlowsWithBroker();
+    const flows = makeFlowsWithBroker();
+    const staging = { getFlows: vi.fn().mockResolvedValue(flows) };
     const client = {
       request: vi.fn()
-        .mockResolvedValueOnce(rawResponse)   // GET /flows
         .mockResolvedValueOnce({}),            // GET /credentials (empty)
     };
 
-    const result = await handleGetNodeDetail(client, { nodeId: 'mqtt-1' });
+    const result = await handleGetNodeDetail(staging, client, { nodeId: 'mqtt-1' });
     const parsed = JSON.parse(result.content[0].text);
 
     expect(parsed.id).toBe('mqtt-1');
@@ -119,14 +119,14 @@ describe('handleGetNodeDetail credential metadata', () => {
   });
 
   it('does not include _credentials when the endpoint fails', async () => {
-    const rawResponse = makeFlowsWithBroker();
+    const flows = makeFlowsWithBroker();
+    const staging = { getFlows: vi.fn().mockResolvedValue(flows) };
     const client = {
       request: vi.fn()
-        .mockResolvedValueOnce(rawResponse)                       // GET /flows
         .mockRejectedValueOnce(new Error('Not Found')),           // GET /credentials fails
     };
 
-    const result = await handleGetNodeDetail(client, { nodeId: 'mqtt-1' });
+    const result = await handleGetNodeDetail(staging, client, { nodeId: 'mqtt-1' });
     const parsed = JSON.parse(result.content[0].text);
 
     expect(parsed.id).toBe('mqtt-1');

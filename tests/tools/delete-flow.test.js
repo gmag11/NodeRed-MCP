@@ -1,22 +1,74 @@
 import { describe, it, expect, vi } from 'vitest';
-import { handleDeleteFlow } from '../../src/tools/delete-flow.js';
+import { applyDeleteFlow, handleDeleteFlow } from '../../src/tools/delete-flow.js';
 
 // ---------------------------------------------------------------------------
 // Fixtures
 // ---------------------------------------------------------------------------
 
-const makeFlow = (overrides = {}) => ({
-  id: 'flow-1',
-  label: 'My Flow',
-  disabled: false,
-  locked: false,
-  info: '',
-  env: [],
-  nodes: [
-    { id: 'n1', type: 'inject', z: 'flow-1' },
-    { id: 'n2', type: 'debug', z: 'flow-1' },
-  ],
-  ...overrides,
+function makeFlows(overrides = {}) {
+  const tab = {
+    id: 'flow-1',
+    type: 'tab',
+    label: 'My Flow',
+    disabled: false,
+    locked: false,
+    info: '',
+    env: [],
+    ...overrides,
+  };
+  const n1 = { id: 'n1', type: 'inject', z: 'flow-1', name: 'Inject', wires: [[]] };
+  const n2 = { id: 'n2', type: 'debug', z: 'flow-1', name: 'Debug', wires: [] };
+  return [tab, n1, n2];
+}
+
+function makeLockedFlows() {
+  return [{ id: 'flow-1', type: 'tab', label: 'Locked Flow', locked: true }];
+}
+
+/**
+ * Create a staging mock that delegates to applyDeleteFlow.
+ */
+function makeStaging(flowsArray) {
+  return {
+    applyMutation: vi.fn().mockImplementation(async (fn) => {
+      const result = fn({ flows: [...flowsArray] });
+      const { updatedFlows, ...output } = result;
+      return output;
+    }),
+    getStagingSummary: vi.fn().mockReturnValue({
+      pendingChanges: 0, dirtyNodeIds: [], dirtyFlowIds: [], deployed: true,
+    }),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// applyDeleteFlow
+// ---------------------------------------------------------------------------
+
+describe('applyDeleteFlow', () => {
+  it('removes the tab and all its child nodes', () => {
+    const flows = makeFlows();
+    const { updatedFlows, previousState } = applyDeleteFlow({ flows }, 'flow-1');
+
+    // Tab and children should be gone
+    expect(updatedFlows.find((n) => n.id === 'flow-1')).toBeUndefined();
+    expect(updatedFlows.find((n) => n.id === 'n1')).toBeUndefined();
+    expect(updatedFlows.find((n) => n.id === 'n2')).toBeUndefined();
+
+    // previousState should contain the tab and its children
+    expect(previousState.tab.id).toBe('flow-1');
+    expect(previousState.nodes).toHaveLength(2);
+  });
+
+  it('throws if flow is not found', () => {
+    expect(() => applyDeleteFlow({ flows: makeFlows() }, 'missing'))
+      .toThrow("Flow 'missing' not found");
+  });
+
+  it('throws if flow is locked', () => {
+    expect(() => applyDeleteFlow({ flows: makeLockedFlows() }, 'flow-1'))
+      .toThrow("Flow 'flow-1' is locked");
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -24,90 +76,32 @@ const makeFlow = (overrides = {}) => ({
 // ---------------------------------------------------------------------------
 
 describe('handleDeleteFlow', () => {
-  it('returns flowId and previousState of the deleted flow', async () => {
-    const flow = makeFlow();
-    const client = {
-      request: vi.fn()
-        .mockResolvedValueOnce(flow)   // GET /flow/flow-1
-        .mockResolvedValueOnce(null),  // DELETE /flow/flow-1
-    };
+  it('returns flowId and previousState via staging.applyMutation', async () => {
+    const flows = makeFlows();
+    const staging = makeStaging(flows);
 
-    const result = await handleDeleteFlow(client, { flowId: 'flow-1' });
+    const result = await handleDeleteFlow(staging, { flowId: 'flow-1' });
     const parsed = JSON.parse(result.content[0].text);
 
     expect(parsed.flowId).toBe('flow-1');
-    expect(parsed.previousState).toEqual(flow);
-  });
-
-  it('previousState.nodes contains the nodes from the GET response', async () => {
-    const flow = makeFlow();
-    const client = {
-      request: vi.fn()
-        .mockResolvedValueOnce(flow)
-        .mockResolvedValueOnce(null),
-    };
-
-    const result = await handleDeleteFlow(client, { flowId: 'flow-1' });
-    const parsed = JSON.parse(result.content[0].text);
-
+    expect(parsed.previousState.tab.id).toBe('flow-1');
     expect(parsed.previousState.nodes).toHaveLength(2);
-    expect(parsed.previousState.nodes[0].id).toBe('n1');
+    expect(parsed.staging).toBeDefined();
+    expect(parsed.staging.deployed).toBe(true);
+    expect(staging.applyMutation).toHaveBeenCalledOnce();
   });
 
-  it('calls DELETE after a successful GET', async () => {
-    const flow = makeFlow();
-    const client = {
-      request: vi.fn()
-        .mockResolvedValueOnce(flow)
-        .mockResolvedValueOnce(null),
-    };
+  it('throws when flow is not found', async () => {
+    const staging = makeStaging(makeFlows());
 
-    await handleDeleteFlow(client, { flowId: 'flow-1' });
-
-    expect(client.request).toHaveBeenCalledTimes(2);
-    expect(client.request).toHaveBeenNthCalledWith(1, 'GET', '/flow/flow-1');
-    expect(client.request).toHaveBeenNthCalledWith(2, 'DELETE', '/flow/flow-1');
-  });
-
-  it('throws a friendly error when the flow is not found (404)', async () => {
-    const client = {
-      request: vi.fn().mockRejectedValue(
-        new Error('Node-RED API error: GET /flow/missing returned 404'),
-      ),
-    };
-
-    await expect(handleDeleteFlow(client, { flowId: 'missing' }))
+    await expect(handleDeleteFlow(staging, { flowId: 'missing' }))
       .rejects.toThrow("Flow 'missing' not found");
   });
 
-  it('re-throws non-404 errors from GET', async () => {
-    const client = {
-      request: vi.fn().mockRejectedValue(
-        new Error('Node-RED API error: GET /flow/flow-1 returned 500'),
-      ),
-    };
+  it('throws when flow is locked', async () => {
+    const staging = makeStaging(makeLockedFlows());
 
-    await expect(handleDeleteFlow(client, { flowId: 'flow-1' }))
-      .rejects.toThrow('500');
-  });
-
-  it('throws a locked error when the flow is locked', async () => {
-    const flow = makeFlow({ locked: true });
-    const client = {
-      request: vi.fn().mockResolvedValueOnce(flow),
-    };
-
-    await expect(handleDeleteFlow(client, { flowId: 'flow-1' }))
+    await expect(handleDeleteFlow(staging, { flowId: 'flow-1' }))
       .rejects.toThrow("Flow 'flow-1' is locked");
-  });
-
-  it('does not call DELETE when the flow is locked', async () => {
-    const flow = makeFlow({ locked: true });
-    const client = {
-      request: vi.fn().mockResolvedValueOnce(flow),
-    };
-
-    await expect(handleDeleteFlow(client, { flowId: 'flow-1' })).rejects.toThrow();
-    expect(client.request).toHaveBeenCalledTimes(1);
   });
 });

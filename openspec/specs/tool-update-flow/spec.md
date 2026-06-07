@@ -1,4 +1,4 @@
-## ADDED Requirements
+## Requirements
 
 ### Requirement: update-flow MCP tool
 The system SHALL expose an MCP tool named `update-flow` that accepts `flowId` (required string) and an `updates` object containing any subset of `label` (string), `disabled` (boolean), `info` (string), and `env` (array of `{ name, value, type }`). It SHALL fetch the current flow via `GET /flow/:id`, shallow-merge `updates` onto the tab metadata, and `PUT /flow/:id` with the full merged flow object (preserving the `nodes` array untouched).
@@ -45,3 +45,11 @@ The tool SHALL return `flowId`, `previousState` (the full flow object before the
 #### Scenario: Response shape
 - **WHEN** a flow is successfully updated
 - **THEN** the response contains `flowId`, `previousState`, and `currentState` as a JSON object
+
+### Requirement: Stage flow operations locally
+The tool SHALL modify the local staging store using a pure `apply*` function on the flows array, rather than calling the individual Node-RED flow API endpoints (`POST /flow`, `PUT /flow/:id`, `DELETE /flow/:id`).
+
+#### Scenario: Flow operation is executed
+- **WHEN** the tool is executed successfully
+- **THEN** it mutates the staging store flows array
+- **THEN** the response includes a `staging` summary object containing `pendingChanges`, `dirtyNodeIds`, `dirtyFlowIds`, and `deployed`

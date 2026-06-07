@@ -1,4 +1,4 @@
-## ADDED Requirements
+## Requirements
 
 ### Requirement: get-flows MCP tool
 The system SHALL expose an MCP tool named `get-flows` that requires no input parameters and returns the list of flows (tabs and subflows) from the connected Node-RED instance in a format optimized for LLMs.
@@ -41,3 +41,6 @@ The `get-flows` tool SHALL transform Node-RED's flat response into an array of o
 #### Scenario: Disabled tab
 - **WHEN** a tab has `disabled: true`
 - **THEN** it appears in the response with `disabled: true` (it is not filtered out)
+
+### Requirement: Read from staging
+The tool SHALL read flow data from the local staging store instead of making an HTTP request to Node-RED's `/flows` endpoint.

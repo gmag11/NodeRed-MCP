@@ -28,3 +28,11 @@ The tool SHALL return `previousState` (an object containing `group` and `members
 #### Scenario: Response includes full previous state
 - **WHEN** a group with 3 members is deleted
 - **THEN** `previousState.group` contains the full group node, and `previousState.members` contains all 3 member node objects as they were before deletion
+
+### Requirement: Stage edits locally
+The tool SHALL modify the local staging store instead of deploying to Node-RED.
+
+#### Scenario: Tool is executed
+- **WHEN** the tool is executed successfully
+- **THEN** it mutates the staging store
+- **THEN** the response includes a `staging` summary object containing `pendingChanges`, `dirtyNodeIds`, `dirtyFlowIds`, and `deployed`

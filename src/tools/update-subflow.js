@@ -7,7 +7,6 @@
  * Refuses to update a locked subflow.
  */
 
-import { withRetry } from './flow-utils.js';
 const ALLOWED_FIELDS = ['name', 'info', 'category', 'color', 'icon', 'in', 'out'];
 
 /**
@@ -52,10 +51,10 @@ export function applySubflowUpdate(currentSubflow, updates) {
  * @param {object} params.updates
  * @returns {Promise<{ content: Array<{ type: string, text: string }> }>}
  */
-export async function handleUpdateSubflow(client, params) {
+export async function handleUpdateSubflow(staging, client, params) {
   const { subflowId, updates } = params;
 
-  const { previousState, currentState: updatedSubflow } = await withRetry(client, (rawResponse) => {
+  const { previousState, updatedSubflow: currentState } = await staging.applyMutation((rawResponse) => {
     const flows = rawResponse.flows || [];
     const subflowIndex = flows.findIndex(
       (n) => n.type === 'subflow' && n.id === subflowId,
@@ -73,7 +72,7 @@ export async function handleUpdateSubflow(client, params) {
     content: [
       {
         type: 'text',
-        text: JSON.stringify({ subflowId, previousState, currentState: updatedSubflow }, null, 2),
+        text: JSON.stringify({ subflowId, previousState, currentState, staging: staging.getStagingSummary() }, null, 2),
       },
     ],
   };

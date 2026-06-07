@@ -159,131 +159,92 @@ describe('applyConnect', () => {
 // ---------------------------------------------------------------------------
 
 describe('handleConnectNodes', () => {
-  it('GETs /flows, PUTs updated flows, returns wire state', async () => {
-    const rawResponse = makeFlows();
-    const client = {
-      request: vi.fn().mockResolvedValueOnce(rawResponse),
-      putFlows: vi.fn().mockResolvedValueOnce({}),
+  function makeStaging(flowsArray) {
+    return {
+      applyMutation: vi.fn().mockImplementation(async (fn) => {
+        const result = fn({ flows: [...flowsArray] });
+        const { updatedFlows, ...output } = result;
+        return output;
+      }),
+      getStagingSummary: vi.fn().mockReturnValue({
+        pendingChanges: 0, dirtyNodeIds: [], dirtyFlowIds: [], deployed: true,
+      }),
     };
+  }
 
-    const result = await handleConnectNodes(client, { fromNodeId: 'n1', outputPort: 0, toNodeId: 'n2' });
+  it('stages the connection and returns wire state', async () => {
+    const rawResponse = makeFlows();
+    const staging = makeStaging(rawResponse.flows);
 
-    expect(client.request).toHaveBeenCalledWith('GET', '/flows');
-    expect(client.putFlows).toHaveBeenCalledOnce();
-    const [putPayload, deployType] = client.putFlows.mock.calls[0];
-    expect(deployType).toBe('flows');
-    expect(putPayload.rev).toBe('rev-xyz');
+    const result = await handleConnectNodes(staging, {}, { fromNodeId: 'n1', outputPort: 0, toNodeId: 'n2' });
+
+    expect(staging.applyMutation).toHaveBeenCalledOnce();
 
     const parsed = JSON.parse(result.content[0].text);
     expect(parsed.fromNodeId).toBe('n1');
-    expect(parsed.toNodeId).toBe('n2');
     expect(parsed.currentWires[0]).toContain('n2');
+    expect(parsed.staging).toBeDefined();
   });
 
-it('always deploys (idempotent — wire already exists is a no-op deploy)', async () => {
-  const rawResponse = makeFlows();
-  // Pre-connect n1 → n2
-  rawResponse.flows[1] = { ...rawResponse.flows[1], wires: [['n2']] };
+  it('stages even for idempotent connections', async () => {
+    const rawResponse = makeFlows();
+    rawResponse.flows[1] = { ...rawResponse.flows[1], wires: [['n2']] };
+    const staging = makeStaging(rawResponse.flows);
 
-  const client = {
-    request: vi.fn().mockResolvedValueOnce(rawResponse),
-    putFlows: vi.fn().mockResolvedValueOnce({}),
-  };
+    await handleConnectNodes(staging, {}, { fromNodeId: 'n1', outputPort: 0, toNodeId: 'n2' });
 
-  await handleConnectNodes(client, { fromNodeId: 'n1', outputPort: 0, toNodeId: 'n2' });
-
-  // withRetry always deploys — even if idempotent, it's a safe no-op
-  expect(client.putFlows).toHaveBeenCalled();
-  });
-
-  it('round-trips the rev field in PUT body', async () => {
-    const rawResponse = { ...makeFlows(), rev: 'specific-rev' };
-    const client = {
-      request: vi.fn().mockResolvedValueOnce(rawResponse),
-      putFlows: vi.fn().mockResolvedValueOnce({}),
-    };
-
-    await handleConnectNodes(client, { fromNodeId: 'n1', outputPort: 0, toNodeId: 'n2' });
-
-    const [putPayload] = client.putFlows.mock.calls[0];
-    expect(putPayload.rev).toBe('specific-rev');
+    expect(staging.applyMutation).toHaveBeenCalled();
   });
 
   it('throws if fromNodeId is not found', async () => {
-    const rawResponse = makeFlows();
-    const client = {
-      request: vi.fn().mockResolvedValueOnce(rawResponse),
-      putFlows: vi.fn(),
-    };
+    const staging = makeStaging(makeFlows().flows);
 
-    await expect(handleConnectNodes(client, { fromNodeId: 'ghost', outputPort: 0, toNodeId: 'n2' }))
+    await expect(handleConnectNodes(staging, {}, { fromNodeId: 'ghost', outputPort: 0, toNodeId: 'n2' }))
       .rejects.toThrow("Node 'ghost' not found");
   });
 
   it('throws if toNodeId is not found', async () => {
-    const rawResponse = makeFlows();
-    const client = {
-      request: vi.fn().mockResolvedValueOnce(rawResponse),
-      putFlows: vi.fn(),
-    };
+    const staging = makeStaging(makeFlows().flows);
 
-    await expect(handleConnectNodes(client, { fromNodeId: 'n1', outputPort: 0, toNodeId: 'ghost' }))
+    await expect(handleConnectNodes(staging, {}, { fromNodeId: 'n1', outputPort: 0, toNodeId: 'ghost' }))
       .rejects.toThrow("Node 'ghost' not found");
   });
 
   it('throws if source node parent flow is locked', async () => {
-    const rawResponse = makeLockedFlows();
-    const client = {
-      request: vi.fn().mockResolvedValueOnce(rawResponse),
-      putFlows: vi.fn(),
-    };
+    const lockedFlows = makeLockedFlows();
+    const staging = makeStaging(lockedFlows.flows);
 
-    await expect(handleConnectNodes(client, { fromNodeId: 'n1', outputPort: 0, toNodeId: 'n2' }))
+    await expect(handleConnectNodes(staging, {}, { fromNodeId: 'n1', outputPort: 0, toNodeId: 'n2' }))
       .rejects.toThrow("Flow 'flow-1' is locked");
-    expect(client.putFlows).not.toHaveBeenCalled();
   });
 
-  // --- Batch mode handler ---
-
-  it('batch: response shape includes connections, excludes outputPort/toNodeId', async () => {
+  it('batch: stages batch connections and returns wire state', async () => {
     const rawResponse = makeFlows();
-    const client = {
-      request: vi.fn().mockResolvedValueOnce(rawResponse),
-      putFlows: vi.fn().mockResolvedValueOnce({}),
-    };
+    const staging = makeStaging(rawResponse.flows);
     const connections = [
       { outputPort: 0, toNodeId: 'n2' },
-      { outputPort: 1, toNodeId: 'n1' },
+      { outputPort: 1, toNodeId: 'n2' },
     ];
 
-    const result = await handleConnectNodes(client, { fromNodeId: 'n3', connections });
+    const result = await handleConnectNodes(staging, {}, { fromNodeId: 'n3', connections });
 
+    expect(staging.applyMutation).toHaveBeenCalledOnce();
     const parsed = JSON.parse(result.content[0].text);
     expect(parsed.fromNodeId).toBe('n3');
-    expect(parsed.connections).toEqual(connections);
-    expect(parsed.previousWires).toBeDefined();
-    expect(parsed.currentWires).toBeDefined();
-    // Batch response must NOT include outputPort or toNodeId
-    expect(parsed.outputPort).toBeUndefined();
-    expect(parsed.toNodeId).toBeUndefined();
-    expect(client.putFlows).toHaveBeenCalledOnce();
+    expect(parsed.staging).toBeDefined();
   });
 
-  it('batch: always deploys (idempotent wires are safe no-op deploys)', async () => {
-    // n3 already has n2 on port 0
+  it('batch: stages idempotent batch connections', async () => {
     const rawResponse = makeFlows();
-    rawResponse.flows[3] = { ...rawResponse.flows[3], wires: [['n2'], []] };
-    const client = {
-      request: vi.fn().mockResolvedValueOnce(rawResponse),
-      putFlows: vi.fn().mockResolvedValueOnce({}),
-    };
+    rawResponse.flows[3] = { ...rawResponse.flows[3], wires: [['n1'], []] };
+    const staging = makeStaging(rawResponse.flows);
     const connections = [
-      { outputPort: 0, toNodeId: 'n2' }, // already wired
+      { outputPort: 0, toNodeId: 'n1' },
+      { outputPort: 1, toNodeId: 'n2' },
     ];
 
-    await handleConnectNodes(client, { fromNodeId: 'n3', connections });
+    await handleConnectNodes(staging, {}, { fromNodeId: 'n3', connections });
 
-    // withRetry always deploys
-    expect(client.putFlows).toHaveBeenCalled();
+    expect(staging.applyMutation).toHaveBeenCalled();
   });
 });

@@ -95,7 +95,7 @@ export function searchNodes(allNodes, { query, regex = false, flowId, limit = 50
  * @param {object} params - Validated input parameters
  * @returns {Promise<{ content: Array<{ type: string, text: string }> }>}
  */
-export async function handleSearchNodes(client, params) {
+export async function handleSearchNodes(staging, params) {
   const { query, regex, flowId, limit } = params;
 
   // Validate query
@@ -104,8 +104,7 @@ export async function handleSearchNodes(client, params) {
   }
 
   // Fetch all flows
-  const rawResponse = await client.request('GET', '/flows');
-  const allNodes = rawResponse.flows || [];
+  const allNodes = await staging.getFlows();
 
   // Validate flowId if provided
   if (flowId) {

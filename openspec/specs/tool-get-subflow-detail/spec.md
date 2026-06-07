@@ -1,4 +1,4 @@
-## ADDED Requirements
+## Requirements
 
 ### Requirement: get-subflow-detail MCP tool
 The system SHALL expose an MCP tool named `get-subflow-detail` that accepts a `subflowId` (required string) and returns the full subflow definition, all internal nodes, all instances, and a Mermaid diagram of the internal flow.
@@ -33,3 +33,6 @@ The Mermaid diagram SHALL be generated using the same logic as `get-flow-diagram
 #### Scenario: Diagram structure matches flow diagrams
 - **WHEN** a subflow has internal nodes connected in sequence
 - **THEN** the `diagram` string SHALL follow the same `flowchart TD` Mermaid format as `get-flow-diagram` output
+
+### Requirement: Read from staging
+The tool SHALL read flow data from the local staging store instead of making an HTTP request to Node-RED's `/flows` endpoint.

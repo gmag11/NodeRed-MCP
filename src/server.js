@@ -7,6 +7,7 @@
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import { StagingStore } from './staging-store.js';
 import { handleGetFlows } from './tools/get-flows.js';
 import { handleGetSubflows } from './tools/get-subflows.js';
 import { handleGetSubflowDetail } from './tools/get-subflow-detail.js';
@@ -42,6 +43,9 @@ import { handleAddNodesToGroup } from './tools/add-nodes-to-group.js';
 import { handleRemoveNodesFromGroup } from './tools/remove-nodes-from-group.js';
 import { handleUpdateGroup } from './tools/update-group.js';
 import { handleDeleteGroup } from './tools/delete-group.js';
+import { handleDeploy } from './tools/deploy.js';
+import { handleGetStagingStatus } from './tools/get-staging-status.js';
+import { handleRefreshStaging } from './tools/refresh-staging.js';
 import { loadSkills } from './skills/loader.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -59,6 +63,9 @@ export function createMcpServer(nodeRedClient, commsClient) {
     version: '0.1.0',
   });
 
+  // Create the in-memory staging store shared across all tool handlers
+  const staging = new StagingStore(nodeRedClient);
+
   // Register: get-flows
   server.tool(
     'get-flows',
@@ -67,7 +74,7 @@ export function createMcpServer(nodeRedClient, commsClient) {
     'Use this to understand what flow tabs exist and what they do at a glance. ' +
     'For subflow definitions, use get-subflows.',
     {},
-    async () => handleGetFlows(nodeRedClient),
+    async () => handleGetFlows(staging),
   );
 
   // Register: get-subflows
@@ -79,7 +86,7 @@ export function createMcpServer(nodeRedClient, commsClient) {
     'Use this to discover reusable subflows before building flows. ' +
     'Use get-subflow-detail for deep inspection of a specific subflow.',
     {},
-    async () => handleGetSubflows(nodeRedClient),
+    async () => handleGetSubflows(staging),
   );
 
   // Register: get-subflow-detail
@@ -92,16 +99,17 @@ export function createMcpServer(nodeRedClient, commsClient) {
     {
       subflowId: z.string().describe('ID of the subflow to inspect'),
     },
-    async (params) => handleGetSubflowDetail(nodeRedClient, params),
+    async (params) => handleGetSubflowDetail(staging, params),
   );
 
   // Register: create-subflow-instance
   server.tool(
     'create-subflow-instance',
-    'Create an instance of an existing subflow inside a flow tab. ' +
+    'Create an instance of an existing subflow inside a flow tab (staged — call `deploy` to apply). ' +
     'Auto-sizes the output wires to match the subflow\'s output port count. ' +
     'Validates that the subflow and target flow exist. ' +
-    'Use this to place a reusable subflow into a flow tab.',
+    'Use this to place a reusable subflow into a flow tab. ' +
+    '⚠️ STAGING: Changes are NOT live until you call `deploy`. Check the `staging` field in the response.',
     {
       subflowId: z.string().describe('ID of the subflow definition to instantiate'),
       flowId: z.string().describe('ID of the target flow tab where the instance will be placed'),
@@ -114,7 +122,7 @@ export function createMcpServer(nodeRedClient, commsClient) {
       x: z.number().int().optional().default(300).describe('X canvas position (default 300)'),
       y: z.number().int().optional().default(200).describe('Y canvas position (default 200)'),
     },
-    async (params) => handleCreateSubflowInstance(nodeRedClient, params),
+    async (params) => handleCreateSubflowInstance(staging, nodeRedClient, params),
   );
 
   // Register: export-subflow
@@ -126,15 +134,16 @@ export function createMcpServer(nodeRedClient, commsClient) {
     {
       subflowId: z.string().describe('ID of the subflow to export'),
     },
-    async (params) => handleExportSubflow(nodeRedClient, params),
+    async (params) => handleExportSubflow(staging, params),
   );
 
   // Register: create-subflow
   server.tool(
     'create-subflow',
-    'Create a new empty subflow definition. ' +
+    'Create a new empty subflow definition (staged — call `deploy` to apply). ' +
     'Returns the subflowId which can then be used with create-node (flowId = subflowId) ' +
-    'and connect-nodes to populate internal nodes. Use update-subflow to define input/output ports.',
+    'and connect-nodes to populate internal nodes. Use update-subflow to define input/output ports. ' +
+    '⚠️ STAGING: Changes are NOT live until you call `deploy`. Check the `staging` field in the response.',
     {
       name: z.string().describe('Display name for the subflow'),
       info: z.string().optional().describe('Markdown description for the subflow'),
@@ -144,38 +153,40 @@ export function createMcpServer(nodeRedClient, commsClient) {
       in: z.array(z.object({}).passthrough()).optional().describe('Input port definitions'),
       out: z.array(z.object({}).passthrough()).optional().describe('Output port definitions'),
     },
-    async (params) => handleCreateSubflow(nodeRedClient, params),
+    async (params) => handleCreateSubflow(staging, nodeRedClient, params),
   );
 
   // Register: update-subflow
   server.tool(
     'update-subflow',
-    'Update metadata fields of an existing subflow definition. ' +
+    'Update metadata fields of an existing subflow definition (staged — call `deploy` to apply). ' +
     'Allowed fields: name, info, category, color, icon, in, out. ' +
     'Performs a partial merge — unspecified fields are preserved. ' +
     'Refuses to update a locked subflow. ' +
-    'Use this to rename a subflow or redefine its input/output port wiring.',
+    'Use this to rename a subflow or redefine its input/output port wiring. ' +
+    '⚠️ STAGING: Changes are NOT live until you call `deploy`. Check the `staging` field in the response.',
     {
       subflowId: z.string().describe('ID of the subflow to update'),
       updates: z.object({}).passthrough().describe('Fields to update: name, info, category, color, icon, in, out'),
     },
-    async (params) => handleUpdateSubflow(nodeRedClient, params),
+    async (params) => handleUpdateSubflow(staging, nodeRedClient, params),
   );
 
   // Register: delete-subflow
   server.tool(
     'delete-subflow',
-    'Delete a subflow definition, its internal nodes, and optionally its instances. ' +
+    'Delete a subflow definition, its internal nodes, and optionally its instances (staged — call `deploy` to apply). ' +
     'By default (deleteInstances: true), all instances are also removed. ' +
     'Set deleteInstances: false to keep orphan instances. ' +
     'Returns previousState with definition, internalNodes, and instances for undo support. ' +
-    'Refuses to delete a locked subflow.',
+    'Refuses to delete a locked subflow. ' +
+    '⚠️ STAGING: Changes are NOT live until you call `deploy`. Check the `staging` field in the response.',
     {
       subflowId: z.string().describe('ID of the subflow to delete'),
       deleteInstances: z.boolean().optional().default(true)
         .describe('Whether to also delete all instances of this subflow (default true)'),
     },
-    async (params) => handleDeleteSubflow(nodeRedClient, params),
+    async (params) => handleDeleteSubflow(staging, nodeRedClient, params),
   );
 
   // Register: get-flow-nodes
@@ -199,7 +210,7 @@ export function createMcpServer(nodeRedClient, commsClient) {
       offset: z.number().int().min(0).optional().default(0).describe('Pagination offset (default 0)'),
       limit: z.number().int().min(1).max(200).optional().default(50).describe('Max nodes to return (default 50, max 200)'),
     },
-    async (params) => handleGetFlowNodes(nodeRedClient, params),
+    async (params) => handleGetFlowNodes(staging, params),
   );
 
   // Register: get-flow-diagram
@@ -220,7 +231,7 @@ export function createMcpServer(nodeRedClient, commsClient) {
       offset: z.number().int().min(0).optional().default(0).describe('Pagination offset (default 0)'),
       limit: z.number().int().min(1).max(200).optional().default(50).describe('Max nodes to include in diagram (default 50, max 200)'),
     },
-    async (params) => handleGetFlowDiagram(nodeRedClient, params),
+    async (params) => handleGetFlowDiagram(staging, params),
   );
 
   // Register: get-config-nodes
@@ -238,7 +249,7 @@ export function createMcpServer(nodeRedClient, commsClient) {
       offset: z.number().int().min(0).optional().default(0).describe('Pagination offset (default 0)'),
       limit: z.number().int().min(1).max(200).optional().default(50).describe('Max config nodes to return (default 50, max 200)'),
     },
-    async (params) => handleGetConfigNodes(nodeRedClient, params),
+    async (params) => handleGetConfigNodes(staging, params),
   );
 
   // Register: get-node-detail
@@ -255,7 +266,7 @@ export function createMcpServer(nodeRedClient, commsClient) {
     {
       nodeId: z.string().describe('ID of the node to retrieve'),
     },
-    async (params) => handleGetNodeDetail(nodeRedClient, params),
+    async (params) => handleGetNodeDetail(staging, nodeRedClient, params),
   );
 
   // Register: get-palette-nodes
@@ -289,9 +300,10 @@ export function createMcpServer(nodeRedClient, commsClient) {
   // Register: create-flow
   server.tool(
     'create-flow',
-    'Create a new Node-RED flow tab with the given label and optional properties. ' +
-    'Returns the new flow\'s ID and the full current state as returned by Node-RED. ' +
-    'Use this to add a new empty flow tab before creating nodes inside it.',
+    'Create a new Node-RED flow tab with the given label and optional properties (staged — call `deploy` to apply). ' +
+    'Returns the new flow\'s ID and the full current state. ' +
+    'Use this to add a new empty flow tab before creating nodes inside it. ' +
+    '⚠️ STAGING: Changes are NOT live until you call `deploy`. Check the `staging` field in the response.',
     {
       label: z.string().describe('Display label for the new flow tab'),
       disabled: z.boolean().optional().describe('Whether the flow is disabled (default false)'),
@@ -302,29 +314,30 @@ export function createMcpServer(nodeRedClient, commsClient) {
         type: z.string().describe('Environment variable type (e.g. "str", "num", "bool")'),
       })).optional().describe('Flow-level environment variables (default empty array)'),
     },
-    async (params) => handleCreateFlow(nodeRedClient, params),
+    async (params) => handleCreateFlow(staging, params),
   );
 
   // Register: delete-flow
   server.tool(
     'delete-flow',
-    'Delete an existing Node-RED flow tab by ID. ' +
-    'Fetches the full flow state (including all its nodes) before deletion and returns it as previousState. ' +
-    'Use previousState to undo the deletion if needed. ' +
-    'Refuses to delete a locked flow.',
+    'Delete an existing Node-RED flow tab by ID (staged — call `deploy` to apply). ' +
+    'Returns the full previous state (including nodes) for undo support. ' +
+    'Refuses to delete a locked flow. ' +
+    '⚠️ STAGING: Changes are NOT live until you call `deploy`. Check the `staging` field in the response.',
     {
       flowId: z.string().describe('ID of the flow tab to delete'),
     },
-    async (params) => handleDeleteFlow(nodeRedClient, params),
+    async (params) => handleDeleteFlow(staging, params),
   );
 
   // Register: update-flow
   server.tool(
     'update-flow',
-    'Update metadata fields (label, disabled, info, env) of an existing Node-RED flow tab. ' +
+    'Update metadata fields (label, disabled, info, env) of an existing Node-RED flow tab (staged — call `deploy` to apply). ' +
     'Nodes inside the flow are left unchanged. ' +
     'Returns previousState and currentState for review or undo. ' +
-    'Refuses to update a locked flow.',
+    'Refuses to update a locked flow. ' +
+    '⚠️ STAGING: Changes are NOT live until you call `deploy`. Check the `staging` field in the response.',
     {
       flowId: z.string().describe('ID of the flow tab to update'),
       updates: z.object({
@@ -338,13 +351,14 @@ export function createMcpServer(nodeRedClient, commsClient) {
         })).optional().describe('Replacement flow-level environment variables'),
       }).describe('Fields to update — at least one field is required'),
     },
-    async (params) => handleUpdateFlow(nodeRedClient, params),
+    async (params) => handleUpdateFlow(staging, params),
   );
 
   // Register: update-node
   server.tool(
     'update-node',
-    'Shallow-merge a properties object onto an existing Node-RED node\'s configuration and deploy immediately. ' +
+    'Shallow-merge a properties object onto an existing Node-RED node\'s configuration in the staging area. ' +
+    'Changes are NOT deployed to Node-RED until you call the `deploy` tool. ' +
     'IMPORTANT: Do NOT include `wires` in properties — wiring is managed exclusively by connect-nodes and disconnect-nodes. ' +
     'To wire a node after creating it: call connect-nodes with fromNodeId and toNodeId. ' +
     'Fields in properties overwrite the matching node fields; fields not mentioned are preserved. ' +
@@ -362,13 +376,14 @@ export function createMcpServer(nodeRedClient, commsClient) {
       nodeId: z.string().describe('ID of the node to update'),
       properties: z.record(z.unknown()).describe('Properties to shallow-merge onto the node — must NOT include wires; use connect-nodes to add connections'),
     },
-    async (params) => handleUpdateNode(nodeRedClient, params),
+    async (params) => handleUpdateNode(staging, nodeRedClient, params),
   );
 
   // Register: connect-nodes
   server.tool(
     'connect-nodes',
-    'Add a wire from a node output port to a target node and deploy immediately. ' +
+    'Add a wire from a node output port to a target node in the staging area. ' +
+    'Changes are NOT deployed to Node-RED until you call the `deploy` tool. ' +
     'Idempotent — if the wire already exists, returns success without re-deploying. ' +
     'Pads the source node\'s wires array if the requested output port does not exist yet. ' +
     'Returns previousWires and currentWires for the source node. ' +
@@ -386,13 +401,14 @@ export function createMcpServer(nodeRedClient, commsClient) {
         toNodeId: z.string().describe('ID of the target node to wire to'),
       })).optional().describe('Batch mode: wire multiple output ports in one call. When provided, `outputPort` and `toNodeId` are ignored.'),
     },
-    async (params) => handleConnectNodes(nodeRedClient, params),
+    async (params) => handleConnectNodes(staging, nodeRedClient, params),
   );
 
   // Register: disconnect-nodes
   server.tool(
     'disconnect-nodes',
-    'Remove wires from a node output port and deploy immediately. ' +
+    'Remove wires from a node output port in the staging area. ' +
+    'Changes are NOT deployed to Node-RED until you call the `deploy` tool. ' +
     'Supports three modes: ' +
     '(1) SINGLE: provide `toNodeId` to remove one specific wire; ' +
     '(2) CLEAR-PORT: set `clearPort: true` (omit `toNodeId`) to clear all wires from `outputPort`; ' +
@@ -413,13 +429,14 @@ export function createMcpServer(nodeRedClient, commsClient) {
         toNodeId: z.string().describe('ID of the target node to disconnect'),
       })).optional().describe('Batch mode: remove multiple wires in one call. When provided, `outputPort`, `toNodeId`, and `clearPort` are ignored.'),
     },
-    async (params) => handleDisconnectNodes(nodeRedClient, params),
+    async (params) => handleDisconnectNodes(staging, nodeRedClient, params),
   );
 
   // Register: create-node
   server.tool(
     'create-node',
-    'Create a new node of any installed palette type inside a specified Node-RED flow and deploy immediately. ' +
+    'Create a new node of any installed palette type inside a specified Node-RED flow in the staging area. ' +
+    'Changes are NOT deployed to Node-RED until you call the `deploy` tool. ' +
     'Generates a unique ID for the node. ' +
     'Use the optional `properties` object to set type-specific configuration fields (e.g. func, url, method). ' +
     'The `id`, `z`, and `wires` fields in `properties` are silently ignored — the tool controls them. ' +
@@ -429,6 +446,7 @@ export function createMcpServer(nodeRedClient, commsClient) {
     'To INSERT a node between A and B: (1) create-node to get newId, (2) disconnect-nodes A→B, (3) connect-nodes A→newId, (4) connect-nodes newId→B. ' +
     'Skipping steps 2-4 will leave the new node isolated and the original flow broken. ' +
     'Refuses to create in a locked flow. ' +
+    '� DEBUG TIP: When building a new flow, add a `debug` node after each processing node and deploy+inject to verify outputs step-by-step before adding more nodes. ' +
     '🔑 CREDENTIALS: For config node types (mqtt-broker, http-proxy, tls-config, websocket-listener, etc.), ' +
     'put credential fields inside a `credentials` object within properties: ' +
     'e.g. `properties: { broker: \"localhost\", port: 1883, credentials: { username: \"user\", password: \"pass\" } }`. ' +
@@ -440,20 +458,21 @@ export function createMcpServer(nodeRedClient, commsClient) {
       x: z.number().optional().default(300).describe('X canvas position (default 300)'),
       y: z.number().optional().default(200).describe('Y canvas position (default 200)'),
     },
-    async (params) => handleCreateNode(nodeRedClient, params),
+    async (params) => handleCreateNode(staging, nodeRedClient, params),
   );
 
   // Register: delete-node
   server.tool(
     'delete-node',
-    'Remove an existing node from a Node-RED flow by its ID and deploy immediately. ' +
+    'Remove an existing node from a Node-RED flow by its ID in the staging area. ' +
+    'Changes are NOT deployed to Node-RED until you call the `deploy` tool. ' +
     'Node-RED automatically cleans up any dangling wire references to the deleted node on deploy. ' +
     'Returns nodeId and previousState (the full node object before deletion) for review or recovery. ' +
     'Refuses to delete a node in a locked flow.',
     {
       nodeId: z.string().describe('ID of the node to delete'),
     },
-    async (params) => handleDeleteNode(nodeRedClient, params),
+    async (params) => handleDeleteNode(staging, nodeRedClient, params),
   );
 
   // Register: export-flow
@@ -473,13 +492,14 @@ export function createMcpServer(nodeRedClient, commsClient) {
       nodeIds: z.array(z.string()).optional()
         .describe('IDs of nodes to export (nodes mode only). Required when exportMode is "nodes".'),
     },
-    async (params) => handleExportFlowJson(nodeRedClient, params),
+    async (params) => handleExportFlowJson(staging, params),
   );
 
   // Register: import-flow
   server.tool(
     'import-flow',
-    'Import a Node-RED flow JSON into the running instance and redeploy all flows. ' +
+    'Import a Node-RED flow JSON into the staging area. ' +
+    'Changes are NOT deployed to Node-RED until you call the `deploy` tool. ' +
     'Accepts a JSON array string (Node-RED export format) or a JSON object with a `nodes` array. ' +
     'WARNING: All flows are redeployed on import, which briefly interrupts any running flows. ' +
     'Two conflict strategies are supported: ' +
@@ -496,7 +516,7 @@ export function createMcpServer(nodeRedClient, commsClient) {
       targetFlowId: z.string().optional()
         .describe('If provided, import all non-tab nodes into this existing flow tab (its ID must exist and must not be locked)'),
     },
-    async (params) => handleImportFlow(nodeRedClient, params),
+    async (params) => handleImportFlow(staging, nodeRedClient, params),
   );
 
   // Register: get-context
@@ -551,7 +571,7 @@ export function createMcpServer(nodeRedClient, commsClient) {
       flowId: z.string().optional().describe('Limit search to nodes in a specific flow tab or subflow (omit to search all flows)'),
       limit: z.number().int().min(1).optional().default(50).describe('Max results to return (default 50)'),
     },
-    async (params) => handleSearchNodes(nodeRedClient, params),
+    async (params) => handleSearchNodes(staging, params),
   );
 
   // Register: inject-message
@@ -559,6 +579,7 @@ export function createMcpServer(nodeRedClient, commsClient) {
     'inject-message',
     'Trigger an inject node in the running Node-RED instance by node ID or by name (optionally scoped to a flow). ' +
     'The target node MUST be an inject node. ' +
+    '⚠️ You MUST call `deploy` BEFORE `inject-message` — undeployed changes are not active and inject will fail. ' +
     'Use `read-debug-messages` to observe the results of the injected message. ' +
     'If multiple inject nodes share the same name, an error is returned listing the matching IDs — use nodeId to disambiguate.',
     {
@@ -566,7 +587,7 @@ export function createMcpServer(nodeRedClient, commsClient) {
       name: z.string().optional().describe('Name of the inject node to trigger (alternative to nodeId)'),
       flowId: z.string().optional().describe('Flow ID to scope the name search (optional, ignored when nodeId is provided)'),
     },
-    async (params) => handleInjectMessage(nodeRedClient)(params),
+    async (params) => handleInjectMessage(staging, nodeRedClient)(params),
   );
 
   // Register: install-node
@@ -602,10 +623,11 @@ export function createMcpServer(nodeRedClient, commsClient) {
   // Register: add-nodes-to-group
   server.tool(
     'add-nodes-to-group',
-    'Add nodes to a Node-RED group. If the group does not exist, it is created ' +
+    'Add nodes to a Node-RED group (staged — call `deploy` to apply). If the group does not exist, it is created ' +
     'with a bounding rectangle that encloses all specified nodes. ' +
     'Nodes already in another group are automatically reassigned. ' +
-    'Returns the groupId, whether the group was newly created, and the final bounding box.',
+    'Returns the groupId, whether the group was newly created, and the final bounding box. ' +
+    '⚠️ STAGING: Changes are NOT live until you call `deploy`. Check the `staging` field in the response.',
     {
       flowId: z.string().describe('ID of the flow tab where the nodes and group reside'),
       nodeIds: z.array(z.string()).describe('Array of node IDs to add to the group'),
@@ -620,47 +642,95 @@ export function createMcpServer(nodeRedClient, commsClient) {
         color: z.string().optional(),
       }).optional().describe('Style overrides for a new group (merged with defaults). Ignored if groupId is provided'),
     },
-    async (params) => handleAddNodesToGroup(nodeRedClient, params),
+    async (params) => handleAddNodesToGroup(staging, nodeRedClient, params),
   );
 
   // Register: remove-nodes-from-group
   server.tool(
     'remove-nodes-from-group',
-    'Remove nodes from a Node-RED group. If no specific node IDs are provided, ' +
+    'Remove nodes from a Node-RED group (staged — call `deploy` to apply). If no specific node IDs are provided, ' +
     'all members are removed. Optionally repositions removed nodes outside the ' +
-    'group\'s bounding rectangle. Nodes not in the group are silently skipped.',
+    'group\'s bounding rectangle. Nodes not in the group are silently skipped. ' +
+    '⚠️ STAGING: Changes are NOT live until you call `deploy`. Check the `staging` field in the response.',
     {
       groupId: z.string().describe('ID of the group to remove nodes from'),
       nodeIds: z.array(z.string()).optional().describe('Specific node IDs to remove. If omitted, all members are removed'),
       reposition: z.boolean().optional().default(false).describe('If true, reposition removed nodes to the right of the group bounds'),
     },
-    async (params) => handleRemoveNodesFromGroup(nodeRedClient, params),
+    async (params) => handleRemoveNodesFromGroup(staging, nodeRedClient, params),
   );
 
   // Register: update-group
   server.tool(
     'update-group',
     'Update a Node-RED group\'s metadata: name, style (colors, label position), ' +
-    'or bounding box dimensions. Validates that the target is a group node. ' +
-    'Returns previous and current state for undo support.',
+    'or bounding box dimensions (staged — call `deploy` to apply). Validates that the target is a group node. ' +
+    'Returns previous and current state for undo support. ' +
+    '⚠️ STAGING: Changes are NOT live until you call `deploy`. Check the `staging` field in the response.',
     {
       groupId: z.string().describe('ID of the group node to update'),
       properties: z.object({}).passthrough().describe('Properties to shallow-merge onto the group (name, style, x, y, w, h)'),
     },
-    async (params) => handleUpdateGroup(nodeRedClient, params),
+    async (params) => handleUpdateGroup(staging, nodeRedClient, params),
   );
 
   // Register: delete-group
   server.tool(
     'delete-group',
-    'Delete a Node-RED group. By default, all member nodes are also deleted. ' +
+    'Delete a Node-RED group (staged — call `deploy` to apply). By default, all member nodes are also deleted. ' +
     'Set deleteMembers to false to keep the nodes and only delete the group rectangle. ' +
-    'Returns the full previous state (group + members) for undo support.',
+    'Returns the full previous state (group + members) for undo support. ' +
+    '⚠️ STAGING: Changes are NOT live until you call `deploy`. Check the `staging` field in the response.',
     {
       groupId: z.string().describe('ID of the group to delete'),
       deleteMembers: z.boolean().optional().default(true).describe('Whether to also delete member nodes (default true). Set to false to keep nodes'),
     },
-    async (params) => handleDeleteGroup(nodeRedClient, params),
+    async (params) => handleDeleteGroup(staging, nodeRedClient, params),
+  );
+
+  // Register: deploy
+  server.tool(
+    'deploy',
+    '🚨 CRITICAL — Deploy all staged (undeployed) flow changes to the Node-RED runtime. ' +
+    'NO write operation (create-node, connect-nodes, update-node, etc.) takes effect until you call this tool. ' +
+    'If you forget to deploy, your edits are lost — they only exist in the staging area. ' +
+    'Supports three deploy types: "full" (restarts everything), "flows" (restarts only modified flow tabs), ' +
+    'and "nodes" (default — restarts only modified nodes, least disruptive). ' +
+    'Best practice: batch several edits (e.g. create 3 nodes + wire them), then deploy once. ' +
+    'After deploy, always check the response to confirm `staging.deployed === true`. ' +
+    'If there are no pending changes, returns success immediately. ' +
+    'On version mismatch (409), throws an error — your staged changes are discarded and you must re-read and re-apply. ' +
+    'Use get-staging-status to inspect pending changes before deploying.',
+    {
+      deployType: z.enum(['full', 'flows', 'nodes']).optional().default('nodes')
+        .describe('Deploy scope: "full" (all), "flows" (modified flows), or "nodes" (modified nodes only). Default: "nodes"'),
+    },
+    async (params) => handleDeploy(staging)(params),
+  );
+
+  // Register: get-staging-status
+  server.tool(
+    'get-staging-status',
+    'Get the current staging state: pending change count, dirty node IDs, dirty flow IDs, ' +
+    'and whether the staging is deployed (no pending changes). ' +
+    'Use this to inspect what changes are pending before deploying, ' +
+    'or to verify that a deploy was successful.',
+    {},
+    async () => handleGetStagingStatus(staging)(),
+  );
+
+  // Register: refresh-staging
+  server.tool(
+    'refresh-staging',
+    '⚠️ DESTRUCTIVE — Discards ALL un-deployed staged changes and re-fetches the latest flow ' +
+    'state from the Node-RED backend (GET /flows). ' +
+    'Use this when flows have been modified externally (e.g., via the Node-RED editor UI) ' +
+    'and the MCP staging state is out of sync. ' +
+    'Returns the previous staging state (what was discarded) and the new staging state (confirming sync). ' +
+    'Any edits made via MCP tools that were NOT yet deployed will be permanently lost. ' +
+    'Use get-staging-status first to review what would be discarded.',
+    {},
+    async () => handleRefreshStaging(staging)(),
   );
 
   // Register: read-debug-messages

@@ -103,3 +103,6 @@ The tool SHALL map group `style` properties to Mermaid `style` attributes as fol
 - **WHEN** a group has `style: { fill: "#ffff7f", "fill-opacity": "0.52", stroke: "#000000", color: "#aa0000" }`
 - **THEN** the Mermaid style string includes `fill:#ffff7f,fill-opacity:0.52,stroke:#000000,color:#aa0000`
 
+
+### Requirement: Read from staging
+The tool SHALL read flow data from the local staging store instead of making an HTTP request to Node-RED's `/flows` endpoint.

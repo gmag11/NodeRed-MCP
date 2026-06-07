@@ -106,17 +106,33 @@ describe('resolveInjectNode', () => {
 // ---------------------------------------------------------------------------
 
 describe('handleInjectMessage', () => {
+  /**
+   * Helper: create a staging mock with given flows and optional pending changes.
+   */
+  function makeStaging(allNodes, { hasPending = false } = {}) {
+    return {
+      getFlows: vi.fn().mockResolvedValue(allNodes),
+      hasPendingChanges: vi.fn().mockReturnValue(hasPending),
+      getStagingSummary: vi.fn().mockReturnValue({
+        pendingChanges: hasPending ? 1 : 0,
+        dirtyNodeIds: [],
+        dirtyFlowIds: [],
+        deployed: !hasPending,
+      }),
+    };
+  }
+
   it('resolves by nodeId and calls POST /inject/:nodeId', async () => {
     const allNodes = makeAllNodes();
+    const staging = makeStaging(allNodes);
     const client = {
-      request: vi.fn().mockResolvedValueOnce({ flows: allNodes }),
       post: vi.fn().mockResolvedValueOnce('Injected'),
     };
 
-    const handler = handleInjectMessage(client);
+    const handler = handleInjectMessage(staging, client);
     const result = await handler({ nodeId: 'n1' });
 
-    expect(client.request).toHaveBeenCalledWith('GET', '/flows');
+    expect(staging.getFlows).toHaveBeenCalled();
     expect(client.post).toHaveBeenCalledWith('/inject/n1');
     expect(JSON.parse(result.content[0].text)).toEqual({
       success: true,
@@ -128,12 +144,12 @@ describe('handleInjectMessage', () => {
 
   it('resolves by name and calls POST /inject/:nodeId', async () => {
     const allNodes = makeAllNodes();
+    const staging = makeStaging(allNodes);
     const client = {
-      request: vi.fn().mockResolvedValueOnce({ flows: allNodes }),
       post: vi.fn().mockResolvedValueOnce('Injected'),
     };
 
-    const handler = handleInjectMessage(client);
+    const handler = handleInjectMessage(staging, client);
     const result = await handler({ name: 'Trigger B' });
 
     expect(client.post).toHaveBeenCalledWith('/inject/n3');
@@ -147,12 +163,12 @@ describe('handleInjectMessage', () => {
 
   it('propagates error when resolveInjectNode throws', async () => {
     const allNodes = makeAllNodes();
+    const staging = makeStaging(allNodes);
     const client = {
-      request: vi.fn().mockResolvedValueOnce({ flows: allNodes }),
       post: vi.fn(),
     };
 
-    const handler = handleInjectMessage(client);
+    const handler = handleInjectMessage(staging, client);
 
     await expect(handler({})).rejects.toThrow('Provide either nodeId or name');
     expect(client.post).not.toHaveBeenCalled();
@@ -160,12 +176,12 @@ describe('handleInjectMessage', () => {
 
   it('propagates error when node not found', async () => {
     const allNodes = makeAllNodes();
+    const staging = makeStaging(allNodes);
     const client = {
-      request: vi.fn().mockResolvedValueOnce({ flows: allNodes }),
       post: vi.fn(),
     };
 
-    const handler = handleInjectMessage(client);
+    const handler = handleInjectMessage(staging, client);
 
     await expect(handler({ name: 'Ghost' })).rejects.toThrow(
       'Inject node not found',
@@ -178,17 +194,13 @@ describe('handleInjectMessage', () => {
       { id: 'flow-1', type: 'tab', label: 'Flow' },
       { id: 'n1', type: 'function', z: 'flow-1', name: 'Fn', wires: [] },
     ];
+    const staging = makeStaging(allNodes);
     const client = {
-      request: vi.fn().mockResolvedValueOnce({ flows: allNodes }),
       post: vi.fn(),
     };
 
-    const handler = handleInjectMessage(client);
+    const handler = handleInjectMessage(staging, client);
 
-    // resolveInjectNode finds by nodeId, but the node type is 'function'
-    // Node-RED will return an error when POST /inject/:n1 is called
-    // but the handler doesn't validate type — it delegates to the API
-    // This test ensures the tool still passes through the API response
     client.post.mockRejectedValueOnce(
       new Error('Node-RED API error: POST /inject/n1 returned 404'),
     );
@@ -196,5 +208,40 @@ describe('handleInjectMessage', () => {
     await expect(handler({ nodeId: 'n1' })).rejects.toThrow(
       'Node-RED API error',
     );
+  });
+
+  // ── Pre-deploy guard tests (Task 5.3) ──────────────────────────
+
+  it('refuses to inject when there are undeployed changes', async () => {
+    const allNodes = makeAllNodes();
+    const staging = makeStaging(allNodes, { hasPending: true });
+    const client = {
+      post: vi.fn(),
+    };
+
+    const handler = handleInjectMessage(staging, client);
+
+    await expect(handler({ nodeId: 'n1' })).rejects.toThrow(
+      'Cannot inject',
+    );
+    expect(client.post).not.toHaveBeenCalled();
+  });
+
+  it('allows inject when staging has no pending changes', async () => {
+    const allNodes = makeAllNodes();
+    const staging = makeStaging(allNodes, { hasPending: false });
+    const client = {
+      post: vi.fn().mockResolvedValueOnce('Injected'),
+    };
+
+    const handler = handleInjectMessage(staging, client);
+    const result = await handler({ nodeId: 'n1' });
+
+    expect(JSON.parse(result.content[0].text)).toEqual({
+      success: true,
+      nodeId: 'n1',
+      name: 'Trigger A',
+      message: 'Injected',
+    });
   });
 });

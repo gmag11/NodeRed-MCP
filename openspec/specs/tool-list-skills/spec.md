@@ -1,4 +1,4 @@
-## ADDED Requirements
+## Requirements
 
 ### Requirement: List available skills
 The system SHALL expose a `list-skills` MCP tool that accepts no parameters and returns an array of all available nodered-* skills, each containing its name and description.

@@ -6,7 +6,6 @@
  * are provided, all members are removed.
  */
 
-import { withRetry } from './flow-utils.js';
 /**
  * Apply the remove-nodes-from-group operation to the flows array.
  *
@@ -123,10 +122,10 @@ export function applyRemoveNodesFromGroup(rawResponse, groupId, options = {}) {
  * @param {boolean} [params.reposition=false]
  * @returns {Promise<{ content: Array<{ type: string, text: string }> }>}
  */
-export async function handleRemoveNodesFromGroup(client, params) {
+export async function handleRemoveNodesFromGroup(staging, client, params) {
   const { groupId, nodeIds, reposition } = params;
 
-  const result = await withRetry(client, (rawResponse) => {
+  const result = await staging.applyMutation((rawResponse) => {
     return applyRemoveNodesFromGroup(rawResponse, groupId, {
       nodeIds,
       reposition,
@@ -144,6 +143,7 @@ export async function handleRemoveNodesFromGroup(client, params) {
             remainingNodeIds: result.remainingNodeIds,
             repositionedNodes: result.repositionedNodes,
             warnings: result.warnings,
+            staging: staging.getStagingSummary(),
           },
           null,
           2,

@@ -90,9 +90,9 @@ export function transformSubflowDetail(rawResponse, subflowId) {
  * @param {string} params.subflowId
  * @returns {Promise<{ content: Array<{ type: string, text: string }> }>}
  */
-export async function handleGetSubflowDetail(client, params) {
-  const rawResponse = await client.request('GET', '/flows');
-  const result = transformSubflowDetail(rawResponse, params.subflowId);
+export async function handleGetSubflowDetail(staging, params) {
+  const flows = await staging.getFlows();
+  const result = transformSubflowDetail({ flows }, params.subflowId);
 
   return {
     content: [

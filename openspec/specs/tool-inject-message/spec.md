@@ -31,3 +31,6 @@ The system SHALL expose an MCP tool named `inject-message` that accepts `nodeId`
 #### Scenario: No identifier provided
 - **WHEN** neither `nodeId` nor `name` is provided
 - **THEN** the tool returns an error: `Provide either nodeId or name`
+
+### Requirement: Pre-deploy guard
+The tool SHALL check the staging status before attempting to inject a message.

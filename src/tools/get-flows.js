@@ -51,18 +51,18 @@ export function transformFlows(rawResponse) {
 /**
  * Handler for the get-flows MCP tool.
  *
- * @param {ReturnType<import('../nodered/client.js').createNodeRedClient>} client
+ * @param {import('../staging-store.js').StagingStore} staging
  * @returns {Promise<{ content: Array<{ type: string, text: string }> }>}
  */
-export async function handleGetFlows(client) {
-  const rawResponse = await client.request('GET', '/flows');
-  const flows = transformFlows(rawResponse);
+export async function handleGetFlows(staging) {
+  const flows = await staging.getFlows();
+  const result = transformFlows({ flows });
 
   return {
     content: [
       {
         type: 'text',
-        text: JSON.stringify(flows, null, 2),
+        text: JSON.stringify(result, null, 2),
       },
     ],
   };

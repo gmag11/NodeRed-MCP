@@ -53,9 +53,8 @@ export function collectSubflowExport(allNodes, subflowId) {
  * @param {string} params.subflowId
  * @returns {Promise<{ content: Array<{ type: string, text: string }> }>}
  */
-export async function handleExportSubflow(client, params) {
-  const rawResponse = await client.request('GET', '/flows');
-  const allNodes = rawResponse.flows || [];
+export async function handleExportSubflow(staging, params) {
+  const allNodes = await staging.getFlows();
 
   const { subflowNodes, name, nodeCount } = collectSubflowExport(allNodes, params.subflowId);
 
