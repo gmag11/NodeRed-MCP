@@ -15,6 +15,10 @@ The system SHALL expose an MCP tool named `delete-flow` that accepts `flowId` (r
 - **WHEN** the flow exists but has `locked: true`
 - **THEN** the tool returns an error: `Flow '<flowId>' is locked` without making any DELETE call
 
+#### Scenario: Last flow cannot be deleted
+- **WHEN** the flow exists, is not locked, but is the only remaining flow tab in the Node-RED instance
+- **THEN** the tool returns an error: `"Cannot delete the last flow — at least one flow tab must exist"` without staging any deletion
+
 #### Scenario: Other flows unaffected
 - **WHEN** a flow is deleted
 - **THEN** all other flows and their nodes remain unchanged
@@ -33,3 +37,15 @@ The tool SHALL modify the local staging store using a pure `apply*` function on 
 - **WHEN** the tool is executed successfully
 - **THEN** it mutates the staging store flows array
 - **THEN** the response includes a `staging` summary object containing `pendingChanges`, `dirtyNodeIds`, `dirtyFlowIds`, and `deployed`
+
+### Requirement: Last-flow deletion guard
+The system SHALL prevent deletion of the last remaining flow tab. Before staging a deletion, the tool SHALL count all nodes with `type: "tab"` in the current flow state. If the count is 1 and the target flow is that sole tab, the tool SHALL reject the deletion with an error.
+
+#### Scenario: Single flow exists, deletion attempted
+- **WHEN** the Node-RED instance has exactly one flow tab and `delete-flow` is called with that tab's `flowId`
+- **THEN** the tool returns an error: `"Cannot delete the last flow — at least one flow tab must exist"`
+- **THEN** no changes are staged
+
+#### Scenario: Multiple flows exist, one is deleted
+- **WHEN** the Node-RED instance has two or more flow tabs and `delete-flow` is called with a valid, unlocked `flowId`
+- **THEN** the deletion proceeds normally without triggering the last-flow guard
