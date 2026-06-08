@@ -33,3 +33,4 @@ nodered_data/
 # Exclude OpenSpec skills from Docker build context
 # (they are developer-only workflow tools, not runtime dependencies)
 .github/skills/openspec-*/
+.github/skills/mcp-builder/
