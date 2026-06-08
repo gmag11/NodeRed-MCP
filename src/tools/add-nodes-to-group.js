@@ -188,24 +188,23 @@ export async function handleAddNodesToGroup(staging, client, params) {
     });
   });
 
+  const responseData = {
+    groupId: result.groupId,
+    groupName: result.groupName,
+    nodeIds: result.nodeIds,
+    boundingBox: result.boundingBox,
+    created: result.created,
+    staging: staging.getStagingSummary(),
+  };
+
   return {
     content: [
       {
         type: 'text',
-        text: JSON.stringify(
-          {
-            groupId: result.groupId,
-            groupName: result.groupName,
-            nodeIds: result.nodeIds,
-            boundingBox: result.boundingBox,
-            created: result.created,
-            staging: staging.getStagingSummary(),
-          },
-          null,
-          2,
-        ),
+        text: JSON.stringify(responseData, null, 2),
       },
     ],
+    structuredContent: responseData,
   };
 }
 

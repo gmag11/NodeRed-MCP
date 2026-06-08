@@ -91,21 +91,20 @@ export async function handleDeleteGroup(staging, client, params) {
     return applyDeleteGroup(rawResponse, groupId, { deleteMembers });
   });
 
+  const responseData = {
+    groupId,
+    previousState: result.previousState,
+    staging: staging.getStagingSummary(),
+  };
+
   return {
     content: [
       {
         type: 'text',
-        text: JSON.stringify(
-          {
-            groupId,
-            previousState: result.previousState,
-            staging: staging.getStagingSummary(),
-          },
-          null,
-          2,
-        ),
+        text: JSON.stringify(responseData, null, 2),
       },
     ],
+    structuredContent: responseData,
   };
 }
 

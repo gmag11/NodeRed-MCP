@@ -90,22 +90,21 @@ export function handleInjectMessage(staging, client) {
     // Call POST /inject/:nodeId
     const result = await client.post(`/inject/${resolved.nodeId}`);
 
+    const responseData = {
+      success: true,
+      nodeId: resolved.nodeId,
+      name: resolved.name,
+      message: typeof result === 'string' ? result : 'Injected',
+    };
+
     return {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(
-            {
-              success: true,
-              nodeId: resolved.nodeId,
-              name: resolved.name,
-              message: typeof result === 'string' ? result : 'Injected',
-            },
-            null,
-            2,
-          ),
+          text: JSON.stringify(responseData, null, 2),
         },
       ],
+      structuredContent: responseData,
     };
   };
 }

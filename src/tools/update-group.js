@@ -51,22 +51,21 @@ export async function handleUpdateGroup(staging, client, params) {
     return applyUpdateGroup(rawResponse, groupId, properties);
   });
 
+  const responseData = {
+    groupId,
+    previousState: result.previousState,
+    currentState: result.currentState,
+    staging: staging.getStagingSummary(),
+  };
+
   return {
     content: [
       {
         type: 'text',
-        text: JSON.stringify(
-          {
-            groupId,
-            previousState: result.previousState,
-            currentState: result.currentState,
-            staging: staging.getStagingSummary(),
-          },
-          null,
-          2,
-        ),
+        text: JSON.stringify(responseData, null, 2),
       },
     ],
+    structuredContent: responseData,
   };
 }
 
