@@ -104,12 +104,15 @@ Most node types also have type-specific properties documented in the sections be
 
 ### comment
 `type: "comment"` — Text annotation on the canvas. Not a functional node.
-See [Common Node Properties](#common-node-properties) for `name` and `info`.
+
+**⚠️ CRITICAL — `name` vs `info`:**
+- **`name`** = **short LABEL** visible on the canvas (1-3 words max, e.g. `"🧪 Demo MCP"`). NEVER put multi-line explanations here — it renders poorly in the editor.
+- **`info`** = **detailed DESCRIPTION** (tooltip on hover). Put pipeline documentation, notes, and full explanations here. This is the correct field for long-form content. Supports html or markdown formatting.
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `name` | string | The text displayed on the canvas (see Common Node Properties) |
-| `info` | string | Description shown in the editor (see Common Node Properties) |
+| `name` | string | Short label shown on canvas. Keep it concise (1-3 words). |
+| `info` | string | Detailed description (tooltip). Use for documentation and explanations. |
 
 ---
 
@@ -172,7 +175,7 @@ See [Common Node Properties](#common-node-properties) for `name` and `info`.
 | Property | Type | Description |
 |----------|------|-------------|
 | `name` | string | Label |
-| `rules` | array | Array of `{ t: "set"|"change"|"delete"|"move", p: <property>, pt: "msg"|"flow"|"global"|"env", to: <value>, tot: <valueType> }` |
+| `rules` | array | Array of `{ t: "set" \| "change" \| "delete" \| "move", p: <property>, pt: "msg" \| "flow" \| "global" \| "env", to: <value>, tot: <valueType> }`. For `tot`, common types: `"str"`, `"num"`, `"json"`, `"bool"`, `"template"`, `"jsonata"`. |
 
 ### range
 `type: "range"` — Scale a numeric value from one range to another.
@@ -300,9 +303,9 @@ See [Common Node Properties](#common-node-properties) for `name` and `info`.
 |----------|------|-------------|
 | `name` | string | Label |
 | `url` | string | URL path (e.g., `"/api/data"`) |
-| `method` | string | **⚠️ SOLO minúsculas.** `"get"`, `"post"`, `"put"`, `"delete"`, `"patch"` — **NO usar mayúsculas** (`"GET"` no funciona). Contraste: `http request` usa mayúsculas. |
+| `method` | string | **⚠️ LOWERCASE only.** `"get"`, `"post"`, `"put"`, `"delete"`, `"patch"` — **Do NOT use uppercase** (`"GET"` does not work). Contrast: `http request` uses uppercase. |
 
-**⚠️ CRITICAL — method debe ir en minúsculas:** El nodo `http in` NO acepta `"GET"` (mayúsculas). Si usas `"GET"` el endpoint se registra pero nunca responde (errores 404). Usa siempre `"get"`. El nodo `http request` SÍ usa mayúsculas (`"GET"`, `"POST"`, etc.) — no confundir.
+**⚠️ CRITICAL — method must be lowercase:** The `http in` node does NOT accept `"GET"` (uppercase). If you use `"GET"` the endpoint registers but never responds (404 errors). Always use `"get"`. The `http request` node DOES use uppercase (`"GET"`, `"POST"`, etc.) — do not confuse the two.
 
 **Response:** Must be paired with an `http response` node. `msg.req` and `msg.res` are available. Set `msg.payload` for the response body, `msg.statusCode` for status, and `msg.headers` for response headers.
 

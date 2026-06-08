@@ -97,6 +97,14 @@ create-node(type: "ping", flowId: "<flowId>", properties: { name: "Ping", host: 
 ```
 The `info` field corresponds to the **Description** shown in the Node-RED editor UI. When a user asks to "add a description" or "describe the node", they mean setting `info`.
 
+**💡 Creating comment nodes:** Use `type: "comment"` to annotate flows. The `name` field is a **short label** (1-3 words, visible on canvas). Use `info` for detailed documentation (tooltip on hover):
+```
+create-node(type: "comment", flowId: "<flowId>", properties: { name: "My Section", info: "Detailed notes about this section of the flow" }, x: 100, y: 300)
+```
+
+**💡 Switch nodes — always set `outputs` explicitly:**
+- **switch:** Set `outputs` to `rules.length`. Without it, the editor defaults to 1 visible port even if wires are connected. Also set `repair: false` and `checkall: "false"` (string, not boolean).
+
 ### Step 3: Wire nodes together
 ```
 connect-nodes(fromNodeId: "<injectId>", outputPort: 0, toNodeId: "<functionId>")
