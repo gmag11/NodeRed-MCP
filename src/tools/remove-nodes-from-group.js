@@ -152,3 +152,8 @@ export async function handleRemoveNodesFromGroup(staging, client, params) {
     ],
   };
 }
+
+export const removeNodesFromGroupDefinition = {
+  name: 'remove-nodes-from-group',
+  handler: handleRemoveNodesFromGroup,
+};

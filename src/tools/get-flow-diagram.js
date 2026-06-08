@@ -196,3 +196,8 @@ export async function handleGetFlowDiagram(staging, params) {
     ],
   };
 }
+
+export const getFlowDiagramDefinition = {
+  name: 'get-flow-diagram',
+  handler: handleGetFlowDiagram,
+};

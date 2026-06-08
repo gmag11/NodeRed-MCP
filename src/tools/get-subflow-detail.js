@@ -10,6 +10,7 @@
 
 import { getFlowNodes, sanitizeNodeConfig } from './flow-utils.js';
 import { generateMermaidDiagram } from './get-flow-diagram.js';
+import { formatSuccess } from './response-utils.js';
 
 /**
  * Transform the raw /flows response into a detailed subflow view.
@@ -94,12 +95,10 @@ export async function handleGetSubflowDetail(staging, params) {
   const flows = await staging.getFlows();
   const result = transformSubflowDetail({ flows }, params.subflowId);
 
-  return {
-    content: [
-      {
-        type: 'text',
-        text: JSON.stringify(result, null, 2),
-      },
-    ],
-  };
+  return formatSuccess(result);
 }
+
+export const getSubflowDetailDefinition = {
+  name: 'get-subflow-detail',
+  handler: handleGetSubflowDetail,
+};

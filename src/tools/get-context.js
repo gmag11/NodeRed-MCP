@@ -6,6 +6,8 @@
  *
  * Note: In-memory context values are lost when Node-RED restarts.
  */
+import { formatSuccess } from './response-utils.js';
+
 
 /**
  * Build the API path for a context GET request.
@@ -61,12 +63,10 @@ export async function handleGetContext(client, params) {
   const rawResponse = await client.request('GET', path);
   const result = transformGetContextResponse(key, rawResponse);
 
-  return {
-    content: [
-      {
-        type: 'text',
-        text: JSON.stringify(result, null, 2),
-      },
-    ],
-  };
+  return formatSuccess(result);
 }
+
+export const getContextDefinition = {
+  name: 'get-context',
+  handler: handleGetContext,
+};

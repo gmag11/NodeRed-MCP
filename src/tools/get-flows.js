@@ -5,6 +5,8 @@
  * Node-RED instance, optimized for LLM consumption.
  * Use get-subflows for subflow definitions.
  */
+import { formatSuccess } from './response-utils.js';
+
 
 /**
  * Transform the raw Node-RED /flows response into an LLM-friendly summary.
@@ -58,12 +60,10 @@ export async function handleGetFlows(staging) {
   const flows = await staging.getFlows();
   const result = transformFlows({ flows });
 
-  return {
-    content: [
-      {
-        type: 'text',
-        text: JSON.stringify(result, null, 2),
-      },
-    ],
-  };
+  return formatSuccess(result);
 }
+
+export const getFlowsDefinition = {
+  name: 'get-flows',
+  handler: handleGetFlows,
+};

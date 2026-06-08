@@ -5,6 +5,8 @@
  * all flows, or a selected set of nodes (by nodeIds). The returned JSON
  * string can be passed directly to `import-flow` to duplicate or migrate flows.
  */
+import { formatSuccess } from './response-utils.js';
+
 
 /**
  * Collect the tab node and all child nodes belonging to a given flow.
@@ -146,12 +148,10 @@ export async function handleExportFlowJson(staging, params) {
     }
   }
 
-  return {
-    content: [
-      {
-        type: 'text',
-        text: JSON.stringify(result, null, 2),
-      },
-    ],
-  };
+  return formatSuccess(result);
 }
+
+export const exportFlowDefinition = {
+  name: 'export-flow',
+  handler: handleExportFlowJson,
+};

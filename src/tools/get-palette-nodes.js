@@ -4,6 +4,8 @@
  * Returns a paginated list of node sets from the Node-RED palette,
  * exactly as returned by the GET /nodes API.
  */
+import { formatSuccess } from './response-utils.js';
+
 
 const MAX_LIMIT = 200;
 const DEFAULT_LIMIT = 50;
@@ -48,12 +50,10 @@ export async function handleGetPaletteNodes(client, params) {
     params.limit ?? DEFAULT_LIMIT,
   );
 
-  return {
-    content: [
-      {
-        type: 'text',
-        text: JSON.stringify(result, null, 2),
-      },
-    ],
-  };
+  return formatSuccess(result);
 }
+
+export const getPaletteNodesDefinition = {
+  name: 'get-palette-nodes',
+  handler: handleGetPaletteNodes,
+};

@@ -10,6 +10,7 @@
 
 import { randomUUID } from 'crypto';
 
+import { formatSuccess } from './response-utils.js';
 /**
  * Parse and normalize a flowJson string to a flat node array.
  *
@@ -240,7 +241,11 @@ export async function handleImportFlow(staging, client, params) {
 
   const summary = summarizeImport(nodesToMerge, result.conflicts, conflictStrategy, targetFlowId ?? null);
 
-  return {
-    content: [{ type: 'text', text: JSON.stringify({ ...summary, staging: staging.getStagingSummary() }, null, 2) }],
-  };
+      const data = { ...summary, staging: staging.getStagingSummary() };
+    return formatSuccess(data);
 }
+
+export const importFlowDefinition = {
+  name: 'import-flow',
+  handler: handleImportFlow,
+};

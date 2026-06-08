@@ -107,3 +107,8 @@ export function handleInjectMessage(staging, client) {
     };
   };
 }
+
+export const injectMessageDefinition = {
+  name: 'inject-message',
+  handler: handleInjectMessage,
+};

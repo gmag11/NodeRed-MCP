@@ -9,6 +9,7 @@
 
 import { randomUUID } from 'crypto';
 
+import { formatSuccess } from './response-utils.js';
 /**
  * Build a new subflow definition node.
  *
@@ -86,12 +87,11 @@ export async function handleCreateSubflow(staging, client, params) {
     );
   });
 
-  return {
-    content: [
-      {
-        type: 'text',
-        text: JSON.stringify({ subflowId: currentState.id, currentState, staging: staging.getStagingSummary() }, null, 2),
-      },
-    ],
-  };
+      const data = { subflowId: currentState.id, currentState, staging: staging.getStagingSummary() };
+    return formatSuccess(data);
 }
+
+export const createSubflowDefinition = {
+  name: 'create-subflow',
+  handler: handleCreateSubflow,
+};

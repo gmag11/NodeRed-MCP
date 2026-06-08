@@ -6,6 +6,8 @@
  * listing (get-palette-nodes). Returns a confirmation object on success.
  */
 
+import { formatSuccess } from './response-utils.js';
+
 /**
  * Handle the uninstall-node MCP tool invocation.
  *
@@ -15,12 +17,11 @@
  */
 export async function handleUninstallNode(client, { module: moduleName }) {
   await client.request('DELETE', `/nodes/${encodeURIComponent(moduleName)}`);
-  return {
-    content: [
-      {
-        type: 'text',
-        text: JSON.stringify({ uninstalled: true, module: moduleName }, null, 2),
-      },
-    ],
-  };
+      const data = { uninstalled: true, module: moduleName };
+    return formatSuccess(data);
 }
+
+export const uninstallNodeDefinition = {
+  name: 'uninstall-node',
+  handler: handleUninstallNode,
+};

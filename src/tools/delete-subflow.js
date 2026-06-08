@@ -6,6 +6,8 @@
  * Refuses to delete a locked subflow.
  */
 
+import { formatSuccess } from './response-utils.js';
+
 /**
  * Collect the full previous state of a subflow before deletion.
  *
@@ -87,12 +89,11 @@ export async function handleDeleteSubflow(staging, client, params) {
     return applyDeleteSubflow(flows, subflowId, deleteInstances);
   });
 
-  return {
-    content: [
-      {
-        type: 'text',
-        text: JSON.stringify({ subflowId, previousState, staging: staging.getStagingSummary() }, null, 2),
-      },
-    ],
-  };
+      const data = { subflowId, previousState, staging: staging.getStagingSummary() };
+    return formatSuccess(data);
 }
+
+export const deleteSubflowDefinition = {
+  name: 'delete-subflow',
+  handler: handleDeleteSubflow,
+};
