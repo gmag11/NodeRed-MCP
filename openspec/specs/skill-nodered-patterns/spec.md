@@ -38,3 +38,24 @@ The skill instructions SHALL be updated to explain the in-memory staging model a
 - **WHEN** the LLM retrieves the skill
 - **THEN** it learns that write tools only stage changes locally
 - **THEN** it learns that it must explicitly call the `deploy` tool before testing with `inject-message`
+
+### Requirement: Skill includes Dashboard / UI patterns section
+The skill SHALL include a "Dashboard / UI Patterns" section that introduces the two recommended approaches for building user interfaces in Node-RED: `@flowfuse/node-red-dashboard` (Dashboard 2.0) and `node-red-contrib-uibuilder`.
+
+#### Scenario: LLM discovers UI options
+- **WHEN** an LLM reads the nodered-patterns skill
+- **THEN** it SHALL find a dedicated "Dashboard / UI Patterns" section that describes both options
+
+### Requirement: Dashboard / UI section includes a comparison table
+The skill SHALL include a comparison table that contrasts Dashboard 2.0 and uibuilder across at minimum these dimensions: effort required, flexibility, real-time update mechanism, custom styling capability, learning curve, and best-for use case.
+
+#### Scenario: LLM helps user choose a UI tool
+- **WHEN** a user asks which dashboard tool to use
+- **THEN** the comparison table SHALL provide enough information for the LLM to recommend the appropriate tool based on the user's stated needs (e.g., quick monitoring → Dashboard 2.0; custom SPA → uibuilder)
+
+### Requirement: Dashboard / UI section cross-references the dedicated skills
+The comparison table SHALL include explicit references to the `flowfuse-dashboard` and `nodered-uibuilder` skills, instructing the LLM to consult those skills for detailed widget catalogs, wiring patterns, and communication protocols.
+
+#### Scenario: LLM needs detailed widget or protocol info
+- **WHEN** the LLM has selected a tool using the comparison table
+- **THEN** the skill SHALL direct the LLM to read `flowfuse-dashboard` for Dashboard 2.0 details or `nodered-uibuilder` for uibuilder details
