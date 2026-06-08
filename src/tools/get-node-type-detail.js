@@ -5,6 +5,7 @@
  * Node-RED palette, including its configuration parameters.
  */
 import TurndownService from 'turndown';
+import { formatSuccess } from './response-utils.js';
 
 const turndown = new TurndownService({ headingStyle: 'atx', codeBlockStyle: 'fenced' });
 
@@ -78,12 +79,10 @@ export async function handleGetNodeTypeDetail(client, params) {
   const help = extractHelpHtml(helpHtml, params.type);
   const result = { ...nodeSet, help };
 
-  return {
-    content: [
-      {
-        type: 'text',
-        text: JSON.stringify(result, null, 2),
-      },
-    ],
-  };
+  return formatSuccess(result);
 }
+
+export const getNodeTypeDetailDefinition = {
+  name: 'get-node-type-detail',
+  handler: handleGetNodeTypeDetail,
+};

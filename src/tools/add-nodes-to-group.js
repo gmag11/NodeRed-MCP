@@ -206,3 +206,8 @@ export async function handleAddNodesToGroup(staging, client, params) {
     ],
   };
 }
+
+export const addNodesToGroupDefinition = {
+  name: 'add-nodes-to-group',
+  handler: handleAddNodesToGroup,
+};

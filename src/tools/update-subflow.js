@@ -77,3 +77,8 @@ export async function handleUpdateSubflow(staging, client, params) {
     ],
   };
 }
+
+export const updateSubflowDefinition = {
+  name: 'update-subflow',
+  handler: handleUpdateSubflow,
+};

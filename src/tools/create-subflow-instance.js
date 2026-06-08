@@ -117,3 +117,8 @@ export async function handleCreateSubflowInstance(staging, client, params) {
     ],
   };
 }
+
+export const createSubflowInstanceDefinition = {
+  name: 'create-subflow-instance',
+  handler: handleCreateSubflowInstance,
+};

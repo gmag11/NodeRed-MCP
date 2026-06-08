@@ -24,3 +24,8 @@ export async function handleUninstallNode(client, { module: moduleName }) {
     ],
   };
 }
+
+export const uninstallNodeDefinition = {
+  name: 'uninstall-node',
+  handler: handleUninstallNode,
+};

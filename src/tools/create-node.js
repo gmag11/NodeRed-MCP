@@ -108,3 +108,8 @@ export async function handleCreateNode(staging, client, params) {
     ],
   };
 }
+
+export const createNodeDefinition = {
+  name: 'create-node',
+  handler: handleCreateNode,
+};

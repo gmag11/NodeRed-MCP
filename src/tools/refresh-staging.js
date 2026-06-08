@@ -52,3 +52,8 @@ export function handleRefreshStaging(staging) {
     };
   };
 }
+
+export const refreshStagingDefinition = {
+  name: 'refresh-staging',
+  handler: handleRefreshStaging,
+};

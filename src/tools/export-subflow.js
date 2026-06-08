@@ -72,3 +72,8 @@ export async function handleExportSubflow(staging, params) {
     ],
   };
 }
+
+export const exportSubflowDefinition = {
+  name: 'export-subflow',
+  handler: handleExportSubflow,
+};

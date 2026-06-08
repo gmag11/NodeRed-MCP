@@ -74,3 +74,8 @@ export async function handleDeleteFlow(staging, params) {
     ],
   };
 }
+
+export const deleteFlowDefinition = {
+  name: 'delete-flow',
+  handler: handleDeleteFlow,
+};

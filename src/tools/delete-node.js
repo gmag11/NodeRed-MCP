@@ -66,3 +66,8 @@ export async function handleDeleteNode(staging, client, params) {
     ],
   };
 }
+
+export const deleteNodeDefinition = {
+  name: 'delete-node',
+  handler: handleDeleteNode,
+};

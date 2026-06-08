@@ -8,6 +8,8 @@
  * metadata: field names and whether each password-type field is set.
  * Password values are never exposed — only `has_<field>: true/false` is returned.
  */
+import { formatSuccess } from './response-utils.js';
+
 
 /**
  * Find a node by ID in the raw /flows response and return all its fields.
@@ -62,12 +64,10 @@ export async function handleGetNodeDetail(staging, client, params) {
     ? { ...node, _credentials: credentialMetadata }
     : node;
 
-  return {
-    content: [
-      {
-        type: 'text',
-        text: JSON.stringify(result, null, 2),
-      },
-    ],
-  };
+  return formatSuccess(result);
 }
+
+export const getNodeDetailDefinition = {
+  name: 'get-node-detail',
+  handler: handleGetNodeDetail,
+};

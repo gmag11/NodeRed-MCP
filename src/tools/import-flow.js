@@ -244,3 +244,8 @@ export async function handleImportFlow(staging, client, params) {
     content: [{ type: 'text', text: JSON.stringify({ ...summary, staging: staging.getStagingSummary() }, null, 2) }],
   };
 }
+
+export const importFlowDefinition = {
+  name: 'import-flow',
+  handler: handleImportFlow,
+};

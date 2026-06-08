@@ -151,3 +151,8 @@ export async function handleDisconnectNodes(staging, client, params) {
     ],
   };
 }
+
+export const disconnectNodesDefinition = {
+  name: 'disconnect-nodes',
+  handler: handleDisconnectNodes,
+};

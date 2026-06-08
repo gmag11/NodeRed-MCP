@@ -88,3 +88,8 @@ export async function handleUpdateFlow(staging, params) {
     ],
   };
 }
+
+export const updateFlowDefinition = {
+  name: 'update-flow',
+  handler: handleUpdateFlow,
+};

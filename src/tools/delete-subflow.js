@@ -96,3 +96,8 @@ export async function handleDeleteSubflow(staging, client, params) {
     ],
   };
 }
+
+export const deleteSubflowDefinition = {
+  name: 'delete-subflow',
+  handler: handleDeleteSubflow,
+};

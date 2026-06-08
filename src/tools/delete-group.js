@@ -106,3 +106,8 @@ export async function handleDeleteGroup(staging, client, params) {
     ],
   };
 }
+
+export const deleteGroupDefinition = {
+  name: 'delete-group',
+  handler: handleDeleteGroup,
+};

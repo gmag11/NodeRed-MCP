@@ -67,3 +67,8 @@ export async function handleUpdateGroup(staging, client, params) {
     ],
   };
 }
+
+export const updateGroupDefinition = {
+  name: 'update-group',
+  handler: handleUpdateGroup,
+};

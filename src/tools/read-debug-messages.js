@@ -154,3 +154,8 @@ export function handleReadDebugMessages(commsClient) {
     };
   };
 }
+
+export const readDebugMessagesDefinition = {
+  name: 'read-debug-messages',
+  handler: handleReadDebugMessages,
+};

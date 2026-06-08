@@ -81,3 +81,8 @@ export async function handleCreateFlow(staging, params) {
     ],
   };
 }
+
+export const createFlowDefinition = {
+  name: 'create-flow',
+  handler: handleCreateFlow,
+};

@@ -108,3 +108,8 @@ export async function handleConnectNodes(staging, client, params) {
     ],
   };
 }
+
+export const connectNodesDefinition = {
+  name: 'connect-nodes',
+  handler: handleConnectNodes,
+};

@@ -126,3 +126,8 @@ export async function handleUpdateNode(staging, client, params) {
     ],
   };
 }
+
+export const updateNodeDefinition = {
+  name: 'update-node',
+  handler: handleUpdateNode,
+};
