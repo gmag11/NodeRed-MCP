@@ -112,6 +112,7 @@ import { getContextDefinition } from './tools/get-context.js';
 import { deleteContextDefinition } from './tools/delete-context.js';
 import { searchNodesDefinition } from './tools/search-nodes.js';
 import { injectMessageDefinition } from './tools/inject-message.js';
+import { readDebugMessagesDefinition } from './tools/read-debug-messages.js';
 import { installNodeDefinition } from './tools/install-node.js';
 import { uninstallNodeDefinition } from './tools/uninstall-node.js';
 import { addNodesToGroupDefinition } from './tools/add-nodes-to-group.js';

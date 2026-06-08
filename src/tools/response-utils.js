@@ -7,14 +7,21 @@
 /**
  * Format a successful tool response.
  *
+ * structuredContent is only included when `data` is a plain object (record),
+ * because the MCP SDK requires structuredContent to be a record, not an array.
+ *
  * @param {any} data - The response data to serialize
- * @returns {{ content: Array<{ type: string, text: string }> }}
+ * @returns {{ content: Array<{ type: string, text: string }>, structuredContent?: object }}
  */
 export function formatSuccess(data) {
-  return {
+  const response = {
     content: [{ type: 'text', text: JSON.stringify(data, null, 2) }],
-    structuredContent: data,
   };
+  // MCP SDK requires structuredContent to be a record (object); arrays are rejected
+  if (data !== null && typeof data === 'object' && !Array.isArray(data)) {
+    response.structuredContent = data;
+  }
+  return response;
 }
 
 /**
