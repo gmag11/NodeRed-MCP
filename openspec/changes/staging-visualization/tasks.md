@@ -1,0 +1,76 @@
+## 1. Scaffold renderer module
+
+- [ ] 1.1 Create `src/renderer/` directory with `index.js` that exports `renderStaging(flows, options)` as the unified entry point
+- [ ] 1.2 Define the internal intermediate representation (IR) type: `{ nodes: [], links: [], groups: [], junctions: [], dirtyIds: Set }`
+
+## 2. Core geometry and layout
+
+- [ ] 2.1 Create `src/renderer/geometry.js` — port `generateLinkPath()` algorithm from Node-RED's `view.js` (Apache 2.0), adapted to accept node coordinates and return SVG path `d` strings
+- [ ] 2.2 Create `src/renderer/layout.js` — compute bounding box of a set of nodes, auto-fit viewport dimensions, and calculate scale factor for SVG/HTML output
+- [ ] 2.3 Add wire routing logic: for each link, call `generateLinkPath()` with source port Y offset (respects `outputs` count) and target node position
+
+## 3. Color and style mapping
+
+- [ ] 3.1 Create `src/renderer/colors.js` with a hardcoded map of Node-RED core node types to fill colors (e.g., `inject → #a6bbcf`, `debug → #87a980`, `function → #fdd0a2`, `switch → #d8bfd8`, `change → #e2d6b8`, etc.)
+- [ ] 3.2 Add fallback to neutral grey (`#cccccc`) for unknown types
+- [ ] 3.3 Define dirty highlight style: `stroke: #ff8c00, stroke-width: 2` for SVG, `filter: drop-shadow(0 0 3px #ff8c00)` for HTML, `:::dirty` classDef for Mermaid
+
+## 4. SVG builder
+
+- [ ] 4.1 Create `src/renderer/svg-builder.js` that accepts the IR and options and returns a complete SVG string
+- [ ] 4.2 Implement group rendering: dashed-rect containers with labels, containing member nodes
+- [ ] 4.3 Implement wire rendering: `<path>` elements with `d` from `generateLinkPath()`
+- [ ] 4.4 Implement node rendering: `<rect>` with type color, `<text>` for label (truncated if needed), input/output port indicators
+- [ ] 4.5 Implement dirty highlighting: orange stroke on dirty nodes via conditional attribute
+- [ ] 4.6 Implement disabled node styling: dashed stroke and reduced opacity for `d: true` nodes
+- [ ] 4.7 Add SVG grid background (optional, matching Node-RED's 20px grid pattern)
+- [ ] 4.8 Add legend explaining dirty highlight meaning (if any dirty nodes exist)
+
+## 5. Mermaid builder
+
+- [ ] 5.1 Create `src/renderer/mermaid-builder.js` that migrates existing `generateMermaidDiagram()` from `src/tools/get-flow-diagram.js`
+- [ ] 5.2 Enhance with dirty highlighting: append `:::dirty` to dirty node declarations and emit `classDef dirty stroke:#ff8c00,stroke-width:3px`
+- [ ] 5.3 Preserve all existing Mermaid features: disabled node class (`:::disabled`), subgraph groups, edge labels for multiple outputs, pagination support
+
+## 6. HTML builder
+
+- [ ] 6.1 Create `src/renderer/html-builder.js` that generates a self-contained HTML document string
+- [ ] 6.2 Embed all flow data as a `<script>const FLOWS = [...]</script>` tag so the page has no external data dependencies
+- [ ] 6.3 Include D3.js v7 via CDN `<script>` tag (with comment noting the CDN requirement)
+- [ ] 6.4 Implement D3 rendering: enter/update/exit pattern for nodes, links, groups (similar to Node-RED's `_redraw()` but simplified for static data)
+- [ ] 6.5 Add zoom/pan via `d3.zoom()` transform on the root SVG group
+- [ ] 6.6 Add hover tooltips using HTML `title` attribute or a custom tooltip div showing name, type, id, and dirty status
+- [ ] 6.7 Implement dirty highlighting: orange border and drop-shadow via CSS classes
+- [ ] 6.8 Add auto-fit on load: calculate bounding box and set initial `viewBox` or zoom transform
+
+## 7. Render-staging tool
+
+- [ ] 7.1 Create `src/tools/render-staging.js` with tool definition (`name: "render-staging"`, annotations, output schema) and handler
+- [ ] 7.2 Define input parameters: `format` (enum: `"svg"`, `"html"`, `"mermaid"`), `flowId` (optional string), `highlightDirty` (optional boolean, default `true`)
+- [ ] 7.3 Handler logic: fetch flows from `StagingStore`, compute dirty node set, pass to `renderStaging()`, return formatted content
+- [ ] 7.4 Register the tool in `src/server.js` within the existing tool list
+- [ ] 7.5 Ensure `render-staging` is read-only (use `ANN_READONLY` annotation)
+
+## 8. Consolidate get-flow-diagram
+
+- [ ] 8.1 Update `src/tools/get-flow-diagram.js` to delegate Mermaid generation to `renderer/mermaid-builder.js` instead of its own `generateMermaidDiagram()`
+- [ ] 8.2 Preserve existing handler signature, parameter validation, and output format (text with Mermaid code block)
+- [ ] 8.3 Verify backward compatibility: same `flowId`, same optional filters (`disabledOnly`, `nodeType`, `fromNodeId`, `direction`), same pagination (`offset`, `limit`)
+
+## 9. Integration and wiring
+
+- [ ] 9.1 Update `StagingStore` to expose a `getDirtyNodeIds()` method (already tracked internally; just needs a public getter)
+- [ ] 9.2 Ensure `src/renderer/index.js` accepts the dirty node set and passes it through to each builder
+- [ ] 9.3 Add the `render-staging` tool to the `list-skills` or tool catalog response if applicable
+- [ ] 9.4 Update `nodes.html` if needed (e.g., if the HTML preview uses the same page)
+
+## 10. Tests
+
+- [ ] 10.1 Unit test `src/renderer/geometry.js`: verify `generateLinkPath()` produces valid SVG path strings for horizontal, vertical, and angled connections
+- [ ] 10.2 Unit test `src/renderer/colors.js`: verify known types get correct colors, unknown types get fallback grey
+- [ ] 10.3 Unit test `src/renderer/svg-builder.js`: verify SVG string contains expected elements for a simple flow (inject → debug)
+- [ ] 10.4 Unit test `src/renderer/mermaid-builder.js`: verify Mermaid output includes dirty classDef when dirty nodes present
+- [ ] 10.5 Unit test `src/renderer/html-builder.js`: verify HTML string is valid, contains D3 CDN script, and embeds flow data
+- [ ] 10.6 Integration test `src/tools/render-staging.js`: verify tool returns SVG/HTML/Mermaid output for a staging store with known flows
+- [ ] 10.7 Integration test: verify `get-flow-diagram` still returns valid Mermaid after migration to shared renderer
+- [ ] 10.8 Visual smoke test: manually generate HTML for a complex flow and verify it renders correctly in a browser
