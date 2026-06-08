@@ -8,6 +8,41 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { StagingStore } from './staging-store.js';
+import {
+  StagingSummarySchema,
+  FlowSummarySchema,
+  SubflowSummarySchema,
+  NodeBasicSchema,
+  ConfigNodeSummarySchema,
+  PaletteNodeSchema,
+  CreateNodeResponseSchema,
+  CreateFlowResponseSchema,
+  CreateSubflowResponseSchema,
+  CreateSubflowInstanceResponseSchema,
+  UpdateNodeResponseSchema,
+  UpdateFlowResponseSchema,
+  UpdateSubflowResponseSchema,
+  WireChangeResponseSchema,
+  AddNodesToGroupResponseSchema,
+  RemoveNodesFromGroupResponseSchema,
+  ImportFlowResponseSchema,
+  DeleteNodeResponseSchema,
+  DeleteFlowResponseSchema,
+  DeleteSubflowResponseSchema,
+  DeleteGroupResponseSchema,
+  DeleteContextResponseSchema,
+  DeployResponseSchema,
+  InjectMessageResponseSchema,
+  DebugMessagesResponseSchema,
+  UninstallNodeResponseSchema,
+  RefreshStagingResponseSchema,
+  FlowNodesResponseSchema,
+  FlowDiagramResponseSchema,
+  ConfigNodesResponseSchema,
+  PaletteNodesResponseSchema,
+  SubflowDetailResponseSchema,
+  SkillListResponseSchema,
+} from './schemas/responses.js';
 import { handleGetFlows } from './tools/get-flows.js';
 import { handleGetSubflows } from './tools/get-subflows.js';
 import { handleGetSubflowDetail } from './tools/get-subflow-detail.js';
@@ -50,6 +85,36 @@ import { loadSkills } from './skills/loader.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+// ── Annotation constants ──────────────────────────────────────────
+
+const ANN_READONLY = {
+  readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true,
+};
+const ANN_MUTATION = {
+  readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false,
+};
+const ANN_DESTRUCTIVE = {
+  readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false,
+};
+const ANN_DEPLOY = {
+  readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false,
+};
+const ANN_INJECT = {
+  readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true,
+};
+const ANN_READ_DEBUG = {
+  readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true,
+};
+const ANN_INSTALL = {
+  readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true,
+};
+const ANN_UNINSTALL = {
+  readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true,
+};
+const ANN_REFRESH = {
+  readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false,
+};
+
 /**
  * Create a configured MCP server with all tools registered.
  *
@@ -75,6 +140,7 @@ export function createMcpServer(nodeRedClient, commsClient) {
     'For subflow definitions, use get-subflows.',
     {},
     async () => handleGetFlows(staging),
+    { annotations: ANN_READONLY, outputSchema: z.array(FlowSummarySchema) },
   );
 
   // Register: get-subflows
@@ -87,6 +153,7 @@ export function createMcpServer(nodeRedClient, commsClient) {
     'Use get-subflow-detail for deep inspection of a specific subflow.',
     {},
     async () => handleGetSubflows(staging),
+    { annotations: ANN_READONLY, outputSchema: z.array(SubflowSummarySchema) },
   );
 
   // Register: get-subflow-detail
@@ -100,6 +167,7 @@ export function createMcpServer(nodeRedClient, commsClient) {
       subflowId: z.string().describe('ID of the subflow to inspect'),
     },
     async (params) => handleGetSubflowDetail(staging, params),
+    { annotations: ANN_READONLY, outputSchema: SubflowDetailResponseSchema },
   );
 
   // Register: create-subflow-instance
@@ -124,6 +192,7 @@ export function createMcpServer(nodeRedClient, commsClient) {
       y: z.number().int().optional().default(200).describe('Y canvas position (default 200)'),
     },
     async (params) => handleCreateSubflowInstance(staging, nodeRedClient, params),
+    { annotations: ANN_MUTATION, outputSchema: CreateSubflowInstanceResponseSchema },
   );
 
   // Register: export-subflow
@@ -136,6 +205,7 @@ export function createMcpServer(nodeRedClient, commsClient) {
       subflowId: z.string().describe('ID of the subflow to export'),
     },
     async (params) => handleExportSubflow(staging, params),
+    { annotations: ANN_READONLY, outputSchema: z.object({}).passthrough() },
   );
 
   // Register: create-subflow
@@ -155,6 +225,7 @@ export function createMcpServer(nodeRedClient, commsClient) {
       out: z.array(z.object({}).passthrough()).optional().describe('Output port definitions'),
     },
     async (params) => handleCreateSubflow(staging, nodeRedClient, params),
+    { annotations: ANN_MUTATION, outputSchema: CreateSubflowResponseSchema },
   );
 
   // Register: update-subflow
@@ -171,6 +242,7 @@ export function createMcpServer(nodeRedClient, commsClient) {
       updates: z.object({}).passthrough().describe('Fields to update: name, info, category, color, icon, in, out'),
     },
     async (params) => handleUpdateSubflow(staging, nodeRedClient, params),
+    { annotations: ANN_MUTATION, outputSchema: UpdateSubflowResponseSchema },
   );
 
   // Register: delete-subflow
@@ -212,6 +284,7 @@ export function createMcpServer(nodeRedClient, commsClient) {
       limit: z.number().int().min(1).max(200).optional().default(50).describe('Max nodes to return (default 50, max 200)'),
     },
     async (params) => handleGetFlowNodes(staging, params),
+    { annotations: ANN_READONLY, outputSchema: FlowNodesResponseSchema },
   );
 
   // Register: get-flow-diagram
@@ -233,6 +306,7 @@ export function createMcpServer(nodeRedClient, commsClient) {
       limit: z.number().int().min(1).max(200).optional().default(50).describe('Max nodes to include in diagram (default 50, max 200)'),
     },
     async (params) => handleGetFlowDiagram(staging, params),
+    { annotations: ANN_READONLY, outputSchema: FlowDiagramResponseSchema },
   );
 
   // Register: get-config-nodes
@@ -251,6 +325,7 @@ export function createMcpServer(nodeRedClient, commsClient) {
       limit: z.number().int().min(1).max(200).optional().default(50).describe('Max config nodes to return (default 50, max 200)'),
     },
     async (params) => handleGetConfigNodes(staging, params),
+    { annotations: ANN_READONLY, outputSchema: ConfigNodesResponseSchema },
   );
 
   // Register: get-node-detail
@@ -268,6 +343,7 @@ export function createMcpServer(nodeRedClient, commsClient) {
       nodeId: z.string().describe('ID of the node to retrieve'),
     },
     async (params) => handleGetNodeDetail(staging, nodeRedClient, params),
+    { annotations: ANN_READONLY, outputSchema: z.object({}).passthrough() },
   );
 
   // Register: get-palette-nodes
@@ -283,6 +359,7 @@ export function createMcpServer(nodeRedClient, commsClient) {
       limit: z.number().int().min(1).max(200).optional().default(50).describe('Max items to return (default 50, max 200)'),
     },
     async (params) => handleGetPaletteNodes(nodeRedClient, params),
+    { annotations: ANN_READONLY, outputSchema: PaletteNodesResponseSchema },
   );
 
   // Register: get-node-type-detail
@@ -296,6 +373,7 @@ export function createMcpServer(nodeRedClient, commsClient) {
       type: z.string().describe('The node type name to look up (e.g. "inject", "function", "http in")'),
     },
     async (params) => handleGetNodeTypeDetail(nodeRedClient, params),
+    { annotations: ANN_READONLY, outputSchema: z.object({}).passthrough() },
   );
 
   // Register: create-flow
@@ -316,6 +394,7 @@ export function createMcpServer(nodeRedClient, commsClient) {
       })).optional().describe('Flow-level environment variables (default empty array)'),
     },
     async (params) => handleCreateFlow(staging, params),
+    { annotations: ANN_MUTATION, outputSchema: CreateFlowResponseSchema },
   );
 
   // Register: delete-flow
@@ -353,6 +432,7 @@ export function createMcpServer(nodeRedClient, commsClient) {
       }).describe('Fields to update — at least one field is required'),
     },
     async (params) => handleUpdateFlow(staging, params),
+    { annotations: ANN_MUTATION, outputSchema: UpdateFlowResponseSchema },
   );
 
   // Register: update-node
@@ -378,6 +458,7 @@ export function createMcpServer(nodeRedClient, commsClient) {
       properties: z.record(z.unknown()).describe('Properties to shallow-merge onto the node — must NOT include wires; use connect-nodes to add connections'),
     },
     async (params) => handleUpdateNode(staging, nodeRedClient, params),
+    { annotations: ANN_MUTATION, outputSchema: UpdateNodeResponseSchema },
   );
 
   // Register: connect-nodes
@@ -403,6 +484,7 @@ export function createMcpServer(nodeRedClient, commsClient) {
       })).optional().describe('Batch mode: wire multiple output ports in one call. When provided, `outputPort` and `toNodeId` are ignored.'),
     },
     async (params) => handleConnectNodes(staging, nodeRedClient, params),
+    { annotations: ANN_MUTATION, outputSchema: WireChangeResponseSchema },
   );
 
   // Register: disconnect-nodes
@@ -431,6 +513,7 @@ export function createMcpServer(nodeRedClient, commsClient) {
       })).optional().describe('Batch mode: remove multiple wires in one call. When provided, `outputPort`, `toNodeId`, and `clearPort` are ignored.'),
     },
     async (params) => handleDisconnectNodes(staging, nodeRedClient, params),
+    { annotations: ANN_MUTATION, outputSchema: WireChangeResponseSchema },
   );
 
   // Register: create-node
@@ -463,6 +546,7 @@ export function createMcpServer(nodeRedClient, commsClient) {
       y: z.number().optional().default(200).describe('Y canvas position (default 200)'),
     },
     async (params) => handleCreateNode(staging, nodeRedClient, params),
+    { annotations: ANN_MUTATION, outputSchema: CreateNodeResponseSchema },
   );
 
   // Register: delete-node
@@ -497,6 +581,7 @@ export function createMcpServer(nodeRedClient, commsClient) {
         .describe('IDs of nodes to export (nodes mode only). Required when exportMode is "nodes".'),
     },
     async (params) => handleExportFlowJson(staging, params),
+    { annotations: ANN_READONLY, outputSchema: z.object({}).passthrough() },
   );
 
   // Register: import-flow
@@ -521,6 +606,7 @@ export function createMcpServer(nodeRedClient, commsClient) {
         .describe('If provided, import all non-tab nodes into this existing flow tab (its ID must exist and must not be locked)'),
     },
     async (params) => handleImportFlow(staging, nodeRedClient, params),
+    { annotations: ANN_MUTATION, outputSchema: ImportFlowResponseSchema },
   );
 
   // Register: get-context
@@ -540,6 +626,7 @@ export function createMcpServer(nodeRedClient, commsClient) {
       key: z.string().optional().describe('Context key to read; omit to return all keys in the scope'),
     },
     async (params) => handleGetContext(nodeRedClient, params),
+    { annotations: ANN_READONLY, outputSchema: z.object({}).passthrough() },
   );
 
   // Register: delete-context
@@ -576,6 +663,7 @@ export function createMcpServer(nodeRedClient, commsClient) {
       limit: z.number().int().min(1).optional().default(50).describe('Max results to return (default 50)'),
     },
     async (params) => handleSearchNodes(staging, params),
+    { annotations: ANN_READONLY, outputSchema: z.array(NodeBasicSchema) },
   );
 
   // Register: inject-message
@@ -647,6 +735,7 @@ export function createMcpServer(nodeRedClient, commsClient) {
       }).optional().describe('Style overrides for a new group (merged with defaults). Ignored if groupId is provided'),
     },
     async (params) => handleAddNodesToGroup(staging, nodeRedClient, params),
+    { annotations: ANN_MUTATION, outputSchema: AddNodesToGroupResponseSchema },
   );
 
   // Register: remove-nodes-from-group
@@ -662,6 +751,7 @@ export function createMcpServer(nodeRedClient, commsClient) {
       reposition: z.boolean().optional().default(false).describe('If true, reposition removed nodes to the right of the group bounds'),
     },
     async (params) => handleRemoveNodesFromGroup(staging, nodeRedClient, params),
+    { annotations: ANN_MUTATION, outputSchema: RemoveNodesFromGroupResponseSchema },
   );
 
   // Register: update-group
@@ -676,6 +766,7 @@ export function createMcpServer(nodeRedClient, commsClient) {
       properties: z.object({}).passthrough().describe('Properties to shallow-merge onto the group (name, style, x, y, w, h)'),
     },
     async (params) => handleUpdateGroup(staging, nodeRedClient, params),
+    { annotations: ANN_MUTATION, outputSchema: UpdateNodeResponseSchema },
   );
 
   // Register: delete-group
@@ -721,6 +812,7 @@ export function createMcpServer(nodeRedClient, commsClient) {
     'or to verify that a deploy was successful.',
     {},
     async () => handleGetStagingStatus(staging)(),
+    { annotations: ANN_READONLY, outputSchema: StagingSummarySchema },
   );
 
   // Register: refresh-staging
