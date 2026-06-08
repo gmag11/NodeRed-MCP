@@ -35,15 +35,35 @@
 ## 6. HTML builder
 
 - [ ] 6.1 Create `src/renderer/html-builder.js` that generates a self-contained HTML document string
-- [ ] 6.2 Embed all flow data as a `<script>const FLOWS = [...]</script>` tag so the page has no external data dependencies
+- [ ] 6.2 Embed all flow data as a `<script>const FLOWS = [...]</script>` tag for immediate first render
 - [ ] 6.3 Include D3.js v7 via CDN `<script>` tag (with comment noting the CDN requirement)
-- [ ] 6.4 Implement D3 rendering: enter/update/exit pattern for nodes, links, groups (similar to Node-RED's `_redraw()` but simplified for static data)
+- [ ] 6.4 Implement D3 rendering: enter/update/exit pattern for nodes, links, groups (similar to Node-RED's `_redraw()` but simplified)
 - [ ] 6.5 Add zoom/pan via `d3.zoom()` transform on the root SVG group
 - [ ] 6.6 Add hover tooltips using HTML `title` attribute or a custom tooltip div showing name, type, id, and dirty status
 - [ ] 6.7 Implement dirty highlighting: orange border and drop-shadow via CSS classes
 - [ ] 6.8 Add auto-fit on load: calculate bounding box and set initial `viewBox` or zoom transform
+- [ ] 6.9 Implement WebSocket client: connect to `ws://<host>/staging-ws`, parse `staging-update` messages, call D3 update pattern to re-render canvas without page reload
+- [ ] 6.10 Add disconnection banner: yellow bar at top saying "Disconnected — retrying…" when WebSocket closes, hidden when reconnected
+- [ ] 6.11 Implement auto-reconnect: retry WebSocket connection every 3s with exponential backoff (max 30s) after disconnect
 
-## 7. Render-staging tool
+## 7. WebSocket server and JSON endpoint
+
+- [ ] 7.1 Create `src/transport/ws-server.js` — a lightweight WebSocket server using Node.js built-in `http` module (no npm deps)
+- [ ] 7.2 Implement WebSocket handshake (HTTP upgrade) and message framing per RFC 6455
+- [ ] 7.3 Track connected clients in a `Set`; broadcast JSON messages to all on `staging:changed` event
+- [ ] 7.4 Send current staging state as initial message to newly connected clients
+- [ ] 7.5 Implement debounce/coalescing: accumulate `staging:changed` events within a 100ms window into a single broadcast
+- [ ] 7.6 Add `GET /staging-snapshot` HTTP endpoint to `src/server.js` that returns `{ flows, dirtyNodeIds, dirtyFlowIds }` as JSON
+- [ ] 7.7 Attach WebSocket server to the existing HTTP server in `src/server.js` (only when running in HTTP transport mode)
+
+## 8. StagingStore event emitter
+
+- [ ] 8.1 Make `StagingStore` extend `EventEmitter` (or use a simple callback-based event system)
+- [ ] 8.2 Emit `staging:changed` event at the end of `applyMutation()` with `{ dirtyNodeIds, dirtyFlowIds }`
+- [ ] 8.3 Emit `staging:changed` event after `deploy()` (dirty sets become empty) to notify clients that staging is clean
+- [ ] 8.4 Expose `getDirtyNodeIds()` and `getDirtyFlowIds()` public getters (already tracked internally)
+
+## 9. Render-staging tool
 
 - [ ] 7.1 Create `src/tools/render-staging.js` with tool definition (`name: "render-staging"`, annotations, output schema) and handler
 - [ ] 7.2 Define input parameters: `format` (enum: `"svg"`, `"html"`, `"mermaid"`), `flowId` (optional string), `highlightDirty` (optional boolean, default `true`)
@@ -51,26 +71,32 @@
 - [ ] 7.4 Register the tool in `src/server.js` within the existing tool list
 - [ ] 7.5 Ensure `render-staging` is read-only (use `ANN_READONLY` annotation)
 
-## 8. Consolidate get-flow-diagram
+## 10. Consolidate get-flow-diagram
 
 - [ ] 8.1 Update `src/tools/get-flow-diagram.js` to delegate Mermaid generation to `renderer/mermaid-builder.js` instead of its own `generateMermaidDiagram()`
 - [ ] 8.2 Preserve existing handler signature, parameter validation, and output format (text with Mermaid code block)
 - [ ] 8.3 Verify backward compatibility: same `flowId`, same optional filters (`disabledOnly`, `nodeType`, `fromNodeId`, `direction`), same pagination (`offset`, `limit`)
 
-## 9. Integration and wiring
+## 11. Integration and wiring
 
-- [ ] 9.1 Update `StagingStore` to expose a `getDirtyNodeIds()` method (already tracked internally; just needs a public getter)
-- [ ] 9.2 Ensure `src/renderer/index.js` accepts the dirty node set and passes it through to each builder
-- [ ] 9.3 Add the `render-staging` tool to the `list-skills` or tool catalog response if applicable
-- [ ] 9.4 Update `nodes.html` if needed (e.g., if the HTML preview uses the same page)
+- [ ] 11.1 Ensure `src/renderer/index.js` accepts the dirty node set and passes it through to each builder
+- [ ] 11.2 Wire `ws-server.js` to listen on `staging:changed` events from `StagingStore`
+- [ ] 11.3 Register `render-staging` tool in `src/server.js` within the existing tool list
+- [ ] 11.4 Register `/staging-snapshot` endpoint and WebSocket upgrade handler in `src/server.js` HTTP transport
+- [ ] 11.5 Add the `render-staging` tool to the `list-skills` or tool catalog response if applicable
+- [ ] 11.6 Update `nodes.html` if needed (e.g., if the HTML preview uses the same page)
 
-## 10. Tests
+## 12. Tests
 
-- [ ] 10.1 Unit test `src/renderer/geometry.js`: verify `generateLinkPath()` produces valid SVG path strings for horizontal, vertical, and angled connections
-- [ ] 10.2 Unit test `src/renderer/colors.js`: verify known types get correct colors, unknown types get fallback grey
-- [ ] 10.3 Unit test `src/renderer/svg-builder.js`: verify SVG string contains expected elements for a simple flow (inject → debug)
-- [ ] 10.4 Unit test `src/renderer/mermaid-builder.js`: verify Mermaid output includes dirty classDef when dirty nodes present
-- [ ] 10.5 Unit test `src/renderer/html-builder.js`: verify HTML string is valid, contains D3 CDN script, and embeds flow data
-- [ ] 10.6 Integration test `src/tools/render-staging.js`: verify tool returns SVG/HTML/Mermaid output for a staging store with known flows
-- [ ] 10.7 Integration test: verify `get-flow-diagram` still returns valid Mermaid after migration to shared renderer
-- [ ] 10.8 Visual smoke test: manually generate HTML for a complex flow and verify it renders correctly in a browser
+- [ ] 12.1 Unit test `src/renderer/geometry.js`: verify `generateLinkPath()` produces valid SVG path strings for horizontal, vertical, and angled connections
+- [ ] 12.2 Unit test `src/renderer/colors.js`: verify known types get correct colors, unknown types get fallback grey
+- [ ] 12.3 Unit test `src/renderer/svg-builder.js`: verify SVG string contains expected elements for a simple flow (inject → debug)
+- [ ] 12.4 Unit test `src/renderer/mermaid-builder.js`: verify Mermaid output includes dirty classDef when dirty nodes present
+- [ ] 12.5 Unit test `src/renderer/html-builder.js`: verify HTML string is valid, contains D3 CDN script, WebSocket client code, and embeds flow data
+- [ ] 12.6 Unit test `src/transport/ws-server.js`: verify WebSocket handshake, broadcast to multiple clients, initial state on connect, coalescing of rapid events
+- [ ] 12.7 Unit test `StagingStore` events: verify `staging:changed` emitted after `applyMutation()`, not emitted for no-op mutations, emitted after `deploy()` with empty dirty sets
+- [ ] 12.8 Integration test `src/tools/render-staging.js`: verify tool returns SVG/HTML/Mermaid output for a staging store with known flows
+- [ ] 12.9 Integration test: verify `GET /staging-snapshot` returns correct JSON with dirty node IDs
+- [ ] 12.10 Integration test: verify WebSocket clients receive `staging-update` messages after mutations
+- [ ] 12.11 Integration test: verify `get-flow-diagram` still returns valid Mermaid after migration to shared renderer
+- [ ] 12.12 Visual smoke test: manually generate HTML for a complex flow, open in browser, verify it renders correctly, and confirm WebSocket live refresh works when editing flows via MCP

@@ -20,13 +20,15 @@ The design extracts the rendering logic from `view.js` into a standalone module,
 - **Highlight dirty nodes** (un-deployed changes) with a visual indicator across all formats
 - Share core rendering logic across all output formats via `src/renderer/`
 - Keep existing `get-flow-diagram` API unchanged
+- **Live WebSocket refresh** in HTML format: the visualization updates in real time as the LLM edits the staging state, without the user needing to manually reload the page
+- **Lightweight JSON endpoint** (`GET /staging-snapshot`) for initial HTML load and WebSocket reconnection fallback
 
 **Non-Goals:**
 - Replace Node-RED's editor or provide editing capabilities in the HTML view
-- Real-time streaming/WebSocket updates (static snapshots only)
 - Pixel-perfect fidelity to Node-RED's editor rendering (approximate is acceptable)
 - Support for custom node icons (text labels only; icon support is a future enhancement)
 - PNG/image output (requires headless browser — deferred)
+- Bidirectional WebSocket (the browser only receives data; it cannot edit flows)
 
 ## Decisions
 
@@ -57,13 +59,13 @@ src/renderer/
 
 **Alternative rejected:** jsdom + D3 server-side. Adds ~10MB of dependencies for a feature that can be done with string concatenation.
 
-### Decision 3: HTML output with bundled D3.js v7
+### Decision 3: HTML output with D3.js v7 and WebSocket live refresh
 
-**Choice:** Generate a self-contained `.html` file that includes D3.js via CDN `<script>` tag with a local fallback comment.
+**Choice:** Generate a self-contained `.html` file that includes D3.js via CDN `<script>` tag and a WebSocket client that connects to the MCP server's `/staging-ws` endpoint for live updates. The HTML embeds initial flow data as a `<script>` tag for immediate first render, then switches to WebSocket-driven updates.
 
-**Rationale:** The HTML format is meant to be opened in a browser. Including D3 via CDN is lightweight (~200KB cached) and provides zoom/pan out of the box. The HTML embeds all flow data as a `<script>` tag, making it fully self-contained (no server needed after download).
+**Rationale:** The HTML format is meant to be opened in a browser. Including D3 via CDN is lightweight (~200KB cached). The WebSocket connection enables real-time visualization — as the LLM creates, edits, or deletes nodes, the browser canvas updates automatically without user intervention. This is the core value proposition: the user watches the flow being built, just like watching code appear in an editor.
 
-**Alternative rejected:** Generate a static SVG file for browser viewing. Users would lose zoom/pan/hover interactions that make the view useful.
+**Alternative rejected:** Static snapshot HTML (no live updates). Users would need to manually reload or re-invoke the tool after every change, defeating the purpose of visual feedback during LLM-driven flow construction.
 
 ### Decision 4: Dirty highlighting via orange border
 
@@ -87,6 +89,39 @@ src/renderer/
 
 **Alternative rejected:** Querying the Node-RED instance for colors. Adds latency and coupling to a running instance (staging may be offline).
 
+### Decision 7: WebSocket architecture — lightweight, no external deps
+
+**Choice:** Implement a minimal WebSocket server using Node.js's built-in `http` module upgrade mechanism (no Socket.IO, no ws npm package). The `StagingStore` emits `staging:changed` events after each `applyMutation()` call. The WebSocket server subscribes to these events and broadcasts the full flows JSON to all connected clients.
+
+```
+┌─────────────────┐    applyMutation()     ┌──────────────────┐
+│  MCP Tool       │ ─────────────────────▶ │  StagingStore    │
+│  (create-node,  │                        │  ┌────────────┐  │
+│   connect-nodes, │                        │  │ flows[]    │  │
+│   delete-node…)  │                        │  │ dirtyIds   │  │
+└─────────────────┘                        │  │ EventEmitter│──┼──▶ emit('staging:changed')
+                                           │  └────────────┘  │
+                                           └──────────────────┘
+                                                    │
+                                                    ▼
+                                           ┌──────────────────┐
+                                           │  WebSocket Server │
+                                           │  /staging-ws      │
+                                           │  broadcast(json)  │
+                                           └──────┬───────────┘
+                                                   │
+                                    ┌──────────────┼──────────────┐
+                                    ▼              ▼              ▼
+                                 Browser       Browser        Browser
+                                 (HTML)        (HTML)         (HTML)
+```
+
+**Rationale:** Node.js's built-in `http` module can handle WebSocket upgrades without any npm dependencies. The message format is simple (JSON stringified flows + dirty metadata), so a full-featured library like `ws` or Socket.IO is unnecessary. Each connected browser receives the same broadcast — there's no per-client state or rooms needed.
+
+**Alternative rejected:** Socket.IO. Adds a large dependency for features we don't need (rooms, namespaces, fallback transports). The HTML page will only be viewed in modern browsers that support native WebSocket.
+
+**Alternative rejected:** Server-Sent Events (SSE). While simpler than WebSocket, SSE is unidirectional (server→client only) and has connection limits in some browsers. WebSocket is more future-proof if we ever add bidirectional communication.
+
 ## Risks / Trade-offs
 
 - **Risk:** Bezier wire paths may differ slightly from Node-RED's real rendering
@@ -100,6 +135,12 @@ src/renderer/
 
 - **Trade-off:** No custom node icons in v1 — only text labels
   → **Acceptance:** Text labels are sufficient for identification. Icon support can be added later by fetching icons from the Node-RED instance or embedding sprites.
+
+- **Risk:** WebSocket broadcast on every `applyMutation()` could flood browsers during rapid batch operations
+  → **Mitigation:** Debounce broadcasts by 100ms — accumulate multiple mutations and send a single update. The `StagingStore` can use a `setTimeout`-based coalescing pattern.
+
+- **Risk:** Browser tab left open without MCP server running (stale WebSocket)
+  → **Mitigation:** HTML page shows a "disconnected" banner when WebSocket closes. It automatically retries connection every 3 seconds with exponential backoff (max 30s). During disconnection, the last-known state remains visible.
 
 ## Open Questions
 

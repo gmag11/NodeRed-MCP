@@ -120,6 +120,62 @@ The HTML output format SHALL support the following interactive features:
 - **WHEN** the HTML page first loads
 - **THEN** the zoom level and scroll position are set so that all nodes are visible within the viewport
 
+### Requirement: Staging snapshot JSON endpoint
+The system SHALL expose an HTTP endpoint `GET /staging-snapshot` that returns the current staging flows as a JSON object `{ flows: [], dirtyNodeIds: [], dirtyFlowIds: [] }`. This endpoint SHALL be available only when the MCP is running in HTTP transport mode. It SHALL NOT trigger a lazy-load if staging is already loaded; if staging is not yet loaded, it SHALL trigger `ensureLoaded()` before returning data.
+
+#### Scenario: Snapshot with pending changes
+- **WHEN** `GET /staging-snapshot` is requested after mutations have been applied but before deploy
+- **THEN** the response contains the full `flows` array and `dirtyNodeIds` includes the IDs of modified nodes
+
+#### Scenario: Snapshot with clean staging
+- **WHEN** `GET /staging-snapshot` is requested after a successful deploy
+- **THEN** the response contains `flows` and `dirtyNodeIds: []`
+
+### Requirement: WebSocket live refresh
+The system SHALL expose a WebSocket endpoint at `/staging-ws` that pushes updated staging data to connected clients whenever the `StagingStore` mutates. The message format SHALL be a JSON object `{ type: "staging-update", flows: [], dirtyNodeIds: [], dirtyFlowIds: [] }`. Messages SHALL be broadcast to all connected clients. Mutations that occur within a 100ms window SHALL be coalesced into a single message.
+
+#### Scenario: WebSocket update on node creation
+- **WHEN** an MCP tool creates a new node via `applyMutation()`
+- **THEN** all connected WebSocket clients receive a `staging-update` message containing the updated flows and dirty node IDs within 150ms
+
+#### Scenario: WebSocket coalesced updates
+- **WHEN** three mutations occur within 50ms of each other (e.g., create-node + connect-nodes + update-node in quick succession)
+- **THEN** connected clients receive a single `staging-update` message reflecting all three changes
+
+#### Scenario: WebSocket client connects mid-session
+- **WHEN** a new WebSocket client connects to `/staging-ws` while staging is already loaded
+- **THEN** the server SHALL immediately send the current staging state as the first message to the new client
+
+#### Scenario: WebSocket reconnection after disconnect
+- **WHEN** a WebSocket client disconnects and reconnects within 30 seconds
+- **THEN** the server SHALL send the current staging state upon reconnection
+
+### Requirement: StagingStore change events
+The `StagingStore` SHALL emit a `staging:changed` event after each successful `applyMutation()` call, containing `{ dirtyNodeIds: string[], dirtyFlowIds: string[] }`. The event SHALL be emitted synchronously (before the `applyMutation` promise resolves).
+
+#### Scenario: Event emitted after mutation
+- **WHEN** `applyMutation()` completes successfully and modifies one or more nodes
+- **THEN** a `staging:changed` event is emitted with the updated dirty node and flow ID sets
+
+#### Scenario: No event for no-op mutation
+- **WHEN** `applyMutation()` is called with a function that makes no actual changes to any node
+- **THEN** no `staging:changed` event is emitted (or the event has empty dirty arrays)
+
+### Requirement: HTML live refresh via WebSocket
+The HTML output format SHALL include a WebSocket client that connects to the MCP server's `/staging-ws` endpoint. Upon receiving a `staging-update` message, the page SHALL re-render the flow canvas using D3.js's update pattern (not full page reload). The initial render SHALL use the embedded `<script>` data; subsequent updates SHALL come exclusively from WebSocket messages.
+
+#### Scenario: Automatic update on staging change
+- **WHEN** the HTML page is open in a browser with an active WebSocket connection, and the LLM modifies the staging state
+- **THEN** the canvas updates within 200ms of the change without any user interaction
+
+#### Scenario: Disconnection banner
+- **WHEN** the WebSocket connection is lost (server restart, network issue)
+- **THEN** a non-intrusive yellow banner appears at the top of the page reading "Disconnected — retrying…" and the last-known flow state remains visible
+
+#### Scenario: Automatic reconnection
+- **WHEN** the WebSocket connection is lost and the server becomes available again
+- **THEN** the page automatically reconnects within 3 seconds and resumes receiving live updates
+
 ### Requirement: Mermaid dirty highlighting
 The Mermaid output format SHALL mark dirty nodes with a `:::dirty` CSS class suffix and include a `classDef dirty` style declaration that renders dirty nodes with an orange border.
 
