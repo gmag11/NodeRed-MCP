@@ -9,6 +9,8 @@
  * Errors if a wire does not exist.  Refuses to mutate nodes in locked flows.
  */
 
+import { formatSuccess } from './response-utils.js';
+
 /**
  * Apply wire removal in the flows array.
  *
@@ -142,14 +144,8 @@ export async function handleDisconnectNodes(staging, client, params) {
     }
   );
 
-  return {
-    content: [
-      {
-        type: 'text',
-        text: JSON.stringify({ fromNodeId, previousWires, currentWires, staging: staging.getStagingSummary() }, null, 2),
-      },
-    ],
-  };
+      const data = { fromNodeId, previousWires, currentWires, staging: staging.getStagingSummary() };
+    return formatSuccess(data);
 }
 
 export const disconnectNodesDefinition = {

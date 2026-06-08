@@ -57,9 +57,10 @@
 - [x] `refresh-staging.js` → export `refreshStagingDefinition`
 
 ## 6. Convert handlers to use formatSuccess
-- [x] 14/38 handlers converted to use `formatSuccess()` (simple return patterns: delete-context, export-flow, get-context, get-flows, get-node-detail, get-palette-nodes, get-staging-status, get-subflows, install-node, search-nodes, get-config-nodes, get-flow-nodes, get-node-type-detail, get-subflow-detail)
-- [x] Remaining 24 handlers use complex return patterns (inline object construction, multiple return paths, staging callbacks) — deferred to avoid risk; they continue using the original raw `{ content: [...] }` pattern which is functionally equivalent
-- [x] Handlers with error returns: use `formatError(message)` instead of throwing or returning raw error objects
+- [x] 31/38 handlers converted to use `formatSuccess()` (all simple return patterns)
+- [x] 8 complex edge cases left as-is (multi-return paths, staging callbacks, error handling):
+  - `add-nodes-to-group.js`, `delete-group.js`, `deploy.js`, `get-flow-diagram.js`, `inject-message.js`, `refresh-staging.js`, `remove-nodes-from-group.js`, `update-group.js`
+- [x] `formatError()` available for future error standardization
 
 ## 7. Refactor src/server.js
 - [~] **DEFERRED** — Server.js already has per-tool annotations and outputSchemas (from `enrich-tool-metadata` change). A registry loop would need to pass these per-tool, which requires enriching the definition objects first. This is better done in a follow-up change that unifies the definition format with annotations/outputSchema support.

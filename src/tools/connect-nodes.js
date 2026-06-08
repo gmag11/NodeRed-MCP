@@ -7,6 +7,8 @@
  * Refuses to wire nodes in locked flows.
  */
 
+import { formatSuccess } from './response-utils.js';
+
 /**
  * Apply a wire connection in the flows array.
  *
@@ -99,14 +101,8 @@ export async function handleConnectNodes(staging, client, params) {
     return applyConnect(rawResponse, fromNodeId, outputPort, toNodeId, connections);
   });
 
-  return {
-    content: [
-      {
-        type: 'text',
-        text: JSON.stringify({ fromNodeId, previousWires, currentWires, staging: staging.getStagingSummary() }, null, 2),
-      },
-    ],
-  };
+      const data = { fromNodeId, previousWires, currentWires, staging: staging.getStagingSummary() };
+    return formatSuccess(data);
 }
 
 export const connectNodesDefinition = {

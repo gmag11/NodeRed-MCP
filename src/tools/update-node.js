@@ -23,6 +23,7 @@
 
 import { normalizeCredentials } from './flow-utils.js';
 
+import { formatSuccess } from './response-utils.js';
 /**
  * Apply a property update to a node in the flows array.
  *
@@ -117,14 +118,8 @@ export async function handleUpdateNode(staging, client, params) {
     return applyNodeUpdate(rawResponse, nodeId, properties, credentialKeys);
   });
 
-  return {
-    content: [
-      {
-        type: 'text',
-        text: JSON.stringify({ nodeId, previousState, currentState, staging: staging.getStagingSummary() }, null, 2),
-      },
-    ],
-  };
+      const data = { nodeId, previousState, currentState, staging: staging.getStagingSummary() };
+    return formatSuccess(data);
 }
 
 export const updateNodeDefinition = {

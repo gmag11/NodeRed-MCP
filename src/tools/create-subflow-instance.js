@@ -8,6 +8,7 @@
 
 import { randomUUID } from 'crypto';
 
+import { formatSuccess } from './response-utils.js';
 /**
  * Build a subflow instance node object.
  *
@@ -108,14 +109,8 @@ export async function handleCreateSubflowInstance(staging, client, params) {
     );
   });
 
-  return {
-    content: [
-      {
-        type: 'text',
-        text: JSON.stringify({ nodeId: currentState.id, currentState, staging: staging.getStagingSummary() }, null, 2),
-      },
-    ],
-  };
+      const data = { nodeId: currentState.id, currentState, staging: staging.getStagingSummary() };
+    return formatSuccess(data);
 }
 
 export const createSubflowInstanceDefinition = {

@@ -11,6 +11,7 @@ import {
   applyFilters,
   paginate,
 } from './flow-utils.js';
+import { formatSuccess } from './response-utils.js';
 
 /**
  * Transform a raw /flows response into a paginated list of nodes for a given flow.
@@ -102,12 +103,10 @@ export async function handleGetFlowNodes(staging, params) {
   const flows = await staging.getFlows();
   const result = transformFlowNodes({ flows }, params.flowId, params);
 
-  return {
-    content: [
-      {
-        type: 'text',
-        text: JSON.stringify(result, null, 2),
-      },
-    ],
-  };
+  return formatSuccess(result);
 }
+
+export const getFlowNodesDefinition = {
+  name: 'get-flow-nodes',
+  handler: handleGetFlowNodes,
+};
