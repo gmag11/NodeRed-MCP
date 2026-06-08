@@ -13,6 +13,8 @@ import {
 } from './flow-utils.js';
 import { formatSuccess } from './response-utils.js';
 
+import { ANN_READONLY } from './constants.js';
+import { FlowNodesResponseSchema } from '../schemas/responses.js';
 /**
  * Transform a raw /flows response into a paginated list of nodes for a given flow.
  *
@@ -108,5 +110,7 @@ export async function handleGetFlowNodes(staging, params) {
 
 export const getFlowNodesDefinition = {
   name: 'get-flow-nodes',
+  annotations: ANN_READONLY,
+  outputSchema: FlowNodesResponseSchema,
   handler: handleGetFlowNodes,
 };

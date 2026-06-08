@@ -8,6 +8,9 @@
 import { formatSuccess } from './response-utils.js';
 
 
+import { ANN_READONLY } from './constants.js';
+import { FlowSummarySchema } from '../schemas/responses.js';
+import { z } from 'zod';
 /**
  * Transform the raw Node-RED /flows response into an LLM-friendly summary.
  *
@@ -65,5 +68,7 @@ export async function handleGetFlows(staging) {
 
 export const getFlowsDefinition = {
   name: 'get-flows',
+  annotations: ANN_READONLY,
+  outputSchema: z.array(FlowSummarySchema),
   handler: handleGetFlows,
 };

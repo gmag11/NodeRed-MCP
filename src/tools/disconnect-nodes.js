@@ -11,6 +11,8 @@
 
 import { formatSuccess } from './response-utils.js';
 
+import { ANN_MUTATION } from './constants.js';
+import { WireChangeResponseSchema } from '../schemas/responses.js';
 /**
  * Apply wire removal in the flows array.
  *
@@ -150,5 +152,7 @@ export async function handleDisconnectNodes(staging, client, params) {
 
 export const disconnectNodesDefinition = {
   name: 'disconnect-nodes',
+  annotations: ANN_MUTATION,
+  outputSchema: WireChangeResponseSchema,
   handler: handleDisconnectNodes,
 };

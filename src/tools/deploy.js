@@ -1,3 +1,5 @@
+import { ANN_DEPLOY } from './constants.js';
+import { DeployResponseSchema } from '../schemas/responses.js';
 /**
  * MCP tool: deploy
  *
@@ -88,5 +90,7 @@ export function handleDeploy(staging) {
 
 export const deployDefinition = {
   name: 'deploy',
+  annotations: ANN_DEPLOY,
+  outputSchema: DeployResponseSchema,
   handler: handleDeploy,
 };

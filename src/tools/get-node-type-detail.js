@@ -7,6 +7,8 @@
 import TurndownService from 'turndown';
 import { formatSuccess } from './response-utils.js';
 
+import { ANN_READONLY } from './constants.js';
+import { GenericObjectSchema } from '../schemas/responses.js';
 const turndown = new TurndownService({ headingStyle: 'atx', codeBlockStyle: 'fenced' });
 
 /**
@@ -84,5 +86,7 @@ export async function handleGetNodeTypeDetail(client, params) {
 
 export const getNodeTypeDetailDefinition = {
   name: 'get-node-type-detail',
+  annotations: ANN_READONLY,
+  outputSchema: GenericObjectSchema,
   handler: handleGetNodeTypeDetail,
 };

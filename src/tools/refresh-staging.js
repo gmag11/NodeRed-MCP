@@ -1,3 +1,5 @@
+import { ANN_REFRESH } from './constants.js';
+import { RefreshStagingResponseSchema } from '../schemas/responses.js';
 /**
  * MCP tool: refresh-staging
  *
@@ -55,5 +57,7 @@ export function handleRefreshStaging(staging) {
 
 export const refreshStagingDefinition = {
   name: 'refresh-staging',
+  annotations: ANN_REFRESH,
+  outputSchema: RefreshStagingResponseSchema,
   handler: handleRefreshStaging,
 };

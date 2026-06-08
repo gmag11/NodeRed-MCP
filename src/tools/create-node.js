@@ -16,6 +16,8 @@ import { randomUUID } from 'crypto';
 import { normalizeCredentials } from './flow-utils.js';
 
 import { formatSuccess } from './response-utils.js';
+import { ANN_MUTATION } from './constants.js';
+import { CreateNodeResponseSchema } from '../schemas/responses.js';
 /**
  * Build a new node object with structural fields set and properties merged in.
  * Strips `id`, `z`, and `wires` from `properties` if the caller accidentally
@@ -106,5 +108,7 @@ export async function handleCreateNode(staging, client, params) {
 
 export const createNodeDefinition = {
   name: 'create-node',
+  annotations: ANN_MUTATION,
+  outputSchema: CreateNodeResponseSchema,
   handler: handleCreateNode,
 };

@@ -9,6 +9,8 @@
 import { formatSuccess } from './response-utils.js';
 
 
+import { ANN_READONLY } from './constants.js';
+import { GenericObjectSchema } from '../schemas/responses.js';
 /**
  * Build the API path for a context GET request.
  *
@@ -68,5 +70,7 @@ export async function handleGetContext(client, params) {
 
 export const getContextDefinition = {
   name: 'get-context',
+  annotations: ANN_READONLY,
+  outputSchema: GenericObjectSchema,
   handler: handleGetContext,
 };

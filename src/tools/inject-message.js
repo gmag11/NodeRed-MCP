@@ -1,3 +1,5 @@
+import { ANN_INJECT } from './constants.js';
+import { InjectMessageResponseSchema } from '../schemas/responses.js';
 /**
  * MCP tool: inject-message
  *
@@ -110,5 +112,7 @@ export function handleInjectMessage(staging, client) {
 
 export const injectMessageDefinition = {
   name: 'inject-message',
+  annotations: ANN_INJECT,
+  outputSchema: InjectMessageResponseSchema,
   handler: handleInjectMessage,
 };

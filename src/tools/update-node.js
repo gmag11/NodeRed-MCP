@@ -24,6 +24,8 @@
 import { normalizeCredentials } from './flow-utils.js';
 
 import { formatSuccess } from './response-utils.js';
+import { ANN_MUTATION } from './constants.js';
+import { UpdateNodeResponseSchema } from '../schemas/responses.js';
 /**
  * Apply a property update to a node in the flows array.
  *
@@ -124,5 +126,7 @@ export async function handleUpdateNode(staging, client, params) {
 
 export const updateNodeDefinition = {
   name: 'update-node',
+  annotations: ANN_MUTATION,
+  outputSchema: UpdateNodeResponseSchema,
   handler: handleUpdateNode,
 };

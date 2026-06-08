@@ -266,3 +266,6 @@ export const SuccessResponseSchema = z.object({
   success: z.boolean(),
   message: z.string().optional(),
 });
+
+/** Generic passthrough schema for tools with variable/untyped responses. */
+export const GenericObjectSchema = z.object({}).passthrough();

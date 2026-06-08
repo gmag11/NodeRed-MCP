@@ -7,6 +7,9 @@
 import { formatSuccess } from './response-utils.js';
 
 
+import { ANN_READONLY } from './constants.js';
+import { SubflowSummarySchema } from '../schemas/responses.js';
+import { z } from 'zod';
 /**
  * Transform the raw Node-RED /flows response into an LLM-friendly
  * summary of subflow definitions only.
@@ -96,5 +99,7 @@ export async function handleGetSubflows(staging) {
 
 export const getSubflowsDefinition = {
   name: 'get-subflows',
+  annotations: ANN_READONLY,
+  outputSchema: z.array(SubflowSummarySchema),
   handler: handleGetSubflows,
 };

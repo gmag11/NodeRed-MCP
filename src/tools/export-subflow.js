@@ -8,6 +8,8 @@
 import { collectReferencedConfigNodes } from './export-flow.js';
 
 import { formatSuccess } from './response-utils.js';
+import { ANN_READONLY } from './constants.js';
+import { GenericObjectSchema } from '../schemas/responses.js';
 /**
  * Collect the subflow definition, its internal nodes, and referenced config nodes.
  *
@@ -70,5 +72,7 @@ export async function handleExportSubflow(staging, params) {
 
 export const exportSubflowDefinition = {
   name: 'export-subflow',
+  annotations: ANN_READONLY,
+  outputSchema: GenericObjectSchema,
   handler: handleExportSubflow,
 };

@@ -10,6 +10,8 @@
 import { formatSuccess } from './response-utils.js';
 
 
+import { ANN_READONLY } from './constants.js';
+import { StagingSummarySchema } from '../schemas/responses.js';
 /**
  * Handler for the get-staging-status MCP tool.
  *
@@ -26,5 +28,7 @@ export function handleGetStagingStatus(staging) {
 
 export const getStagingStatusDefinition = {
   name: 'get-staging-status',
+  annotations: ANN_READONLY,
+  outputSchema: StagingSummarySchema,
   handler: handleGetStagingStatus,
 };

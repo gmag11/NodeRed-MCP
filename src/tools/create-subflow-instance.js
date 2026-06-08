@@ -9,6 +9,8 @@
 import { randomUUID } from 'crypto';
 
 import { formatSuccess } from './response-utils.js';
+import { ANN_MUTATION } from './constants.js';
+import { CreateSubflowInstanceResponseSchema } from '../schemas/responses.js';
 /**
  * Build a subflow instance node object.
  *
@@ -115,5 +117,7 @@ export async function handleCreateSubflowInstance(staging, client, params) {
 
 export const createSubflowInstanceDefinition = {
   name: 'create-subflow-instance',
+  annotations: ANN_MUTATION,
+  outputSchema: CreateSubflowInstanceResponseSchema,
   handler: handleCreateSubflowInstance,
 };

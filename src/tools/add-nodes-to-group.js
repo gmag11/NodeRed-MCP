@@ -10,6 +10,8 @@
 import { randomUUID } from 'crypto';
 import { computeBoundingBox } from './flow-utils.js';
 
+import { ANN_MUTATION } from './constants.js';
+import { AddNodesToGroupResponseSchema } from '../schemas/responses.js';
 /** Default group style, matching Node-RED's defaults. */
 const DEFAULT_GROUP_STYLE = {
   label: true,
@@ -209,5 +211,7 @@ export async function handleAddNodesToGroup(staging, client, params) {
 
 export const addNodesToGroupDefinition = {
   name: 'add-nodes-to-group',
+  annotations: ANN_MUTATION,
+  outputSchema: AddNodesToGroupResponseSchema,
   handler: handleAddNodesToGroup,
 };

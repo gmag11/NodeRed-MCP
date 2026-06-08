@@ -9,6 +9,9 @@
 import { formatSuccess } from './response-utils.js';
 
 
+import { ANN_READONLY } from './constants.js';
+import { NodeBasicSchema } from '../schemas/responses.js';
+import { z } from 'zod';
 /**
  * Search regular nodes across all flows and return enriched results.
  *
@@ -125,5 +128,7 @@ export async function handleSearchNodes(staging, params) {
 
 export const searchNodesDefinition = {
   name: 'search-nodes',
+  annotations: ANN_READONLY,
+  outputSchema: z.array(NodeBasicSchema),
   handler: handleSearchNodes,
 };
