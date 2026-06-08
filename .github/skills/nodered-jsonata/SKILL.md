@@ -1,5 +1,5 @@
 ---
-name: jsonata
+name: nodered-jsonata
 description: >-
   Comprehensive reference for the JSONata expression language (v2.2.0).
   Covers syntax, path navigation, predicates, operators, all built-in function

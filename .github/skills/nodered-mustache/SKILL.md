@@ -1,5 +1,5 @@
 ---
-name: mustache
+name: nodered-mustache
 description: >-
   Comprehensive reference for the Mustache templating language (v1.3.0).
   Covers all tag types: variables (escaped and unescaped), sections, inverted sections,

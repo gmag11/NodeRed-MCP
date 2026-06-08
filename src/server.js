@@ -943,9 +943,10 @@ export function createMcpServer(nodeRedClient, commsClient) {
     'MUST call this BEFORE building any Node-RED flows. ' +
     'Use this tool to retrieve domain-specific guidance, best practices, patterns, ' +
     'and reference material for building Node-RED flows. ' +
-    'Call it with a skill name (e.g. "nodered-flow-builder") to get the full skill content.',
+    'Call it with a skill name (e.g. "nodered-flow-builder") to get the full skill content. ' +
+    'Use list-skills FIRST to discover the available skill names.',
     {
-      topic: z.string().describe('The skill topic/name to retrieve (e.g. "nodered-flow-builder", "nodered-node-reference")'),
+      topic: z.string().describe('The skill topic/name to retrieve. Use list-skills to see available values (e.g. "nodered-flow-builder", "nodered-node-reference")'),
     },
     async (params) => {
       const skill = skills.get(params.topic);

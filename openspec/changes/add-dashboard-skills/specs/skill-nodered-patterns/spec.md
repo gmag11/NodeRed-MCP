@@ -1,43 +1,12 @@
-# Spec: Node-RED Patterns & Recipes
+# Spec: Node-RED Patterns & Recipes (Delta)
 
 ## Files
 - `.github/skills/nodered-patterns/SKILL.md`
-- JSON examples in `.github/skills/nodered-patterns/examples/`
-
-## Front-matter
-```yaml
----
-name: nodered-patterns
-description: >-
-  Recipe book of common Node-RED flow patterns: HTTP endpoints, MQTT subscribers, timers,
-  message routing, data transformation, error handling, and modularization.
-tools:
-  - create-flow
-  - create-node
-  - update-node
-  - connect-nodes
-  - disconnect-nodes
-  - import-flow
-  - export-flow
-  - inject-message
-  - read-debug-messages
-  - get-flow-diagram
-  - get-node-type-detail
----
-```
 
 ## Description
-This specification ensures the creation of a comprehensive recipe book that details how to build out standard integrations and Node-RED patterns rapidly, along with accompanying JSON file imports for the most complex patterns.
+This delta specification adds a new "Dashboard / UI Patterns" section to the existing `nodered-patterns` skill. The new section provides a comparison table to help the LLM guide users toward the right UI tool (Dashboard 2.0 vs uibuilder) based on their specific use case, and cross-references the `flowfuse-dashboard` and `nodered-uibuilder` skills for detailed guidance.
 
-## Requirements
-
-### Requirement: Teach staging and deploy workflow
-The skill instructions SHALL be updated to explain the in-memory staging model and mandate explicit deployment.
-
-#### Scenario: LLM reads skill
-- **WHEN** the LLM retrieves the skill
-- **THEN** it learns that write tools only stage changes locally
-- **THEN** it learns that it must explicitly call the `deploy` tool before testing with `inject-message`
+## ADDED Requirements
 
 ### Requirement: Skill includes Dashboard / UI patterns section
 The skill SHALL include a "Dashboard / UI Patterns" section that introduces the two recommended approaches for building user interfaces in Node-RED: `@flowfuse/node-red-dashboard` (Dashboard 2.0) and `node-red-contrib-uibuilder`.

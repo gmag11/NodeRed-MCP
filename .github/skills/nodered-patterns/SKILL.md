@@ -355,3 +355,60 @@ connect-nodes(fromNodeId: "<delayId>", outputPort: 0, toNodeId: "<functionId>") 
 2. Consumer: `link in` with `links: ["api"]` → processes → `link out` responds
 
 > Link nodes connect by name, not wires. No `connect-nodes` calls needed between tabs. This is the cleanest way to modularize flows without subflows.
+
+---
+
+## Dashboard / UI Patterns
+
+Node-RED has two actively maintained options for building user interfaces and dashboards. They serve different use cases with fundamentally different architectures. This section helps you choose the right tool for the task.
+
+### The Two Approaches
+
+1. **`@flowfuse/node-red-dashboard` (Dashboard 2.0)** — Widget-based. Each UI element (button, chart, gauge, form) is a standard Node-RED node that you create with `create-node` and wire with `connect-nodes` on the flow canvas. Best for **quick dashboards, monitoring screens, and data visualization**.
+
+2. **`node-red-contrib-uibuilder`** — Bridge-based. A single Node-RED node connects via Socket.IO to a full web application stored on the filesystem. You write the frontend code yourself using any framework (or none). Best for **custom web applications, complex UIs, and projects needing full frontend control**.
+
+> **❌ Obsolete:** `node-red-dashboard` v1 (the original AngularJS-based dashboard) is deprecated. Use Dashboard 2.0 (`@flowfuse/node-red-dashboard`) for widget-based dashboards.
+
+### Comparison Table
+
+| Criterion | Dashboard 2.0 | UIBuilder |
+|-----------|---------------|-----------|
+| **Effort (simple UI)** | Very low — drag widgets, wire, deploy | Medium — write HTML/JS, manage filesystem |
+| **Effort (complex UI)** | Medium — limited by widget catalog | High — but unlimited flexibility |
+| **Flexibility** | Low-Medium — constrained to available widgets | Unlimited — any HTML/CSS/JS |
+| **Real-time updates** | Built-in — `msg.payload` updates widgets | Built-in — Socket.IO bidirectional |
+| **Custom styling** | Limited — CSS classes on widgets, `ui-template` for custom components | Full control — your own CSS/framework |
+| **Learning curve** | Low — standard Node-RED node concepts | Medium-High — requires frontend dev skills |
+| **Multi-user** | Built-in — `msg._client` for per-user data | Manual — implement in your frontend code |
+| **Mobile responsive** | Built-in — Vuetify responsive grid | Manual — your own responsive design |
+| **Best for** | IoT dashboards, monitoring, data viz, quick prototypes | Custom SPAs, branded UIs, complex workflows, web portals |
+| **Frontend skills needed** | None (declarative nodes) | HTML + JS required; framework knowledge optional |
+| **npm package** | `@flowfuse/node-red-dashboard` | `node-red-contrib-uibuilder` |
+
+### Decision Guide
+
+**Choose Dashboard 2.0 when:**
+- You need a dashboard up quickly with minimal coding
+- Your UI fits within the available widget types (buttons, charts, gauges, tables, forms)
+- You want built-in responsive/mobile support
+- Multiple users need per-user data with minimal configuration
+- You're building monitoring screens, IoT dashboards, or data visualization
+
+**Choose UIBuilder when:**
+- You need a fully custom UI that doesn't fit standard widgets
+- You want to use a specific frontend framework (Vue, React, Svelte)
+- The UI is part of a larger web application
+- You need complete control over styling, layout, and behavior
+- You're building a web portal, single-page application, or branded interface
+- You have frontend development skills on the team
+
+### Mixing Both
+
+Dashboard 2.0 and uibuilder can coexist in the same Node-RED instance. Use Dashboard 2.0 for internal monitoring screens and uibuilder for the customer-facing web portal — all driven by the same Node-RED flows.
+
+### Detailed Guidance
+
+For widget properties, wiring patterns, and recipes for Dashboard 2.0, read `flowfuse-dashboard`.
+
+For bridge architecture, `msg._ui` protocol details, framework integration snippets, and recipes for uibuilder, read `nodered-uibuilder`.
