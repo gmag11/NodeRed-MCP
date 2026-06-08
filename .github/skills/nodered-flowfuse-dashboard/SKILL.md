@@ -1,10 +1,10 @@
 ---
-name: flowfuse-dashboard
+name: nodered-flowfuse-dashboard
 version: "1.30.2"
 description: >-
   Reference for @flowfuse/node-red-dashboard (Dashboard 2.0) v1.30.2, the officially
   recommended Node-RED dashboard. Covers widget catalog with properties,
-  config nodes (ui-base, ui-page, ui-group), wiring patterns, and common
+  config nodes (ui-base, ui-page, ui-group, ui-theme), wiring patterns, and common
   dashboard recipes. Docs: https://dashboard.flowfuse.com/
 tools:
   - install-node
@@ -26,6 +26,8 @@ Comprehensive reference for building dashboards with **@flowfuse/node-red-dashbo
 
 > **⚠️ Staging reminder:** All create-node/connect-nodes calls stage changes locally. After building any dashboard, call `deploy()` to push to Node-RED. **NEVER skip deploy** — undeployed edits are not active.
 
+> **⚠️ MANDATORY RULE:** Every Dashboard 2.0 flow MUST include a `ui-theme` config node. Every `ui-page` MUST reference that theme via its `theme` property. Dashboard 2.0 will not render correctly without a theme.
+>
 > **Prerequisites:** Read `nodered-fundamentals` first for core vocabulary. Use `nodered-flow-builder` for the step-by-step build workflow. See `nodered-flow-layout` for node positioning rules.
 
 > **Widget discovery:** For any widget NOT listed in the deep-reference section below, or to verify current property values, use `get-palette-nodes` to list available Dashboard 2.0 types and `get-node-type-detail` to retrieve the full property schema.
@@ -51,11 +53,12 @@ Dashboard 2.0 is a **widget-based** dashboard system. Each UI element (button, c
 
 ## Config Nodes
 
-Dashboard 2.0 uses three config nodes that define the dashboard structure. **Creation order matters** because each references the previous one:
+Dashboard 2.0 uses four config nodes that define the dashboard structure. **Creation order matters** because each references the previous one. **⚠️ `ui-theme` is MANDATORY — always create one before creating pages.**
 
 ```
-ui-base (theme, app settings)
-  └── ui-page (navigation entry, layout type)
+ui-base (app settings, URL path)
+  ├── ui-theme (colors, sizes) — ⚠️ MANDATORY, always create one
+  └── ui-page (navigation entry, layout type) — must reference ui-theme
         └── ui-group (widget container, width)
               └── widgets (ui-button, ui-chart, etc.)
 ```
@@ -83,21 +86,37 @@ create-node(type: "ui-base", name: "My Dashboard", properties: { path: "/dashboa
 
 ### ui-page (`type: "ui-page"`)
 
-Represents a navigable page in the dashboard sidebar. Must reference a `ui-base` node.
+Represents a navigable page in the dashboard sidebar. Must reference a `ui-base` node. **⚠️ The `theme` property is REQUIRED — every `ui-page` must reference a `ui-theme` config node.** Always create a `ui-theme` before creating pages.
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `ui` | string | Config node ID of the parent `ui-base` |
-| `path` | string | URL path extending the base (e.g., `"/page1"`) |
-| `name` | string | Page display name in sidebar |
-| `icon` | string | Material Design icon name (without `mdi-` prefix) |
-| `theme` | string | Theme config node ID for page-specific theme |
-| `layout` | string | `"grid"` (default), `"fixed"`, `"notebook"`, `"tabs"` |
-| `defaultState` | object | `{ visibility: "visible"|"hidden", interactivity: "enabled"|"disabled" }` |
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `ui` | string | ✅ | Config node ID of the parent `ui-base` |
+| `path` | string | ✅ | URL path extending the base (e.g., `"/page1"`) |
+| `name` | string | | Page display name in sidebar |
+| `theme` | string | ✅ | Theme config node ID — **MANDATORY**, always create a `ui-theme` first |
+| `icon` | string | | Material Design icon name (without `mdi-` prefix) |
+| `layout` | string | | `"grid"` (default), `"fixed"`, `"notebook"`, `"tabs"` |
+| `className` | string | | Custom CSS class(es) for advanced styling |
+| `visible` | string | | `"true"` (default) or `"false"` — controls page visibility |
+| `disabled` | string | | `"false"` (default) or `"true"` — controls page interactivity |
+| `breakpoints` | array | | Responsive layout breakpoints: `[{ name, px, cols }]` — not available for fixed layout |
 
 **Creation:**
 ```
-create-node(type: "ui-page", name: "Home", properties: { ui: "<uiBaseId>", path: "/home", icon: "home", layout: "grid" })
+// Step 1: Create ui-theme first (REQUIRED)
+create-node(type: "ui-theme", name: "Dashboard Theme", properties: {
+  colors: { surface: "#ffffff", primary: "#0094ce", bgPage: "#eeeeee", groupBg: "#ffffff", groupOutline: "#cccccc" },
+  sizes: { density: "default", pagePadding: "12px", groupGap: "12px", groupBorderRadius: "4px", widgetGap: "12px" }
+})
+
+// Step 2: Create ui-page with theme reference
+create-node(type: "ui-page", name: "Home", properties: {
+  ui: "<uiBaseId>",
+  path: "/home",
+  icon: "home",
+  layout: "grid",
+  theme: "<uiThemeId>"   // ⚠️ MANDATORY
+})
 ```
 
 ### ui-group (`type: "ui-group"`)
@@ -110,9 +129,11 @@ A container for widgets on a page. Must reference a `ui-page` node. Widgets refe
 | `name` | string | Group label shown in the dashboard |
 | `width` | number | Width in grid columns (1-12, grid layout) or fixed px units |
 | `height` | number | Minimum height in px |
-| `type` | string | `"default"` (always visible) or `"dialog"` (triggered by `ui-control`) |
-| `class` | string | Custom CSS class(es) |
-| `defaultState` | object | `{ visibility: "visible"|"hidden", interactivity: "enabled"|"disabled" }` |
+| `groupType` | string | `"default"` (always visible) or `"dialog"` (triggered by `ui-control`) |
+| `className` | string | Custom CSS class(es) for advanced styling |
+| `showTitle` | boolean | Show the group name as a title bar above the widgets |
+| `visible` | string | `"true"` (default) or `"false"` — controls group visibility |
+| `disabled` | string | `"false"` (default) or `"true"` — controls group interactivity |
 
 **Creation:**
 ```
@@ -120,6 +141,54 @@ create-node(type: "ui-group", name: "Controls", properties: { page: "<uiPageId>"
 ```
 
 **Note:** If you create a widget without specifying a `group`, Dashboard 2.0 auto-creates a default base, page, and group for you. However, for predictable layouts, always create config nodes explicitly.
+
+### ui-theme (`type: "ui-theme"`)
+
+Defines the visual theme (colors and spacing) applied to dashboard pages. **⚠️ MANDATORY — every `ui-page` must reference a `ui-theme`. Always create one before creating any pages.**
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `name` | string | Theme display name in the Dashboard sidebar |
+| `colors` | object | Color definitions: `{ surface, primary, bgPage, groupBg, groupOutline }` — all optional, hex colors |
+| `sizes` | object | Sizing definitions: `{ density, pagePadding, groupGap, groupBorderRadius, widgetGap }` — all optional |
+
+**Colors object:**
+| Key | Description |
+|-----|-------------|
+| `surface` | Card/widget surface color (default: `"#ffffff"`) |
+| `primary` | Primary accent color for headers, active elements (default: `"#0094ce"`) |
+| `bgPage` | Page background color (default: `"#eeeeee"`) |
+| `groupBg` | Group container background color (default: `"#ffffff"`) |
+| `groupOutline` | Group container border color (default: `"#cccccc"`) |
+
+**Sizes object:**
+| Key | Description |
+|-----|-------------|
+| `density` | UI density: `"default"`, `"comfortable"`, `"compact"` |
+| `pagePadding` | CSS value for page outer padding (default: `"12px"`) |
+| `groupGap` | CSS value for gap between groups (default: `"12px"`) |
+| `groupBorderRadius` | CSS value for group border radius (default: `"4px"`) |
+| `widgetGap` | CSS value for gap between widgets within a group (default: `"12px"`) |
+
+**Creation:**
+```
+create-node(type: "ui-theme", name: "Dashboard Theme", properties: {
+  colors: {
+    surface: "#ffffff",
+    primary: "#0094ce",
+    bgPage: "#eeeeee",
+    groupBg: "#ffffff",
+    groupOutline: "#cccccc"
+  },
+  sizes: {
+    density: "default",
+    pagePadding: "12px",
+    groupGap: "12px",
+    groupBorderRadius: "4px",
+    widgetGap: "12px"
+  }
+})
+```
 
 ---
 
@@ -722,10 +791,16 @@ Dashboard 2.0 supports per-user data via `msg._client`. Use the Dashboard 2.0 si
 **Nodes:** `inject` (sensor simulator) → `ui-chart`
 
 **Steps:**
-1. Create config hierarchy:
+1. Create config hierarchy (theme is REQUIRED):
 ```
 baseId = create-node(type: "ui-base", name: "Dashboard", properties: { path: "/dashboard" })
-pageId = create-node(type: "ui-page", name: "Monitoring", properties: { ui: baseId, path: "/monitor", layout: "grid" })
+themeId = create-node(type: "ui-theme", name: "Dashboard Theme", properties: {
+  colors: { surface: "#ffffff", primary: "#0094ce", bgPage: "#eeeeee", groupBg: "#ffffff", groupOutline: "#cccccc" },
+  sizes: { density: "default", pagePadding: "12px", groupGap: "12px", groupBorderRadius: "4px", widgetGap: "12px" }
+})
+pageId = create-node(type: "ui-page", name: "Monitoring", properties: {
+  ui: baseId, path: "/monitor", layout: "grid", theme: themeId
+})
 groupId = create-node(type: "ui-group", name: "Charts", properties: { page: pageId, width: 12 })
 ```
 2. Create chart:
