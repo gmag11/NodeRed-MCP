@@ -7,7 +7,11 @@
  * Note: In-memory context values are lost when Node-RED restarts anyway,
  * but this tool explicitly removes a key from any configured store.
  */
+import { formatSuccess } from './response-utils.js';
 
+
+import { ANN_DESTRUCTIVE } from './constants.js';
+import { DeleteContextResponseSchema } from '../schemas/responses.js';
 /**
  * Build the API path for a context DELETE request.
  *
@@ -45,12 +49,12 @@ export async function handleDeleteContext(client, params) {
   const result = { scope, key, deleted: true };
   if (id) result.id = id;
 
-  return {
-    content: [
-      {
-        type: 'text',
-        text: JSON.stringify(result, null, 2),
-      },
-    ],
-  };
+  return formatSuccess(result);
 }
+
+export const deleteContextDefinition = {
+  name: 'delete-context',
+  annotations: ANN_DESTRUCTIVE,
+  outputSchema: DeleteContextResponseSchema,
+  handler: handleDeleteContext,
+};

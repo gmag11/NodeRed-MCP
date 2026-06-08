@@ -1,3 +1,5 @@
+import { ANN_MUTATION } from './constants.js';
+import { RemoveNodesFromGroupResponseSchema } from '../schemas/responses.js';
 /**
  * MCP tool: remove-nodes-from-group
  *
@@ -132,23 +134,29 @@ export async function handleRemoveNodesFromGroup(staging, client, params) {
     });
   });
 
+  const responseData = {
+    groupId: result.groupId,
+    removedNodeIds: result.removedNodeIds,
+    remainingNodeIds: result.remainingNodeIds,
+    repositionedNodes: result.repositionedNodes,
+    warnings: result.warnings,
+    staging: staging.getStagingSummary(),
+  };
+
   return {
     content: [
       {
         type: 'text',
-        text: JSON.stringify(
-          {
-            groupId: result.groupId,
-            removedNodeIds: result.removedNodeIds,
-            remainingNodeIds: result.remainingNodeIds,
-            repositionedNodes: result.repositionedNodes,
-            warnings: result.warnings,
-            staging: staging.getStagingSummary(),
-          },
-          null,
-          2,
-        ),
+        text: JSON.stringify(responseData, null, 2),
       },
     ],
+    structuredContent: responseData,
   };
 }
+
+export const removeNodesFromGroupDefinition = {
+  name: 'remove-nodes-from-group',
+  annotations: ANN_MUTATION,
+  outputSchema: RemoveNodesFromGroupResponseSchema,
+  handler: handleRemoveNodesFromGroup,
+};

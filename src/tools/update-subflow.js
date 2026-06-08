@@ -7,6 +7,10 @@
  * Refuses to update a locked subflow.
  */
 
+import { formatSuccess } from './response-utils.js';
+
+import { ANN_MUTATION } from './constants.js';
+import { UpdateSubflowResponseSchema } from '../schemas/responses.js';
 const ALLOWED_FIELDS = ['name', 'info', 'category', 'color', 'icon', 'in', 'out'];
 
 /**
@@ -68,12 +72,13 @@ export async function handleUpdateSubflow(staging, client, params) {
     return { updatedFlows, previousState, updatedSubflow };
   });
 
-  return {
-    content: [
-      {
-        type: 'text',
-        text: JSON.stringify({ subflowId, previousState, currentState, staging: staging.getStagingSummary() }, null, 2),
-      },
-    ],
-  };
+      const data = { subflowId, previousState, currentState, staging: staging.getStagingSummary() };
+    return formatSuccess(data);
 }
+
+export const updateSubflowDefinition = {
+  name: 'update-subflow',
+  annotations: ANN_MUTATION,
+  outputSchema: UpdateSubflowResponseSchema,
+  handler: handleUpdateSubflow,
+};

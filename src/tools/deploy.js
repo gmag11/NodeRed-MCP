@@ -1,3 +1,5 @@
+import { ANN_DEPLOY } from './constants.js';
+import { DeployResponseSchema } from '../schemas/responses.js';
 /**
  * MCP tool: deploy
  *
@@ -32,21 +34,20 @@ export function handleDeploy(staging) {
     const summaryBefore = staging.getStagingSummary();
 
     if (!staging.hasPendingChanges()) {
+      const noPendingData = {
+        success: true,
+        message: 'No pending changes to deploy.',
+        staging: summaryBefore,
+      };
+
       return {
         content: [
           {
             type: 'text',
-            text: JSON.stringify(
-              {
-                success: true,
-                message: 'No pending changes to deploy.',
-                staging: summaryBefore,
-              },
-              null,
-              2,
-            ),
+            text: JSON.stringify(noPendingData, null, 2),
           },
         ],
+        structuredContent: noPendingData,
       };
     }
 
@@ -66,22 +67,28 @@ export function handleDeploy(staging) {
 
     const summaryAfter = staging.getStagingSummary();
 
+    const deployData = {
+      success: true,
+      deployType,
+      previousPendingChanges: summaryBefore.pendingChanges,
+      staging: summaryAfter,
+    };
+
     return {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(
-            {
-              success: true,
-              deployType,
-              previousPendingChanges: summaryBefore.pendingChanges,
-              staging: summaryAfter,
-            },
-            null,
-            2,
-          ),
+          text: JSON.stringify(deployData, null, 2),
         },
       ],
+      structuredContent: deployData,
     };
   };
 }
+
+export const deployDefinition = {
+  name: 'deploy',
+  annotations: ANN_DEPLOY,
+  outputSchema: DeployResponseSchema,
+  handler: handleDeploy,
+};

@@ -6,6 +6,10 @@
  * Preserves the nodes array unchanged. Refuses to update a locked flow.
  */
 
+import { formatSuccess } from './response-utils.js';
+
+import { ANN_MUTATION } from './constants.js';
+import { UpdateFlowResponseSchema } from '../schemas/responses.js';
 const ALLOWED_FIELDS = ['label', 'disabled', 'info', 'env'];
 
 /**
@@ -79,12 +83,13 @@ export async function handleUpdateFlow(staging, params) {
     return applyUpdateFlow(rawResponse, flowId, updates);
   });
 
-  return {
-    content: [
-      {
-        type: 'text',
-        text: JSON.stringify({ flowId, previousState, currentState, staging: staging.getStagingSummary() }, null, 2),
-      },
-    ],
-  };
+      const data = { flowId, previousState, currentState, staging: staging.getStagingSummary() };
+    return formatSuccess(data);
 }
+
+export const updateFlowDefinition = {
+  name: 'update-flow',
+  annotations: ANN_MUTATION,
+  outputSchema: UpdateFlowResponseSchema,
+  handler: handleUpdateFlow,
+};

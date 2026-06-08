@@ -5,7 +5,11 @@
  * all flows, or a selected set of nodes (by nodeIds). The returned JSON
  * string can be passed directly to `import-flow` to duplicate or migrate flows.
  */
+import { formatSuccess } from './response-utils.js';
 
+
+import { ANN_READONLY } from './constants.js';
+import { GenericObjectSchema } from '../schemas/responses.js';
 /**
  * Collect the tab node and all child nodes belonging to a given flow.
  *
@@ -146,12 +150,12 @@ export async function handleExportFlowJson(staging, params) {
     }
   }
 
-  return {
-    content: [
-      {
-        type: 'text',
-        text: JSON.stringify(result, null, 2),
-      },
-    ],
-  };
+  return formatSuccess(result);
 }
+
+export const exportFlowDefinition = {
+  name: 'export-flow',
+  annotations: ANN_READONLY,
+  outputSchema: GenericObjectSchema,
+  handler: handleExportFlowJson,
+};

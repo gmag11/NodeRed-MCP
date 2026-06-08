@@ -7,6 +7,10 @@
  * Refuses to wire nodes in locked flows.
  */
 
+import { formatSuccess } from './response-utils.js';
+
+import { ANN_MUTATION } from './constants.js';
+import { WireChangeResponseSchema } from '../schemas/responses.js';
 /**
  * Apply a wire connection in the flows array.
  *
@@ -99,12 +103,13 @@ export async function handleConnectNodes(staging, client, params) {
     return applyConnect(rawResponse, fromNodeId, outputPort, toNodeId, connections);
   });
 
-  return {
-    content: [
-      {
-        type: 'text',
-        text: JSON.stringify({ fromNodeId, previousWires, currentWires, staging: staging.getStagingSummary() }, null, 2),
-      },
-    ],
-  };
+      const data = { fromNodeId, previousWires, currentWires, staging: staging.getStagingSummary() };
+    return formatSuccess(data);
 }
+
+export const connectNodesDefinition = {
+  name: 'connect-nodes',
+  annotations: ANN_MUTATION,
+  outputSchema: WireChangeResponseSchema,
+  handler: handleConnectNodes,
+};

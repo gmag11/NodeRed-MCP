@@ -4,7 +4,12 @@
  * Returns a summarized list of subflow definitions from the connected
  * Node-RED instance, with enriched metadata for LLM consumption.
  */
+import { formatSuccess } from './response-utils.js';
 
+
+import { ANN_READONLY } from './constants.js';
+import { SubflowSummarySchema } from '../schemas/responses.js';
+import { z } from 'zod';
 /**
  * Transform the raw Node-RED /flows response into an LLM-friendly
  * summary of subflow definitions only.
@@ -89,12 +94,12 @@ export async function handleGetSubflows(staging) {
   const flows = await staging.getFlows();
   const subflows = transformSubflows({ flows });
 
-  return {
-    content: [
-      {
-        type: 'text',
-        text: JSON.stringify(subflows, null, 2),
-      },
-    ],
-  };
+  return formatSuccess(subflows);
 }
+
+export const getSubflowsDefinition = {
+  name: 'get-subflows',
+  annotations: ANN_READONLY,
+  outputSchema: z.array(SubflowSummarySchema),
+  handler: handleGetSubflows,
+};

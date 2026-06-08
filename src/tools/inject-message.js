@@ -1,3 +1,5 @@
+import { ANN_INJECT } from './constants.js';
+import { InjectMessageResponseSchema } from '../schemas/responses.js';
 /**
  * MCP tool: inject-message
  *
@@ -88,22 +90,28 @@ export function handleInjectMessage(staging, client) {
     // Call POST /inject/:nodeId
     const result = await client.post(`/inject/${resolved.nodeId}`);
 
+    const responseData = {
+      success: true,
+      nodeId: resolved.nodeId,
+      name: resolved.name,
+      message: typeof result === 'string' ? result : 'Injected',
+    };
+
     return {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(
-            {
-              success: true,
-              nodeId: resolved.nodeId,
-              name: resolved.name,
-              message: typeof result === 'string' ? result : 'Injected',
-            },
-            null,
-            2,
-          ),
+          text: JSON.stringify(responseData, null, 2),
         },
       ],
+      structuredContent: responseData,
     };
   };
 }
+
+export const injectMessageDefinition = {
+  name: 'inject-message',
+  annotations: ANN_INJECT,
+  outputSchema: InjectMessageResponseSchema,
+  handler: handleInjectMessage,
+};

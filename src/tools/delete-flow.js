@@ -7,6 +7,10 @@
  * Refuses to delete a locked flow.
  */
 
+import { formatSuccess } from './response-utils.js';
+
+import { ANN_DESTRUCTIVE } from './constants.js';
+import { DeleteFlowResponseSchema } from '../schemas/responses.js';
 /**
  * Apply a delete-flow mutation to the flows array.
  *
@@ -65,12 +69,13 @@ export async function handleDeleteFlow(staging, params) {
     return applyDeleteFlow(rawResponse, flowId);
   });
 
-  return {
-    content: [
-      {
-        type: 'text',
-        text: JSON.stringify({ flowId, previousState, staging: staging.getStagingSummary() }, null, 2),
-      },
-    ],
-  };
+      const data = { flowId, previousState, staging: staging.getStagingSummary() };
+    return formatSuccess(data);
 }
+
+export const deleteFlowDefinition = {
+  name: 'delete-flow',
+  annotations: ANN_DESTRUCTIVE,
+  outputSchema: DeleteFlowResponseSchema,
+  handler: handleDeleteFlow,
+};

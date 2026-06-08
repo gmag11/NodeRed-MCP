@@ -7,7 +7,11 @@
  * Use this to inspect what's pending before deciding to deploy or to
  * verify that a deploy was successful.
  */
+import { formatSuccess } from './response-utils.js';
 
+
+import { ANN_READONLY } from './constants.js';
+import { StagingSummarySchema } from '../schemas/responses.js';
 /**
  * Handler for the get-staging-status MCP tool.
  *
@@ -18,13 +22,13 @@ export function handleGetStagingStatus(staging) {
   return () => {
     const summary = staging.getStagingSummary();
 
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(summary, null, 2),
-        },
-      ],
-    };
+    return formatSuccess(summary);
   };
 }
+
+export const getStagingStatusDefinition = {
+  name: 'get-staging-status',
+  annotations: ANN_READONLY,
+  outputSchema: StagingSummarySchema,
+  handler: handleGetStagingStatus,
+};

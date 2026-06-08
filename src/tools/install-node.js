@@ -6,7 +6,11 @@
  * — the API does not support them via JSON body). Returns the Node Module object
  * with name, version, and the list of installed node types.
  */
+import { formatSuccess } from './response-utils.js';
 
+
+import { ANN_INSTALL } from './constants.js';
+import { GenericObjectSchema } from '../schemas/responses.js';
 /**
  * Handle the install-node MCP tool invocation.
  *
@@ -16,12 +20,12 @@
  */
 export async function handleInstallNode(client, { module: moduleName }) {
   const result = await client.request('POST', '/nodes', { module: moduleName });
-  return {
-    content: [
-      {
-        type: 'text',
-        text: JSON.stringify(result, null, 2),
-      },
-    ],
-  };
+  return formatSuccess(result);
 }
+
+export const installNodeDefinition = {
+  name: 'install-node',
+  annotations: ANN_INSTALL,
+  outputSchema: GenericObjectSchema,
+  handler: handleInstallNode,
+};

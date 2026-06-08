@@ -8,6 +8,8 @@
 
 import { applyNodeUpdate } from './update-node.js';
 
+import { ANN_MUTATION } from './constants.js';
+import { UpdateNodeResponseSchema } from '../schemas/responses.js';
 /**
  * Apply a property update to a group node in the flows array.
  * Validates that the target node is `type: "group"` before delegating.
@@ -49,21 +51,27 @@ export async function handleUpdateGroup(staging, client, params) {
     return applyUpdateGroup(rawResponse, groupId, properties);
   });
 
+  const responseData = {
+    groupId,
+    previousState: result.previousState,
+    currentState: result.currentState,
+    staging: staging.getStagingSummary(),
+  };
+
   return {
     content: [
       {
         type: 'text',
-        text: JSON.stringify(
-          {
-            groupId,
-            previousState: result.previousState,
-            currentState: result.currentState,
-            staging: staging.getStagingSummary(),
-          },
-          null,
-          2,
-        ),
+        text: JSON.stringify(responseData, null, 2),
       },
     ],
+    structuredContent: responseData,
   };
 }
+
+export const updateGroupDefinition = {
+  name: 'update-group',
+  annotations: ANN_MUTATION,
+  outputSchema: UpdateNodeResponseSchema,
+  handler: handleUpdateGroup,
+};

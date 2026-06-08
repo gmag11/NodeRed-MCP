@@ -6,7 +6,12 @@
  * against the full string. Supports plain text (case-insensitive substring) and
  * regex modes.
  */
+import { formatSuccess } from './response-utils.js';
 
+
+import { ANN_READONLY } from './constants.js';
+import { NodeBasicSchema } from '../schemas/responses.js';
+import { z } from 'zod';
 /**
  * Search regular nodes across all flows and return enriched results.
  *
@@ -118,12 +123,12 @@ export async function handleSearchNodes(staging, params) {
 
   const result = searchNodes(allNodes, { query, regex, flowId, limit });
 
-  return {
-    content: [
-      {
-        type: 'text',
-        text: JSON.stringify(result, null, 2),
-      },
-    ],
-  };
+  return formatSuccess(result);
 }
+
+export const searchNodesDefinition = {
+  name: 'search-nodes',
+  annotations: ANN_READONLY,
+  outputSchema: z.array(NodeBasicSchema),
+  handler: handleSearchNodes,
+};

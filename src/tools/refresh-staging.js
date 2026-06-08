@@ -1,3 +1,5 @@
+import { ANN_REFRESH } from './constants.js';
+import { RefreshStagingResponseSchema } from '../schemas/responses.js';
 /**
  * MCP tool: refresh-staging
  *
@@ -29,26 +31,32 @@ export function handleRefreshStaging(staging) {
     // Capture state after re-fetch
     const newSummary = staging.getStagingSummary();
 
+    const responseData = {
+      success: true,
+      warning:
+        'All un-deployed staged changes have been discarded. ' +
+        'The staging state now reflects the current Node-RED backend.',
+      previousPendingChanges: previousSummary.pendingChanges,
+      previousDirtyNodeIds: previousSummary.dirtyNodeIds,
+      previousDirtyFlowIds: previousSummary.dirtyFlowIds,
+      staging: newSummary,
+    };
+
     return {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(
-            {
-              success: true,
-              warning:
-                'All un-deployed staged changes have been discarded. ' +
-                'The staging state now reflects the current Node-RED backend.',
-              previousPendingChanges: previousSummary.pendingChanges,
-              previousDirtyNodeIds: previousSummary.dirtyNodeIds,
-              previousDirtyFlowIds: previousSummary.dirtyFlowIds,
-              staging: newSummary,
-            },
-            null,
-            2,
-          ),
+          text: JSON.stringify(responseData, null, 2),
         },
       ],
+      structuredContent: responseData,
     };
   };
 }
+
+export const refreshStagingDefinition = {
+  name: 'refresh-staging',
+  annotations: ANN_REFRESH,
+  outputSchema: RefreshStagingResponseSchema,
+  handler: handleRefreshStaging,
+};

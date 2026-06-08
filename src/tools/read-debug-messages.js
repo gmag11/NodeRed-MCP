@@ -6,6 +6,10 @@
  * Supports both head (first-N) and tail (last-N) retrieval modes.
  */
 
+import { formatSuccess } from './response-utils.js';
+
+import { ANN_READ_DEBUG } from './constants.js';
+import { DebugMessagesResponseSchema } from '../schemas/responses.js';
 /** Default limit when neither `last` nor `limit` is provided. */
 const DEFAULT_LIMIT = 50;
 
@@ -128,29 +132,24 @@ export function handleReadDebugMessages(commsClient) {
 
     // Handle filter-level error (e.g. last + limit conflict)
     if (result.error) {
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify({
+          const data = {
               error: result.error,
-            }, null, 2),
-          },
-        ],
-      };
+            };
+    return formatSuccess(data);
     }
 
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify({
+        const data = {
             messages: result.messages,
             total: result.total,
             bufferSize: commsClient.bufferSize,
-          }, null, 2),
-        },
-      ],
-    };
+          };
+    return formatSuccess(data);
   };
 }
+
+export const readDebugMessagesDefinition = {
+  name: 'read-debug-messages',
+  annotations: ANN_READ_DEBUG,
+  outputSchema: DebugMessagesResponseSchema,
+  handler: handleReadDebugMessages,
+};

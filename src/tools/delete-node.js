@@ -6,6 +6,10 @@
  * Refuses to delete nodes in locked flows.
  */
 
+import { formatSuccess } from './response-utils.js';
+
+import { ANN_DESTRUCTIVE } from './constants.js';
+import { DeleteNodeResponseSchema } from '../schemas/responses.js';
 /**
  * Apply the delete-node operation to the flows array.
  *
@@ -57,12 +61,13 @@ export async function handleDeleteNode(staging, client, params) {
     return applyDeleteNode(rawResponse, nodeId);
   });
 
-  return {
-    content: [
-      {
-        type: 'text',
-        text: JSON.stringify({ nodeId, previousState, staging: staging.getStagingSummary() }, null, 2),
-      },
-    ],
-  };
+      const data = { nodeId, previousState, staging: staging.getStagingSummary() };
+    return formatSuccess(data);
 }
+
+export const deleteNodeDefinition = {
+  name: 'delete-node',
+  annotations: ANN_DESTRUCTIVE,
+  outputSchema: DeleteNodeResponseSchema,
+  handler: handleDeleteNode,
+};

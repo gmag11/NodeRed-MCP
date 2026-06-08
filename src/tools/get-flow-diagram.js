@@ -5,6 +5,8 @@
  * within a specific Node-RED flow, with filtering and pagination support.
  */
 
+import { ANN_READONLY } from './constants.js';
+import { FlowDiagramResponseSchema } from '../schemas/responses.js';
 import {
   getFlowNodes,
   applyFilters,
@@ -194,5 +196,16 @@ export async function handleGetFlowDiagram(staging, params) {
         text: `Mermaid diagram for flow "${result.flowId}" (nodes ${result.offset + 1}–${result.offset + (result.totalCount === 0 ? 0 : Math.min(result.limit, result.totalCount - result.offset))} of ${result.totalCount}${result.hasMore ? ', hasMore: true' : ''}):\n\n\`\`\`mermaid\n${result.diagram}\n\`\`\``,
       },
     ],
+    structuredContent: {
+      mermaid: result.diagram,
+      nodeCount: result.totalCount,
+    },
   };
 }
+
+export const getFlowDiagramDefinition = {
+  name: 'get-flow-diagram',
+  annotations: ANN_READONLY,
+  outputSchema: FlowDiagramResponseSchema,
+  handler: handleGetFlowDiagram,
+};
