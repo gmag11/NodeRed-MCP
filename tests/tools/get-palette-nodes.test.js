@@ -29,56 +29,53 @@ const makeNodes = (count) =>
   Array.from({ length: count }, (_, i) => ({ id: `mod/type-${String(i).padStart(3, '0')}` }));
 
 describe('paginateNodes', () => {
-  it('returns correct first page with defaults', () => {
+  it('returns correct first slice with defaults', () => {
     const nodes = makeNodes(120);
     const result = paginateNodes(nodes);
-    expect(result.page).toBe(1);
-    expect(result.pageSize).toBe(50);
+    expect(result.offset).toBe(0);
+    expect(result.limit).toBe(50);
     expect(result.total).toBe(120);
-    expect(result.totalPages).toBe(3);
     expect(result.nodes).toHaveLength(50);
     expect(result.nodes[0].id).toBe('mod/type-000');
   });
 
-  it('pagination returns correct slice, total, and totalPages', () => {
+  it('pagination returns correct slice and total', () => {
     const nodes = makeNodes(120);
-    const result = paginateNodes(nodes, 2, 50);
-    expect(result.page).toBe(2);
+    const result = paginateNodes(nodes, 50, 50);
+    expect(result.offset).toBe(50);
     expect(result.total).toBe(120);
-    expect(result.totalPages).toBe(3);
     expect(result.nodes).toHaveLength(50);
     expect(result.nodes[0].id).toBe('mod/type-050');
   });
 
-  it('last page returns the remaining items', () => {
+  it('last slice returns the remaining items', () => {
     const nodes = makeNodes(120);
-    const result = paginateNodes(nodes, 3, 50);
+    const result = paginateNodes(nodes, 100, 50);
     expect(result.nodes).toHaveLength(20);
     expect(result.nodes[0].id).toBe('mod/type-100');
   });
 
-  it('clamps pageSize to 200 when exceeded', () => {
+  it('clamps limit to 200 when exceeded', () => {
     const nodes = makeNodes(10);
-    const result = paginateNodes(nodes, 1, 500);
-    expect(result.pageSize).toBe(200);
+    const result = paginateNodes(nodes, 0, 500);
+    expect(result.limit).toBe(200);
     expect(result.nodes).toHaveLength(10);
   });
 
-  it('out-of-range page returns empty nodes with correct totals', () => {
+  it('out-of-range offset returns empty nodes with correct total', () => {
     const nodes = makeNodes(50);
-    const result = paginateNodes(nodes, 99, 50);
+    const result = paginateNodes(nodes, 5000, 50);
     expect(result.nodes).toHaveLength(0);
     expect(result.total).toBe(50);
-    expect(result.totalPages).toBe(1);
   });
 
   it('returns raw node set objects unchanged', () => {
-    const result = paginateNodes(ALL_MODS, 1, 10);
+    const result = paginateNodes(ALL_MODS, 0, 10);
     expect(result.nodes[0]).toBe(ALL_MODS[0]);
   });
 
   it('disabled node sets are included in results', () => {
-    const result = paginateNodes(ALL_MODS, 1, 10);
+    const result = paginateNodes(ALL_MODS, 0, 10);
     const disabled = result.nodes.find((n) => n.module === 'some-disabled-module');
     expect(disabled).toBeDefined();
     expect(disabled.enabled).toBe(false);

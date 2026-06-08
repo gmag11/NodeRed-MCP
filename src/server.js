@@ -276,11 +276,11 @@ export function createMcpServer(nodeRedClient, commsClient) {
     'Get a paginated list of all node types available in the Node-RED palette. ' +
     'Returns each type name, its module, version, category, and enabled state. ' +
     'Results are sorted alphabetically by type name. ' +
-    'Use page and pageSize to iterate through large palettes. ' +
+    'Use offset and limit to iterate through large palettes. ' +
     'Use this to discover what node types are installed before building or auditing flows.',
     {
-      page: z.number().int().min(1).optional().default(1).describe('Page number (1-based, default 1)'),
-      pageSize: z.number().int().min(1).max(200).optional().default(50).describe('Items per page (default 50, max 200)'),
+      offset: z.number().int().min(0).optional().default(0).describe('Pagination offset (0-based, default 0)'),
+      limit: z.number().int().min(1).max(200).optional().default(50).describe('Max items to return (default 50, max 200)'),
     },
     async (params) => handleGetPaletteNodes(nodeRedClient, params),
   );

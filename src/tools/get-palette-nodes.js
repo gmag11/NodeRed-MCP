@@ -5,30 +5,28 @@
  * exactly as returned by the GET /nodes API.
  */
 
-const MAX_PAGE_SIZE = 200;
-const DEFAULT_PAGE_SIZE = 50;
+const MAX_LIMIT = 200;
+const DEFAULT_LIMIT = 50;
 
 /**
  * Apply pagination to an array of node sets.
  *
  * @param {Array<object>} nodes - Array of node set objects from GET /nodes
- * @param {number} page - 1-based page number (default 1)
- * @param {number} pageSize - Items per page (default 50, max 200)
- * @returns {{ page: number, pageSize: number, total: number, totalPages: number, nodes: Array<object> }}
+ * @param {number} offset - 0-based pagination offset (default 0)
+ * @param {number} limit - Max items to return (default 50, max 200)
+ * @returns {{ offset: number, limit: number, total: number, nodes: Array<object> }}
  */
-export function paginateNodes(nodes, page = 1, pageSize = DEFAULT_PAGE_SIZE) {
-  const clampedSize = Math.min(Math.max(1, pageSize), MAX_PAGE_SIZE);
+export function paginateNodes(nodes, offset = 0, limit = DEFAULT_LIMIT) {
+  const clampedLimit = Math.min(Math.max(1, limit), MAX_LIMIT);
   const total = nodes.length;
-  const totalPages = total === 0 ? 1 : Math.ceil(total / clampedSize);
 
-  const start = (page - 1) * clampedSize;
-  const slice = start >= total ? [] : nodes.slice(start, start + clampedSize);
+  const start = offset;
+  const slice = start >= total ? [] : nodes.slice(start, start + clampedLimit);
 
   return {
-    page,
-    pageSize: clampedSize,
+    offset,
+    limit: clampedLimit,
     total,
-    totalPages,
     nodes: slice,
   };
 }
@@ -38,16 +36,16 @@ export function paginateNodes(nodes, page = 1, pageSize = DEFAULT_PAGE_SIZE) {
  *
  * @param {ReturnType<import('../nodered/client.js').createNodeRedClient>} client
  * @param {object} params
- * @param {number} [params.page]
- * @param {number} [params.pageSize]
+ * @param {number} [params.offset]
+ * @param {number} [params.limit]
  * @returns {Promise<{ content: Array<{ type: string, text: string }> }>}
  */
 export async function handleGetPaletteNodes(client, params) {
   const rawResponse = await client.request('GET', '/nodes');
   const result = paginateNodes(
     rawResponse,
-    params.page ?? 1,
-    params.pageSize ?? DEFAULT_PAGE_SIZE,
+    params.offset ?? 0,
+    params.limit ?? DEFAULT_LIMIT,
   );
 
   return {
