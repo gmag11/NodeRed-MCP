@@ -9,6 +9,8 @@
 
 import { formatSuccess } from './response-utils.js';
 
+import { ANN_DESTRUCTIVE } from './constants.js';
+import { DeleteFlowResponseSchema } from '../schemas/responses.js';
 /**
  * Apply a delete-flow mutation to the flows array.
  *
@@ -73,5 +75,7 @@ export async function handleDeleteFlow(staging, params) {
 
 export const deleteFlowDefinition = {
   name: 'delete-flow',
+  annotations: ANN_DESTRUCTIVE,
+  outputSchema: DeleteFlowResponseSchema,
   handler: handleDeleteFlow,
 };

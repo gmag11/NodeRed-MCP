@@ -9,6 +9,8 @@
 
 import { formatSuccess } from './response-utils.js';
 
+import { ANN_MUTATION } from './constants.js';
+import { UpdateSubflowResponseSchema } from '../schemas/responses.js';
 const ALLOWED_FIELDS = ['name', 'info', 'category', 'color', 'icon', 'in', 'out'];
 
 /**
@@ -76,5 +78,7 @@ export async function handleUpdateSubflow(staging, client, params) {
 
 export const updateSubflowDefinition = {
   name: 'update-subflow',
+  annotations: ANN_MUTATION,
+  outputSchema: UpdateSubflowResponseSchema,
   handler: handleUpdateSubflow,
 };

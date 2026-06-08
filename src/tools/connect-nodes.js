@@ -9,6 +9,8 @@
 
 import { formatSuccess } from './response-utils.js';
 
+import { ANN_MUTATION } from './constants.js';
+import { WireChangeResponseSchema } from '../schemas/responses.js';
 /**
  * Apply a wire connection in the flows array.
  *
@@ -107,5 +109,7 @@ export async function handleConnectNodes(staging, client, params) {
 
 export const connectNodesDefinition = {
   name: 'connect-nodes',
+  annotations: ANN_MUTATION,
+  outputSchema: WireChangeResponseSchema,
   handler: handleConnectNodes,
 };

@@ -1,3 +1,5 @@
+import { ANN_MUTATION } from './constants.js';
+import { RemoveNodesFromGroupResponseSchema } from '../schemas/responses.js';
 /**
  * MCP tool: remove-nodes-from-group
  *
@@ -155,5 +157,7 @@ export async function handleRemoveNodesFromGroup(staging, client, params) {
 
 export const removeNodesFromGroupDefinition = {
   name: 'remove-nodes-from-group',
+  annotations: ANN_MUTATION,
+  outputSchema: RemoveNodesFromGroupResponseSchema,
   handler: handleRemoveNodesFromGroup,
 };

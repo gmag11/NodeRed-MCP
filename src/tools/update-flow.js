@@ -8,6 +8,8 @@
 
 import { formatSuccess } from './response-utils.js';
 
+import { ANN_MUTATION } from './constants.js';
+import { UpdateFlowResponseSchema } from '../schemas/responses.js';
 const ALLOWED_FIELDS = ['label', 'disabled', 'info', 'env'];
 
 /**
@@ -87,5 +89,7 @@ export async function handleUpdateFlow(staging, params) {
 
 export const updateFlowDefinition = {
   name: 'update-flow',
+  annotations: ANN_MUTATION,
+  outputSchema: UpdateFlowResponseSchema,
   handler: handleUpdateFlow,
 };

@@ -12,6 +12,8 @@ import {
 } from './flow-utils.js';
 import { formatSuccess } from './response-utils.js';
 
+import { ANN_READONLY } from './constants.js';
+import { ConfigNodesResponseSchema } from '../schemas/responses.js';
 /**
  * Transform a raw /flows response into a paginated list of global config nodes.
  *
@@ -78,5 +80,7 @@ export async function handleGetConfigNodes(staging, params) {
 
 export const getConfigNodesDefinition = {
   name: 'get-config-nodes',
+  annotations: ANN_READONLY,
+  outputSchema: ConfigNodesResponseSchema,
   handler: handleGetConfigNodes,
 };

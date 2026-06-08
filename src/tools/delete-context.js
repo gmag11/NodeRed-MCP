@@ -10,6 +10,8 @@
 import { formatSuccess } from './response-utils.js';
 
 
+import { ANN_DESTRUCTIVE } from './constants.js';
+import { DeleteContextResponseSchema } from '../schemas/responses.js';
 /**
  * Build the API path for a context DELETE request.
  *
@@ -52,5 +54,7 @@ export async function handleDeleteContext(client, params) {
 
 export const deleteContextDefinition = {
   name: 'delete-context',
+  annotations: ANN_DESTRUCTIVE,
+  outputSchema: DeleteContextResponseSchema,
   handler: handleDeleteContext,
 };

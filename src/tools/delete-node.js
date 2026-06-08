@@ -8,6 +8,8 @@
 
 import { formatSuccess } from './response-utils.js';
 
+import { ANN_DESTRUCTIVE } from './constants.js';
+import { DeleteNodeResponseSchema } from '../schemas/responses.js';
 /**
  * Apply the delete-node operation to the flows array.
  *
@@ -65,5 +67,7 @@ export async function handleDeleteNode(staging, client, params) {
 
 export const deleteNodeDefinition = {
   name: 'delete-node',
+  annotations: ANN_DESTRUCTIVE,
+  outputSchema: DeleteNodeResponseSchema,
   handler: handleDeleteNode,
 };

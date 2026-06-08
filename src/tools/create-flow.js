@@ -8,6 +8,8 @@
 import { randomUUID } from 'crypto';
 
 import { formatSuccess } from './response-utils.js';
+import { ANN_MUTATION } from './constants.js';
+import { CreateFlowResponseSchema } from '../schemas/responses.js';
 /**
  * Assemble the POST /flow request body.
  *
@@ -79,5 +81,7 @@ export async function handleCreateFlow(staging, params) {
 
 export const createFlowDefinition = {
   name: 'create-flow',
+  annotations: ANN_MUTATION,
+  outputSchema: CreateFlowResponseSchema,
   handler: handleCreateFlow,
 };

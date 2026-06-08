@@ -11,6 +11,8 @@
 import { formatSuccess } from './response-utils.js';
 
 
+import { ANN_READONLY } from './constants.js';
+import { GenericObjectSchema } from '../schemas/responses.js';
 /**
  * Find a node by ID in the raw /flows response and return all its fields.
  *
@@ -69,5 +71,7 @@ export async function handleGetNodeDetail(staging, client, params) {
 
 export const getNodeDetailDefinition = {
   name: 'get-node-detail',
+  annotations: ANN_READONLY,
+  outputSchema: GenericObjectSchema,
   handler: handleGetNodeDetail,
 };

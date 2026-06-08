@@ -8,6 +8,8 @@
 
 import { formatSuccess } from './response-utils.js';
 
+import { ANN_UNINSTALL } from './constants.js';
+import { UninstallNodeResponseSchema } from '../schemas/responses.js';
 /**
  * Handle the uninstall-node MCP tool invocation.
  *
@@ -23,5 +25,7 @@ export async function handleUninstallNode(client, { module: moduleName }) {
 
 export const uninstallNodeDefinition = {
   name: 'uninstall-node',
+  annotations: ANN_UNINSTALL,
+  outputSchema: UninstallNodeResponseSchema,
   handler: handleUninstallNode,
 };

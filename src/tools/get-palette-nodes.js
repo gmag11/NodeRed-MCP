@@ -7,6 +7,8 @@
 import { formatSuccess } from './response-utils.js';
 
 
+import { ANN_READONLY } from './constants.js';
+import { PaletteNodesResponseSchema } from '../schemas/responses.js';
 const MAX_LIMIT = 200;
 const DEFAULT_LIMIT = 50;
 
@@ -55,5 +57,7 @@ export async function handleGetPaletteNodes(client, params) {
 
 export const getPaletteNodesDefinition = {
   name: 'get-palette-nodes',
+  annotations: ANN_READONLY,
+  outputSchema: PaletteNodesResponseSchema,
   handler: handleGetPaletteNodes,
 };

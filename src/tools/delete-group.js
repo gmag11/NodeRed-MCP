@@ -1,3 +1,5 @@
+import { ANN_DESTRUCTIVE } from './constants.js';
+import { DeleteGroupResponseSchema } from '../schemas/responses.js';
 /**
  * MCP tool: delete-group
  *
@@ -109,5 +111,7 @@ export async function handleDeleteGroup(staging, client, params) {
 
 export const deleteGroupDefinition = {
   name: 'delete-group',
+  annotations: ANN_DESTRUCTIVE,
+  outputSchema: DeleteGroupResponseSchema,
   handler: handleDeleteGroup,
 };

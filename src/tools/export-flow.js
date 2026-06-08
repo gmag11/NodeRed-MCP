@@ -8,6 +8,8 @@
 import { formatSuccess } from './response-utils.js';
 
 
+import { ANN_READONLY } from './constants.js';
+import { GenericObjectSchema } from '../schemas/responses.js';
 /**
  * Collect the tab node and all child nodes belonging to a given flow.
  *
@@ -153,5 +155,7 @@ export async function handleExportFlowJson(staging, params) {
 
 export const exportFlowDefinition = {
   name: 'export-flow',
+  annotations: ANN_READONLY,
+  outputSchema: GenericObjectSchema,
   handler: handleExportFlowJson,
 };

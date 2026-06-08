@@ -11,6 +11,8 @@
 import { randomUUID } from 'crypto';
 
 import { formatSuccess } from './response-utils.js';
+import { ANN_MUTATION } from './constants.js';
+import { ImportFlowResponseSchema } from '../schemas/responses.js';
 /**
  * Parse and normalize a flowJson string to a flat node array.
  *
@@ -247,5 +249,7 @@ export async function handleImportFlow(staging, client, params) {
 
 export const importFlowDefinition = {
   name: 'import-flow',
+  annotations: ANN_MUTATION,
+  outputSchema: ImportFlowResponseSchema,
   handler: handleImportFlow,
 };
