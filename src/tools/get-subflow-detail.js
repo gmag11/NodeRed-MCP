@@ -9,7 +9,8 @@
  */
 
 import { getFlowNodes, sanitizeNodeConfig } from './flow-utils.js';
-import { generateMermaidDiagram } from './get-flow-diagram.js';
+import { buildIR } from '../renderer/ir-builder.js';
+import { buildMermaid } from '../renderer/mermaid-builder.js';
 import { formatSuccess } from './response-utils.js';
 
 import { ANN_READONLY } from './constants.js';
@@ -51,8 +52,9 @@ export function transformSubflowDetail(rawResponse, subflowId) {
   const instanceType = `subflow:${subflowId}`;
   const instances = allNodes.filter((n) => n.type === instanceType);
 
-  // Generate Mermaid diagram from internal nodes
-  const diagram = generateMermaidDiagram(internalNodes);
+  // Generate Mermaid diagram from internal nodes (via shared renderer)
+  const ir = buildIR(internalNodes);
+  const diagram = buildMermaid(ir);
 
   // Sanitize internal nodes: metadata + config (like get-flow-nodes does)
   const sanitizedInternals = internalNodes.map((node) => ({

@@ -81,6 +81,7 @@ import { handleDeleteGroup } from './tools/delete-group.js';
 import { handleDeploy } from './tools/deploy.js';
 import { handleGetStagingStatus } from './tools/get-staging-status.js';
 import { handleRefreshStaging } from './tools/refresh-staging.js';
+import { handleRenderStaging, renderStagingDefinition } from './tools/render-staging.js';
 import { loadSkills } from './skills/loader.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -967,6 +968,28 @@ export function createMcpServer(nodeRedClient, commsClient) {
       };
     },
   );
+
+  // ── Render-staging tool ────────────────────────────────────────────
+
+  server.tool(
+    'render-staging',
+    'Render the current staging workspace as SVG, HTML, or Mermaid format. ' +
+    'SVG shows real node positions, bezier wire curves, and type-specific colors embeddable in chat. ' +
+    'HTML is an interactive browser page with D3.js zoom/pan/tooltips and live WebSocket refresh. ' +
+    'Mermaid produces a topology diagram. ' +
+    'The highlightDirty option (default true) draws un-deployed nodes with an orange border.',
+    {
+      format: z.enum(['svg', 'html', 'mermaid']).optional().default('svg')
+        .describe('Output format: "svg" (static SVG), "html" (interactive page), or "mermaid" (topology diagram)'),
+      flowId: z.string().optional().describe('Filter to a single flow tab or subflow ID'),
+      highlightDirty: z.boolean().optional().default(true).describe('Highlight dirty nodes with orange border'),
+    },
+    async (params) => handleRenderStaging(staging)(params),
+    { annotations: renderStagingDefinition.annotations },
+  );
+
+  // Expose staging for HTTP transport (WebSocket, snapshot endpoint)
+  server.__staging = staging;
 
   return server;
 }
