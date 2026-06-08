@@ -1,0 +1,35 @@
+# Dependencies — installed by npm ci inside the container
+node_modules/
+
+# Version control
+.git/
+
+# Editor / IDE config
+.vscode/
+.agent/
+
+# Tests — not needed at runtime
+tests/
+
+# OpenSpec workflow configs (developer-only tooling)
+openspec/
+
+# Docker-related files (not needed inside the image)
+docker-compose.yml
+Dockerfile
+.dockerignore
+
+# Environment files — may contain secrets, never bake into the image
+.env
+.env.example
+
+# Development-only scripts / utilities
+generate-specs.cjs
+nodes.html
+
+# Node-RED runtime data — should be mounted as a volume, not baked in
+nodered_data/
+
+# Exclude OpenSpec skills from Docker build context
+# (they are developer-only workflow tools, not runtime dependencies)
+.github/skills/openspec-*/

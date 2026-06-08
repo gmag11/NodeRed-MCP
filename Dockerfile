@@ -11,11 +11,8 @@ RUN npm ci --omit=dev
 # Copy application source
 COPY index.js ./
 COPY src/ ./src/
-# Copy Node-RED skills (only nodered-* directories)
-COPY .github/skills/nodered-flow-builder/ ./.github/skills/nodered-flow-builder/
-COPY .github/skills/nodered-fundamentals/ ./.github/skills/nodered-fundamentals/
-COPY .github/skills/nodered-node-reference/ ./.github/skills/nodered-node-reference/
-COPY .github/skills/nodered-patterns/ ./.github/skills/nodered-patterns/
+# Copy all skills except openspec-* (excluded via .dockerignore)
+COPY .github/skills/ ./.github/skills/
 
 # Run as non-root
 USER node
