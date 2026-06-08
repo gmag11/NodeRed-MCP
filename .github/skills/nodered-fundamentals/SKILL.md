@@ -28,6 +28,9 @@ tools:
   - read-debug-messages
   - install-node
   - uninstall-node
+  - refresh-staging
+  - deploy
+  - get-staging-status
 ---
 
 # Node-RED Fundamentals

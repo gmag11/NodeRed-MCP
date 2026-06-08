@@ -109,6 +109,7 @@ export function createMcpServer(nodeRedClient, commsClient) {
     'Auto-sizes the output wires to match the subflow\'s output port count. ' +
     'Validates that the subflow and target flow exist. ' +
     'Use this to place a reusable subflow into a flow tab. ' +
+    '📐 LAYOUT: For proper positioning of subflow instances relative to other nodes, see the `nodered-flow-layout` skill. ' +
     '⚠️ STAGING: Changes are NOT live until you call `deploy`. Check the `staging` field in the response.',
     {
       subflowId: z.string().describe('ID of the subflow definition to instantiate'),
@@ -450,7 +451,10 @@ export function createMcpServer(nodeRedClient, commsClient) {
     '🔑 CREDENTIALS: For config node types (mqtt-broker, http-proxy, tls-config, websocket-listener, etc.), ' +
     'put credential fields inside a `credentials` object within properties: ' +
     'e.g. `properties: { broker: \"localhost\", port: 1883, credentials: { username: \"user\", password: \"pass\" } }`. ' +
-    'The tool auto-detects and nests credential fields correctly even if sent at the top level.',
+    'The tool auto-detects and nests credential fields correctly even if sent at the top level. ' +
+    '📐 LAYOUT: For proper node positioning and spacing rules (horizontal/vertical gaps, ' +
+    'debug placement, branch-point centering, group layout), see the `nodered-flow-layout` skill. ' +
+    'Always start the first node at (x=120, y=80) unless a group header is present.',
     {
       type: z.string().describe('Palette node type to create (e.g. "function", "debug", "http in")'),
       flowId: z.string().describe('ID of the flow tab or subflow to place the node in'),
@@ -722,13 +726,15 @@ export function createMcpServer(nodeRedClient, commsClient) {
   // Register: refresh-staging
   server.tool(
     'refresh-staging',
-    '⚠️ DESTRUCTIVE — Discards ALL un-deployed staged changes and re-fetches the latest flow ' +
-    'state from the Node-RED backend (GET /flows). ' +
-    'Use this when flows have been modified externally (e.g., via the Node-RED editor UI) ' +
-    'and the MCP staging state is out of sync. ' +
-    'Returns the previous staging state (what was discarded) and the new staging state (confirming sync). ' +
-    'Any edits made via MCP tools that were NOT yet deployed will be permanently lost. ' +
-    'Use get-staging-status first to review what would be discarded.',
+    '🔄 MUST CALL FIRST before any editing session. Discards ALL un-deployed staged changes and ' +
+    're-fetches the latest flow state from the Node-RED backend (GET /flows), ensuring the staging ' +
+    'store is synchronized with the server. Use this at the START of every editing workflow — before ' +
+    'any create, update, delete, or import operations. Without this, stale staging state can cause ' +
+    'version mismatch errors (HTTP 409) on deploy, which will discard ALL your staged work. ' +
+    'Also use when flows have been modified externally (e.g., via the Node-RED editor UI) and the ' +
+    'MCP staging state is out of sync. Returns the previous staging state (what was discarded) and ' +
+    'the new staging state (confirming sync). Any edits made via MCP tools that were NOT yet ' +
+    'deployed will be permanently lost. Use get-staging-status first to review what would be discarded.',
     {},
     async () => handleRefreshStaging(staging)(),
   );

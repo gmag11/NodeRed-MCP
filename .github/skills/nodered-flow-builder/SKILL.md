@@ -3,7 +3,12 @@ name: nodered-flow-builder
 description: >-
   Step-by-step operational guide for building, editing, testing, and debugging Node-RED flows using MCP tools.
 tools:
+  - refresh-staging
+  - deploy
+  - get-staging-status
   - get-flows
+  - get-config-nodes
+  - get-subflows
   - get-flow-nodes
   - get-flow-diagram
   - get-node-detail
@@ -13,6 +18,13 @@ tools:
   - create-node
   - update-node
   - delete-node
+  - create-subflow
+  - update-subflow
+  - delete-subflow
+  - create-subflow-instance
+  - add-nodes-to-group
+  - remove-nodes-from-group
+  - update-group
   - connect-nodes
   - disconnect-nodes
   - export-flow
@@ -33,18 +45,31 @@ Step-by-step operational guide for building, editing, testing, and debugging Nod
 
 ## 🔄 ALWAYS Sync Before Editing
 
-**Before starting ANY workflow** (create, edit, delete, import), you MUST refresh your view of the server state:
+**Before starting ANY workflow** (create, edit, delete, import), you MUST sync the staging state with the server. Follow this two-step sequence in order:
 
+### Step 0a: Refresh staging (MANDATORY — do this FIRST)
+```
+refresh-staging()
+```
+
+⚠️ **CRITICAL:** This is the very first operation before ANY editing session. It discards any stale un-deployed changes and re-fetches the latest flow state from Node-RED. This prevents version mismatch errors (HTTP 409) when deploying. If you skip this step and the Node-RED editor has been used to modify flows, your deploy will fail and ALL your staged changes will be lost.
+
+> **When to refresh:** Always call `refresh-staging` at the start of a new editing session. After deploy, staging is automatically synced — no manual refresh needed.
+
+### Step 0b: Read current state
 ```
 get-flows()
+get-config-nodes()
+get-subflows()
 ```
 
-This returns the current list of flow tabs, their IDs, labels, node counts, and lock status. Use this information to:
+This returns the current list of flow tabs, their IDs, labels, node counts, lock status, config nodes, and subflows. Use this information to:
 - Confirm the target flow exists and get its correct `flowId`
 - Check if a flow is **locked** before attempting edits (locked flows reject modifications)
 - Identify which flow to work on when the user refers to it by name
+- Discover existing config nodes (groups, brokers, etc.) and subflows
 
-**After every `deploy`**, the staging store automatically re-fetches flows from the server — you do NOT need to call `get-flows` manually after deploy. The internal state is already synced.
+**After every `deploy`**, the staging store automatically re-fetches flows from the server — you do NOT need to call `refresh-staging` or `get-flows` manually after deploy. The internal state is already synced.
 
 ---
 
@@ -205,16 +230,16 @@ const nextY = currentY + estimateNodeHeight(currentOutputs);
 
 **📍 CRITICAL: First Node Position**
 
-The first node in ANY flow MUST start at coordinates **(x=120, y=80)**. This is the absolute top-left starting point — nothing should be placed above y=80 or to the left of x=120.
+The first node in ANY flow MUST start at coordinates **(x=120, y=80)**. This is the absolute top-left starting point — nothing should be placed above y=80 or to the left of x=120. (When using groups with comments, the first node may shift down by ~30-50px to accommodate the group header.)
 
 | Convention | X | Y | Use Case |
 |------------|---|---|----------|
-| **FIRST NODE (mandatory)** | **120** | **80** | **Absolute starting point — no exceptions** |
-| Inline next node | +120 | same Y | Sequential nodes on the same row (minimum) |
-| Recommended inline | +200 | same Y | Better visual spacing for readability |
-| Branch down | same X | +40 | Alternative path (switch output 1+) |
-| Recommended branch | same X | +60 | More comfortable vertical spacing |
-| Branch row | +200 | +60 | Alternative row for complex branches |
+| **FIRST NODE (mandatory)** | **120** | **80** | **Absolute starting point** |
+| Inline next node | +**180** | same Y | Sequential processing nodes (170-190px range) |
+| Debug adjacent | +**10** | ±**40** | Debug alongside predecessor, above or below |
+| Branch down (1-3 outs) | same X | +**60** | Alternative path from switch |
+| Branch down (4+ outs) | same X | +**80** | Extra space for taller nodes |
+| Branch row | +180 | +60 | Alternative row for complex branches |
 
 ```
 ─────────────────────────────────────────────────────────┐
@@ -237,6 +262,8 @@ The first node in ANY flow MUST start at coordinates **(x=120, y=80)**. This is 
 - Matches Node-RED's default grid alignment
 - Ensures consistent positioning across all flows
 - Leaves room for node icons and ports without clipping
+
+> 📐 **For advanced layout rules** (debug placement, branch-point centering, group spacing, comment positioning, bounding-box calculations), see **`nodered-flow-layout`**.
 
 ### 📐 Calculating Coordinates for Long Names
 

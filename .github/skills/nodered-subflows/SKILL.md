@@ -21,7 +21,7 @@ Comprehensive guide for creating, managing, and using Node-RED subflows via MCP 
 
 > **⚠️ Staging reminder:** All subflow operations (create, update, delete, instantiate) stage changes locally. Call `deploy()` after making changes to push them to the Node-RED runtime. Use `get-staging-status` to check what's pending.
 
-> **Prerequisites:** Read `nodered-fundamentals` first for core vocabulary and `nodered-flow-builder` for basic flow construction patterns.
+> **Prerequisites:** Read `nodered-fundamentals` first for core vocabulary and `nodered-flow-builder` for basic flow construction patterns. See `nodered-flow-layout` for positioning rules when placing subflow instances on the canvas.
 
 ---
 

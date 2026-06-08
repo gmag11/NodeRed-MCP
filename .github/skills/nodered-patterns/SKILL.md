@@ -25,7 +25,7 @@ Ready-to-use flow patterns. Each recipe lists the nodes, key properties, and wir
 
 > **🐛 Debug-first workflow:** When building a pattern, add a `debug` node after each processing node, deploy, inject, and verify the output format before adding the next node. This catches type mismatches and missing properties early. See `nodered-flow-builder` → "Build & Debug Step-by-Step" for the full recipe.
 
-> **Prerequisites:** Read `nodered-fundamentals` first for core vocabulary. Use `nodered-flow-builder` for the step-by-step build workflow.
+> **Prerequisites:** Read `nodered-fundamentals` first for core vocabulary. Use `nodered-flow-builder` for the step-by-step build workflow. See `nodered-flow-layout` for node positioning and flow arrangement rules.
 
 ---
 
