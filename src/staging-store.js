@@ -31,6 +31,9 @@ export class StagingStore {
   /** @type {boolean} */
   #isLoaded = false;
 
+  /** @type {Array<(...args: any[]) => void>} */
+  #listeners = [];
+
   /**
    * @param {ReturnType<import('./nodered/client.js').createNodeRedClient>} client
    */
@@ -128,6 +131,12 @@ export class StagingStore {
     // Update internal state
     this.#flows = updatedFlows;
 
+    // Emit change event for live visualization
+    this.#emit('staging:changed', {
+      dirtyNodeIds: this.#dirtyNodeIds,
+      dirtyFlowIds: this.#dirtyFlowIds,
+    });
+
     return output;
   }
 
@@ -156,6 +165,12 @@ export class StagingStore {
     // Clear dirty tracking — post-deploy everything is clean
     this.#dirtyNodeIds.clear();
     this.#dirtyFlowIds.clear();
+
+    // Emit change event after deploy (dirty sets are now empty)
+    this.#emit('staging:changed', {
+      dirtyNodeIds: this.#dirtyNodeIds,
+      dirtyFlowIds: this.#dirtyFlowIds,
+    });
   }
 
   /**
@@ -165,6 +180,48 @@ export class StagingStore {
    */
   hasPendingChanges() {
     return this.#dirtyNodeIds.size > 0 || this.#dirtyFlowIds.size > 0;
+  }
+
+  /**
+   * Return the set of dirty node IDs.
+   *
+   * @returns {Set<string>}
+   */
+  getDirtyNodeIds() {
+    return this.#dirtyNodeIds;
+  }
+
+  /**
+   * Return the set of dirty flow IDs.
+   *
+   * @returns {Set<string>}
+   */
+  getDirtyFlowIds() {
+    return this.#dirtyFlowIds;
+  }
+
+  /**
+   * Subscribe to staging events.
+   *
+   * @param {string} event - Event name (currently only 'staging:changed')
+   * @param {(data: { dirtyNodeIds: Set<string>, dirtyFlowIds: Set<string> }) => void} callback
+   */
+  on(event, callback) {
+    this.#listeners.push({ event, callback });
+  }
+
+  /**
+   * Emit an event to all matching listeners.
+   *
+   * @param {string} event
+   * @param {object} data
+   */
+  #emit(event, data) {
+    for (const l of this.#listeners) {
+      if (l.event === event) {
+        try { l.callback(data); } catch { /* ignore listener errors */ }
+      }
+    }
   }
 
   /**

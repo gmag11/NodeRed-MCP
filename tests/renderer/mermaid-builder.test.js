@@ -1,0 +1,84 @@
+import { describe, it, expect } from 'vitest';
+import { buildMermaid } from '../../src/renderer/mermaid-builder.js';
+import { buildIR } from '../../src/renderer/ir-builder.js';
+
+function makeNode(overrides = {}) {
+  return { type: 'inject', wires: [], ...overrides };
+}
+
+describe('buildMermaid', () => {
+  it('starts with flowchart TD', () => {
+    const flows = [{ id: 'A', ...makeNode({ name: 'Start' }) }];
+    const ir = buildIR(flows);
+    const diagram = buildMermaid(ir);
+    expect(diagram).toMatch(/^flowchart TD/);
+  });
+
+  it('renders node labels using name', () => {
+    const flows = [{ id: 'A', ...makeNode({ name: 'Start' }) }];
+    const ir = buildIR(flows);
+    const diagram = buildMermaid(ir);
+    expect(diagram).toContain('"Start"');
+  });
+
+  it('renders edges for connected nodes', () => {
+    const flows = [
+      { id: 'A', ...makeNode({ name: 'A', wires: [['B']] }) },
+      { id: 'B', ...makeNode({ type: 'debug', name: 'B', x: 300, wires: [] }) },
+    ];
+    const ir = buildIR(flows);
+    const diagram = buildMermaid(ir);
+    expect(diagram).toContain('A --> B');
+  });
+
+  it('includes classDef dirty when dirty nodes present', () => {
+    const flows = [{ id: 'A', ...makeNode({ name: 'Dirty' }) }];
+    const dirtyNodeIds = new Set(['A']);
+    const ir = buildIR(flows, { highlightDirty: true, dirtyNodeIds });
+    const diagram = buildMermaid(ir);
+    expect(diagram).toContain('classDef dirty');
+  });
+
+  it('does NOT include classDef dirty when no dirty nodes', () => {
+    const flows = [{ id: 'A', ...makeNode({ name: 'Clean' }) }];
+    const ir = buildIR(flows);
+    const diagram = buildMermaid(ir);
+    expect(diagram).not.toContain('classDef dirty');
+  });
+
+  it('includes classDef disabled when disabled nodes present', () => {
+    const flows = [{ id: 'A', ...makeNode({ name: 'Off', d: true }) }];
+    const ir = buildIR(flows);
+    const diagram = buildMermaid(ir);
+    expect(diagram).toContain('classDef disabled');
+  });
+
+  it('labels multi-output edges', () => {
+    const flows = [
+      { id: 'SW', ...makeNode({ type: 'switch', name: 'Route', wires: [['B'], ['C']] }) },
+      { id: 'B', ...makeNode({ type: 'function', name: 'Proc', x: 200, wires: [] }) },
+      { id: 'C', ...makeNode({ type: 'debug', name: 'Log', x: 200, y: 100, wires: [] }) },
+    ];
+    const ir = buildIR(flows);
+    const diagram = buildMermaid(ir);
+    expect(diagram).toContain('|out1|');
+    expect(diagram).toContain('|out2|');
+  });
+
+  it('renders group subgraph with style', () => {
+    const flows = [
+      { id: 'grp1', type: 'group', name: 'G', style: { fill: '#ff0' }, nodes: ['A'] },
+      { id: 'A', ...makeNode({ name: 'Start' }) },
+    ];
+    const ir = buildIR(flows);
+    const diagram = buildMermaid(ir);
+    expect(diagram).toContain('subgraph grp1["G"]');
+    expect(diagram).toContain('style grp1 fill:#ff0');
+  });
+
+  it('returns empty flow message for no nodes', () => {
+    const ir = buildIR([]);
+    const diagram = buildMermaid(ir);
+    expect(diagram).toContain('%% Empty flow');
+  });
+});

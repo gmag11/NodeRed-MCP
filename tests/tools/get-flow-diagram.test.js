@@ -1,5 +1,16 @@
 import { describe, it, expect } from 'vitest';
-import { generateMermaidDiagram, transformFlowDiagram } from '../../src/tools/get-flow-diagram.js';
+import { transformFlowDiagram } from '../../src/tools/get-flow-diagram.js';
+import { buildIR } from '../../src/renderer/ir-builder.js';
+import { buildMermaid } from '../../src/renderer/mermaid-builder.js';
+
+/**
+ * Backward-compatible wrapper matching the old generateMermaidDiagram(nodes) API.
+ * Delegates to the shared renderer.
+ */
+function generateMermaidDiagram(nodes) {
+  const ir = buildIR(nodes);
+  return buildMermaid(ir);
+}
 
 // ---------------------------------------------------------------------------
 // Fixtures

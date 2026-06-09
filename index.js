@@ -81,9 +81,12 @@ async function main() {
     : args.port;
 
   if (args.transport === 'http') {
-    await startHttpTransport(() => createMcpServer(nodeRedClient, commsClient), port);
+    // Eagerly create one MCP server to load staging for the viewer/WS
+    const bootstrapServer = await createMcpServer(nodeRedClient, commsClient);
+    const staging = bootstrapServer.__staging;
+    await startHttpTransport(() => createMcpServer(nodeRedClient, commsClient), port, staging);
   } else if (args.transport === 'stdio') {
-    const mcpServer = createMcpServer(nodeRedClient, commsClient);
+    const mcpServer = await createMcpServer(nodeRedClient, commsClient);
     await startStdioTransport(mcpServer);
   } else {
     console.error(`Error: Unknown transport "${args.transport}". Use "stdio" or "http".`);

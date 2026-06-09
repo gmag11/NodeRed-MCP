@@ -81,6 +81,7 @@ import { handleDeleteGroup } from './tools/delete-group.js';
 import { handleDeploy } from './tools/deploy.js';
 import { handleGetStagingStatus } from './tools/get-staging-status.js';
 import { handleRefreshStaging } from './tools/refresh-staging.js';
+import { handleRenderStaging, renderStagingDefinition } from './tools/render-staging.js';
 import { loadSkills } from './skills/loader.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -126,11 +127,14 @@ import { refreshStagingDefinition } from './tools/refresh-staging.js';
 /**
  * Create a configured MCP server with all tools registered.
  *
+ * Eagerly loads the staging store from the Node-RED backend so that flows are
+ * available immediately without waiting for the first tool call.
+ *
  * @param {ReturnType<import('./nodered/client.js').createNodeRedClient>} nodeRedClient
  * @param {import('./nodered/comms-client.js').CommsClient} [commsClient]
- * @returns {McpServer}
+ * @returns {Promise<McpServer>}
  */
-export function createMcpServer(nodeRedClient, commsClient) {
+export async function createMcpServer(nodeRedClient, commsClient) {
   const server = new McpServer({
     name: 'nodered-mcp-server',
     version: '0.1.0',
@@ -138,6 +142,11 @@ export function createMcpServer(nodeRedClient, commsClient) {
 
   // Create the in-memory staging store shared across all tool handlers
   const staging = new StagingStore(nodeRedClient);
+
+  // Eagerly load staging from Node-RED backend on startup
+  console.error('[nodered-mcp] Loading staging from Node-RED backend...');
+  await staging.ensureLoaded();
+  console.error('[nodered-mcp] Staging loaded — ready to serve');
 
   // Register: get-flows
   server.tool(
@@ -967,6 +976,28 @@ export function createMcpServer(nodeRedClient, commsClient) {
       };
     },
   );
+
+  // ── Render-staging tool ────────────────────────────────────────────
+
+  server.tool(
+    'render-staging',
+    'Render the current staging workspace as SVG, HTML, or Mermaid format. ' +
+    'SVG shows real node positions, bezier wire curves, and type-specific colors embeddable in chat. ' +
+    'HTML is an interactive browser page with D3.js zoom/pan/tooltips and live WebSocket refresh. ' +
+    'Mermaid produces a topology diagram. ' +
+    'The highlightDirty option (default true) draws un-deployed nodes with an orange border.',
+    {
+      format: z.enum(['svg', 'html', 'mermaid']).optional().default('svg')
+        .describe('Output format: "svg" (static SVG), "html" (interactive page), or "mermaid" (topology diagram)'),
+      flowId: z.string().optional().describe('Filter to a single flow tab or subflow ID'),
+      highlightDirty: z.boolean().optional().default(true).describe('Highlight dirty nodes with orange border'),
+    },
+    async (params) => handleRenderStaging(staging)(params),
+    { annotations: renderStagingDefinition.annotations },
+  );
+
+  // Expose staging for HTTP transport (WebSocket, snapshot endpoint)
+  server.__staging = staging;
 
   return server;
 }
