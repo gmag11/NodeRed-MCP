@@ -127,11 +127,14 @@ import { refreshStagingDefinition } from './tools/refresh-staging.js';
 /**
  * Create a configured MCP server with all tools registered.
  *
+ * Eagerly loads the staging store from the Node-RED backend so that flows are
+ * available immediately without waiting for the first tool call.
+ *
  * @param {ReturnType<import('./nodered/client.js').createNodeRedClient>} nodeRedClient
  * @param {import('./nodered/comms-client.js').CommsClient} [commsClient]
- * @returns {McpServer}
+ * @returns {Promise<McpServer>}
  */
-export function createMcpServer(nodeRedClient, commsClient) {
+export async function createMcpServer(nodeRedClient, commsClient) {
   const server = new McpServer({
     name: 'nodered-mcp-server',
     version: '0.1.0',
@@ -139,6 +142,11 @@ export function createMcpServer(nodeRedClient, commsClient) {
 
   // Create the in-memory staging store shared across all tool handlers
   const staging = new StagingStore(nodeRedClient);
+
+  // Eagerly load staging from Node-RED backend on startup
+  console.error('[nodered-mcp] Loading staging from Node-RED backend...');
+  await staging.ensureLoaded();
+  console.error('[nodered-mcp] Staging loaded — ready to serve');
 
   // Register: get-flows
   server.tool(

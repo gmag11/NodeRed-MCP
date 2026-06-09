@@ -8,15 +8,15 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { randomUUID } from 'node:crypto';
 import { WSServer } from './ws-server.js';
 import { buildHTML } from '../renderer/html-builder.js';
-import { buildIR } from '../renderer/ir-builder.js';
 
 /**
  * Start the MCP server using Streamable HTTP transport via Express.
  *
  * @param {() => import('@modelcontextprotocol/sdk/server/mcp.js').McpServer} serverFactory
  * @param {number} port
+ * @param {import('../staging-store.js').StagingStore} [initialStaging] - eagerly-loaded staging for the viewer/WS
  */
-export async function startHttpTransport(serverFactory, port) {
+export async function startHttpTransport(serverFactory, port, initialStaging) {
   const app = express();
   app.use(express.json());
 
@@ -55,7 +55,7 @@ export async function startHttpTransport(serverFactory, port) {
   // ── Staging snapshot endpoint ─────────────────────────────────────
 
   // Track the most recently created staging store for WebSocket/snapshot
-  let activeStaging = null;
+  let activeStaging = initialStaging || null;
 
   app.get('/staging-snapshot', async (_req, res) => {
     try {
@@ -83,8 +83,7 @@ export async function startHttpTransport(serverFactory, port) {
       const flows = await activeStaging.getFlows();
       const dirtyNodeIds = activeStaging.getDirtyNodeIds();
       const dirtyFlowIds = activeStaging.getDirtyFlowIds();
-      const ir = buildIR(flows, { highlightDirty: true, dirtyNodeIds, dirtyFlowIds });
-      const html = buildHTML(ir);
+      const html = buildHTML(flows, { highlightDirty: true, dirtyNodeIds, dirtyFlowIds });
       res.type('html').send(html);
     } catch (err) {
       res.status(500).type('html').send(`<html><body><h2>Error</h2><pre>${err.message}</pre></body></html>`);
@@ -104,6 +103,21 @@ export async function startHttpTransport(serverFactory, port) {
     const flows = await activeStaging.getFlows();
     return { flows, dirtyNodeIds: activeStaging.getDirtyNodeIds(), dirtyFlowIds: activeStaging.getDirtyFlowIds() };
   });
+
+  // If we have an eagerly-loaded staging, subscribe to changes for WebSocket broadcast
+  if (initialStaging) {
+    initialStaging.on('staging:changed', () => {
+      if (activeStaging === initialStaging) {
+        initialStaging.getFlows().then((flows) => {
+          wsServer.broadcast({
+            flows,
+            dirtyNodeIds: initialStaging.getDirtyNodeIds(),
+            dirtyFlowIds: initialStaging.getDirtyFlowIds(),
+          });
+        }).catch(() => { /* ignore */ });
+      }
+    });
+  }
 
   // ── Start listening ────────────────────────────────────────────────
 
@@ -126,7 +140,7 @@ export async function startHttpTransport(serverFactory, port) {
           sessionIdGenerator: () => sessionId,
         });
         transports[sessionId] = transport;
-        const server = serverFactory();
+        const server = await serverFactory();
         await server.connect(transport);
         console.error(`[nodered-mcp] Session ${sessionId} connected`);
 

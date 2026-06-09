@@ -42,7 +42,7 @@ export function renderStaging(flows, options = {}) {
     case 'svg':
       return { svg: buildSVG(ir) };
     case 'html':
-      return { html: buildHTML(ir) };
+      return { html: buildHTML(flows, { highlightDirty, dirtyNodeIds, dirtyFlowIds }) };
     case 'mermaid':
       return { mermaid: buildMermaid(ir) };
     default:

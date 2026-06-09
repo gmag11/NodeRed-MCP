@@ -2,436 +2,509 @@
  * HTML Builder
  *
  * Generates a self-contained HTML document with D3.js rendering,
- * WebSocket live refresh, zoom/pan, hover tooltips, and dirty highlighting.
+ * WebSocket live refresh, zoom/pan, hover tooltips, dirty highlighting,
+ * and tabbed flow navigation matching the Node-RED editor interface.
  *
  * @module renderer/html-builder
  */
 
-import { getNodeColor, getNodeCSSClass } from './colors.js';
-import { computeBoundingBox } from './layout.js';
+/**
+ * Default node dimensions if not specified in raw flow data.
+ */
+const DEFAULT_W = 100;
+const DEFAULT_H = 30;
 
 /**
- * Build a self-contained HTML document string that renders the staging workspace.
+ * Color map for embedding in the HTML (subset of most common types).
+ */
+const COLOR_MAP = {
+  'inject': '#a6bbcf', 'debug': '#87a980', 'function': '#fdd0a2',
+  'switch': '#d8bfd8', 'change': '#e2d6b8', 'range': '#d8bfd8',
+  'template': '#d8bfd8', 'delay': '#fdd0a2', 'trigger': '#fdd0a2',
+  'exec': '#fdd0a2', 'complete': '#c0c0c0', 'catch': '#c0c0c0',
+  'status': '#c0c0c0', 'comment': '#ffffff', 'unknown': '#c0c0c0',
+  'link in': '#c0c0c0', 'link out': '#c0c0c0', 'link call': '#c0c0c0',
+  'mqtt in': '#d8bfd8', 'mqtt out': '#d8bfd8',
+  'http in': '#d8bfd8', 'http response': '#d8bfd8', 'http request': '#e2d6b8',
+  'split': '#d8bfd8', 'join': '#d8bfd8', 'batch': '#d8bfd8', 'sort': '#d8bfd8',
+  'csv': '#d8bfd8', 'html': '#d8bfd8', 'json': '#d8bfd8', 'xml': '#d8bfd8', 'yaml': '#d8bfd8',
+  'file in': '#87a980', 'file out': '#87a980', 'file': '#87a980', 'watch': '#87a980',
+  'rbe': '#fdd0a2', 'ui_button': '#d8bfd8', 'ui_text': '#d8bfd8',
+  'ui_gauge': '#d8bfd8', 'ui_chart': '#d8bfd8',
+};
+
+/**
+ * Build a self-contained HTML document string that renders the staging workspace
+ * with a tab bar for multiple flows.
  *
- * @param {import('./ir-builder.js').IR} ir - Intermediate representation
+ * @param {object[]} flows - Raw Node-RED flows array (from StagingStore)
+ * @param {object} options - Rendering options
+ * @param {boolean} [options.highlightDirty=true] - Highlight un-deployed nodes
+ * @param {Set<string>} [options.dirtyNodeIds] - Set of dirty node IDs
  * @returns {string} Complete HTML document
  */
-export function buildHTML(ir) {
-  const { nodes, groups, links } = ir;
-  const bb = computeBoundingBox(nodes, groups);
-  const flowsData = JSON.stringify({ nodes, groups, links, bb });
+export function buildHTML(flows, options = {}) {
+  const {
+    highlightDirty = true,
+    dirtyNodeIds = new Set(),
+  } = options;
 
-  // Determine WebSocket URL — use current page's host
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Node-RED Staging Preview</title>
-<script src="https://d3js.org/d3.v7.min.js"></script>
-<!-- If CDN unavailable, comment the line above and uncomment below:
-<script src="./d3.v7.min.js"></script> -->
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
-  #canvas { width: 100vw; height: 100vh; cursor: grab; }
-  #canvas:active { cursor: grabbing; }
-  #banner {
-    display: none; position: fixed; top: 0; left: 0; right: 0;
-    background: #fff3cd; color: #856404; text-align: center;
-    padding: 6px 12px; font-size: 13px; z-index: 1000;
-    border-bottom: 1px solid #ffc107;
-  }
-  #banner.visible { display: block; }
-  .nr-node { cursor: pointer; transition: filter 0.2s; }
-  .nr-node:hover { filter: brightness(1.1); }
-  .nr-node-dirty .nr-node-body { stroke: #ff8c00; stroke-width: 2.5; }
-  .nr-node-disabled .nr-node-body { stroke-dasharray: 5 5; opacity: 0.5; }
-  .nr-link { fill: none; stroke: #999; stroke-width: 1.5; }
-  .nr-link-disabled { stroke: #ccc; stroke-dasharray: 4 2; }
-  .nr-group-rect { fill: none; stroke: #999; stroke-dasharray: 5 3; stroke-opacity: 0.5; }
-  .nr-tooltip {
-    position: fixed; pointer-events: none; z-index: 999;
-    background: rgba(0,0,0,0.85); color: #fff; padding: 8px 12px;
-    border-radius: 6px; font-size: 12px; line-height: 1.5;
-    max-width: 260px; white-space: normal;
-  }
-  .nr-tooltip .tt-name { font-weight: bold; font-size: 13px; }
-  .nr-tooltip .tt-dirty { color: #ff8c00; }
-  .nr-legend {
-    position: fixed; bottom: 12px; left: 12px; z-index: 500;
-    background: rgba(255,255,255,0.9); border: 1px solid #ccc;
-    border-radius: 6px; padding: 6px 12px; font-size: 11px; color: #666;
-  }
-</style>
-</head>
-<body>
-<div id="banner">⚠️ Disconnected — retrying…</div>
-<div id="canvas"></div>
-<div class="nr-legend" id="legend" style="display:none">🟠 Orange border = Un-deployed changes</div>
-<svg id="svg-root" style="display:none"></svg>
-<div class="nr-tooltip" id="tooltip" style="display:none"></div>
+  const dirtyArr = [...dirtyNodeIds];
+  // Escape newlines and other control characters for safe embedding in HTML <script>
+  // Also escape </ sequences to prevent premature script tag closure (e.g., if
+  // function node code contains </script> or </body> etc.)
+  const flowsJSON = JSON.stringify(flows)
+    .replace(/\n/g, '\\n')
+    .replace(/\r/g, '\\r')
+    .replace(/\t/g, '\\t')
+    .replace(/<\//g, '<\\/');
+  const colorMapJSON = JSON.stringify(COLOR_MAP).replace(/<\//g, '<\\/');
+  const dirtyNodeIdsJSON = JSON.stringify(dirtyArr);
+  const hd = highlightDirty;
 
-<script>
-// Embedded flow data for initial render
-const INITIAL_DATA = ${flowsData};
+  // The HTML template is built as a regular string concatenation to avoid
+  // template-literal escaping issues with the embedded JavaScript code.
+  const html = [
+    '<!DOCTYPE html>',
+    '<html lang="en">',
+    '<head>',
+    '<meta charset="UTF-8">',
+    '<meta name="viewport" content="width=device-width, initial-scale=1.0">',
+    '<title>Node-RED Staging Preview</title>',
+    '<script src="https://d3js.org/d3.v7.min.js"></script>',
+    '<style>',
+    '  * { margin: 0; padding: 0; box-sizing: border-box; }',
+    '  body { overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }',
+    '  #tab-bar {',
+    '    position: fixed; top: 0; left: 0; right: 0; height: 34px;',
+    '    background: #e0e0e0; z-index: 1001;',
+    '    display: flex; overflow-x: auto; overflow-y: hidden;',
+    '    white-space: nowrap; padding: 0; margin: 0;',
+    '    border-bottom: 1px solid #bbb;',
+    '    box-shadow: 0 1px 3px rgba(0,0,0,0.08);',
+    '  }',
+    '  #tab-bar::-webkit-scrollbar { height: 4px; }',
+    '  #tab-bar::-webkit-scrollbar-thumb { background: #aaa; border-radius: 2px; }',
+    '  .nr-tab {',
+    '    display: inline-flex; align-items: center;',
+    '    padding: 0 18px; cursor: pointer; font-size: 12px;',
+    '    color: #555; border-right: 1px solid #ccc;',
+    '    user-select: none; flex-shrink: 0; height: 100%;',
+    '    transition: background 0.15s;',
+    '  }',
+    '  .nr-tab.active {',
+    '    background: #fff; color: #333; font-weight: 600;',
+    '    box-shadow: inset 0 -2px 0 #c72;',
+    '  }',
+    '  .nr-tab:hover:not(.active) { background: #d6d6d6; }',
+    '  .nr-tab.dirty::after {',
+    "    content: '\u25cf'; font-size: 8px; color: #ff8c00;",
+    '    margin-left: 6px; line-height: 1;',
+    '  }',
+    '  #canvas-wrap { position: fixed; top: 0; left: 0; right: 0; bottom: 0; }',
+    '  #canvas-wrap.with-tabs { top: 34px; }',
+    '  #canvas { width: 100%; height: 100%; cursor: grab; }',
+    '  #canvas:active { cursor: grabbing; }',
+    '  #banner {',
+    '    display: none; position: fixed; top: 0; left: 0; right: 0;',
+    '    background: #fff3cd; color: #856404; text-align: center;',
+    '    padding: 5px 12px; font-size: 12px; z-index: 2000;',
+    '    border-bottom: 1px solid #ffc107;',
+    '  }',
+    '  #banner.visible { display: block; }',
+    '  .nr-node { cursor: pointer; transition: filter 0.2s; }',
+    '  .nr-node:hover { filter: brightness(1.1); }',
+    '  .nr-node-dirty .nr-node-body { stroke: #ff8c00; stroke-width: 2.5; }',
+    '  .nr-node-disabled .nr-node-body { stroke-dasharray: 5 5; opacity: 0.5; }',
+    '  .nr-link { fill: none; stroke: #999; stroke-width: 1.5; }',
+    '  .nr-link-disabled { stroke: #ccc; stroke-dasharray: 4 2; }',
+    '  .nr-group-rect { fill: none; stroke: #999; stroke-dasharray: 5 3; stroke-opacity: 0.5; }',
+    '  .nr-tooltip {',
+    '    position: fixed; pointer-events: none; z-index: 999;',
+    '    background: rgba(0,0,0,0.85); color: #fff; padding: 8px 12px;',
+    '    border-radius: 6px; font-size: 12px; line-height: 1.5;',
+    '    max-width: 260px; white-space: normal;',
+    '  }',
+    '  .nr-tooltip .tt-name { font-weight: bold; font-size: 13px; }',
+    '  .nr-tooltip .tt-dirty { color: #ff8c00; }',
+    '  .nr-legend {',
+    '    position: fixed; bottom: 12px; left: 12px; z-index: 500;',
+    '    background: rgba(255,255,255,0.9); border: 1px solid #ccc;',
+    '    border-radius: 6px; padding: 6px 12px; font-size: 11px; color: #666;',
+    '  }',
+    '  .nr-empty {',
+    '    position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);',
+    '    color: #aaa; font-size: 14px; text-align: center; pointer-events: none;',
+    '  }',
+    '</style>',
+    '</head>',
+    '<body>',
+    '<div id="banner">\u26a0\ufe0f Disconnected \u2014 retrying\u2026</div>',
+    '<div id="tab-bar"></div>',
+    '<div id="canvas-wrap">',
+    '  <div id="canvas"></div>',
+    '</div>',
+    '<div class="nr-legend" id="legend" style="display:none">\ud83d\udfe0 Orange border = Un-deployed changes</div>',
+    '<div class="nr-tooltip" id="tooltip" style="display:none"></div>',
+    '',
+    '<script>',
+    'var ALL_FLOWS = ' + flowsJSON + ';',
+    'var DIRTY_NODE_IDS = new Set(' + dirtyNodeIdsJSON + ');',
+    'var HIGHLIGHT_DIRTY = ' + hd + ';',
+    'var COLOR_MAP = ' + colorMapJSON + ';',
+    'var DEFAULT_COLOR = "#cccccc";',
+    'var DEFAULT_W = ' + DEFAULT_W + ';',
+    'var DEFAULT_H = ' + DEFAULT_H + ';',
+    '',
+    '(function() {',
+    '  var banner = document.getElementById("banner");',
+    '  var tooltip = document.getElementById("tooltip");',
+    '  var legend = document.getElementById("legend");',
+    '  var tabBar = document.getElementById("tab-bar");',
+    '  var canvasWrap = document.getElementById("canvas-wrap");',
+    '  var canvasEl = document.getElementById("canvas");',
+    '',
+    '  function extractTabs(flows) {',
+    '    return flows.filter(function(n) { return n.type === "tab"; })',
+    '      .map(function(t) { return { id: t.id, name: t.label || t.name || t.id, disabled: t.d === true }; });',
+    '  }',
+    '',
+    '  function buildTabData(flows, tabId, dirtySet) {',
+    '    var tabNodes = flows.filter(function(n) {',
+    '      return n.z === tabId && n.type !== "tab" && n.type !== "group" && n.type !== "junction";',
+    '    });',
+    '    var tabGroups = flows.filter(function(n) {',
+    '      return n.z === tabId && n.type === "group";',
+    '    });',
+    '    var nodeIdSet = new Set(tabNodes.map(function(n) { return n.id; }));',
+    '    var nodes = tabNodes.map(function(n) {',
+    '      return {',
+    '        id: n.id, type: n.type, name: n.name || n.type,',
+    '        x: n.x || 0, y: n.y || 0, w: n.w || DEFAULT_W, h: n.h || DEFAULT_H,',
+    '        inputs: n.inputs != null ? n.inputs : 0,',
+    '        outputs: n.outputs != null ? n.outputs : 0,',
+    '        d: n.d === true,',
+    '        dirty: HIGHLIGHT_DIRTY ? dirtySet.has(n.id) : false,',
+    '        wires: n.wires || []',
+    '      };',
+    '    });',
+    '    var groups = tabGroups.map(function(g) {',
+    '      return {',
+    '        id: g.id, name: g.name || "Group",',
+    '        x: g.x || 0, y: g.y || 0, w: g.w || 40, h: g.h || 40,',
+    '        style: g.style || {},',
+    '        nodes: (g.nodes || []).filter(function(mid) { return nodeIdSet.has(mid); })',
+    '      };',
+    '    });',
+    '    var links = [];',
+    '    for (var i = 0; i < nodes.length; i++) {',
+    '      var node = nodes[i];',
+    '      if (!node.wires || node.wires.length === 0) continue;',
+    '      node.wires.forEach(function(targets, portIndex) {',
+    '        if (!Array.isArray(targets)) return;',
+    '        for (var j = 0; j < targets.length; j++) {',
+    '          var tn = nodes.find(function(n) { return n.id === targets[j]; });',
+    '          if (tn) links.push({ source: node, sourcePort: portIndex, target: tn });',
+    '        }',
+    '      });',
+    '    }',
+    '    var bb = computeBBox(nodes, groups);',
+    '    return { nodes: nodes, groups: groups, links: links, bb: bb };',
+    '  }',
+    '',
+    '  function computeBBox(nodes, groups) {',
+    '    if (nodes.length === 0 && groups.length === 0) {',
+    '      return { minX: 0, minY: 0, maxX: 400, maxY: 200, width: 400, height: 200 };',
+    '    }',
+    '    var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;',
+    '    for (var i = 0; i < nodes.length; i++) {',
+    '      var n = nodes[i];',
+    '      if (n.x - n.w/2 < minX) minX = n.x - n.w/2;',
+    '      if (n.x + n.w/2 > maxX) maxX = n.x + n.w/2;',
+    '      if (n.y - n.h/2 < minY) minY = n.y - n.h/2;',
+    '      if (n.y + n.h/2 > maxY) maxY = n.y + n.h/2;',
+    '    }',
+    '    for (var j = 0; j < groups.length; j++) {',
+    '      var g = groups[j];',
+    '      if (g.x < minX) minX = g.x;',
+    '      if (g.y < minY) minY = g.y;',
+    '      if (g.x + g.w > maxX) maxX = g.x + g.w;',
+    '      if (g.y + g.h > maxY) maxY = g.y + g.h;',
+    '    }',
+    '    var p = 30;',
+    '    return {',
+    '      minX: minX - p, minY: minY - p, maxX: maxX + p, maxY: maxY + p,',
+    '      width: maxX - minX + 2*p, height: maxY - minY + 2*p',
+    '    };',
+    '  }',
+    '',
+    '  function getNodeColor(type) { return COLOR_MAP[type] || DEFAULT_COLOR; }',
+    '',
+    '  function getNodeCSSClass(d) {',
+    '    var c = "nr-node";',
+    '    if (d.dirty) c += " nr-node-dirty";',
+    '    if (d.d) c += " nr-node-disabled";',
+    '    return c;',
+    '  }',
+    '',
+    '  function generateLinkPath(origX, origY, destX, destY, sc) {',
+    '    var dy = destY - origY, dx = destX - origX;',
+    '    var delta = Math.sqrt(dy*dy + dx*dx);',
+    '    var scale = 0.75;',
+    '    if (dx * sc > 0) {',
+    '      if (delta < DEFAULT_W) scale = 0.75 - 0.75 * ((DEFAULT_W - delta) / DEFAULT_W);',
+    '    } else {',
+    '      scale = 0.4 - 0.2 * (Math.max(0, (DEFAULT_W - Math.min(Math.abs(dx), Math.abs(dy))) / DEFAULT_W));',
+    '    }',
+    '    if (dx * sc > 0) {',
+    '      var cp0x = origX + sc * DEFAULT_W * scale;',
+    '      var cp1x = destX - sc * scale * DEFAULT_W;',
+    '      return "M " + origX + " " + origY + " C " + cp0x + " " + origY + " " + cp1x + " " + destY + " " + destX + " " + destY;',
+    '    }',
+    '    var midX = (origX + destX) / 2;',
+    '    return "M " + origX + " " + origY + " C " + midX + " " + origY + " " + midX + " " + destY + " " + destX + " " + destY;',
+    '  }',
+    '',
+    '  function escapeHtml(str) {',
+    '    var d = document.createElement("div");',
+    '    d.textContent = str || "";',
+    '    return d.innerHTML;',
+    '  }',
+    '',
+    '  // ---- Tab state ----',
+    '  var tabs = extractTabs(ALL_FLOWS);',
+    '  var hasTabs = tabs.length > 1;',
+    '  var zoomState = {};',
+    '  var currentTabId = null;',
+    '',
+    '  if (tabs.length === 0) {',
+    '    var ntn = ALL_FLOWS.filter(function(n) {',
+    '      return n.type !== "tab" && n.type !== "group" && n.type !== "junction";',
+    '    });',
+    '    if (ntn.length > 0) {',
+    '      tabs = [{ id: ntn[0].z || "__default__", name: "Flow", disabled: false }];',
+    '      hasTabs = false;',
+    '    }',
+    '  }',
+    '',
+    '  function buildTabBar() {',
+    '    tabBar.innerHTML = "";',
+    '    if (!hasTabs) { canvasWrap.classList.remove("with-tabs"); return; }',
+    '    canvasWrap.classList.add("with-tabs");',
+    '    for (var i = 0; i < tabs.length; i++) {',
+    '      var t = tabs[i];',
+    '      var el = document.createElement("div");',
+    '      el.className = "nr-tab";',
+    '      el.textContent = t.name;',
+    '      el.setAttribute("data-tab-id", t.id);',
+    '      if (t.id === currentTabId) el.classList.add("active");',
+    '      if (t.disabled) el.style.opacity = "0.5";',
+    '      el.addEventListener("click", function() {',
+    '        switchTab(this.getAttribute("data-tab-id"));',
+    '      });',
+    '      tabBar.appendChild(el);',
+    '    }',
+    '  }',
+    '',
+    '  // ---- D3 setup ----',
+    '  var width = canvasEl.clientWidth;',
+    '  var height = canvasEl.clientHeight;',
+    '  var svg = d3.select("#canvas").append("svg").attr("width", width).attr("height", height);',
+    '  var defs = svg.append("defs");',
+    '  defs.append("pattern").attr("id", "grid").attr("width", 20).attr("height", 20)',
+    '    .attr("patternUnits", "userSpaceOnUse")',
+    '    .append("path").attr("d", "M 20 0 L 0 0 0 20")',
+    '    .attr("fill", "none").attr("stroke", "#e0e0e0").attr("stroke-width", 0.5);',
+    '  var contentGroup = svg.append("g");',
+    '  contentGroup.append("rect").attr("width", 8000).attr("height", 8000).attr("fill", "url(#grid)");',
+    '  var groupLayer = contentGroup.append("g").attr("class", "group-layer");',
+    '  var linkLayer = contentGroup.append("g").attr("class", "link-layer");',
+    '  var nodeLayer = contentGroup.append("g").attr("class", "node-layer");',
+    '  var emptyLabel = contentGroup.append("text").attr("class", "nr-empty")',
+    '    .attr("text-anchor", "middle").text("No nodes in this flow");',
+    '',
+    '  var zoom = d3.zoom().scaleExtent([0.1, 2]).on("zoom", function(event) {',
+    '    contentGroup.attr("transform", event.transform);',
+    '    if (currentTabId) zoomState[currentTabId] = event.transform;',
+    '  });',
+    '  svg.call(zoom);',
+    '',
+    '  function render(data) {',
+    '    var nodes = data.nodes, groups = data.groups, links = data.links;',
+    '    var hasDirty = nodes.some(function(n) { return n.dirty; });',
+    '    legend.style.display = hasDirty ? "block" : "none";',
+    '    emptyLabel.style("display", nodes.length === 0 && groups.length === 0 ? "block" : "none");',
+    '',
+    '    var groupSel = groupLayer.selectAll(".nr-group").data(groups, function(d) { return d.id; });',
+    '    groupSel.exit().remove();',
+    '    var ge = groupSel.enter().append("g").attr("class", "nr-group");',
+    '    ge.append("rect").attr("class", "nr-group-rect").attr("rx", 4).attr("ry", 4);',
+    '    ge.append("text").attr("font-size", 10).attr("fill", "#999");',
+    '    groupSel.merge(ge).each(function(d) {',
+    '      var g = d3.select(this);',
+    '      g.select("rect").attr("x", d.x).attr("y", d.y).attr("width", d.w).attr("height", d.h);',
+    '      g.select("text").attr("x", d.x + 5).attr("y", d.y + 15).text(d.name || "Group");',
+    '    });',
+    '',
+    '    var linkSel = linkLayer.selectAll(".nr-link")',
+    '      .data(links, function(d) { return d.source.id + ":" + d.sourcePort + ":" + d.target.id; });',
+    '    linkSel.exit().remove();',
+    '    linkSel.enter().append("path").attr("class", "nr-link").merge(linkSel)',
+    '      .attr("d", function(d) {',
+    '        var no = d.source.outputs || 1;',
+    '        var py = -((no - 1) / 2) * 13 + 13 * d.sourcePort;',
+    '        return generateLinkPath(d.source.x + d.source.w/2, d.source.y + py,',
+    '          d.target.x - d.target.w/2, d.target.y, 1);',
+    '      })',
+    '      .classed("nr-link-disabled", function(d) { return d.source.d || d.target.d; });',
+    '',
+    '    var nodeSel = nodeLayer.selectAll(".nr-node").data(nodes, function(d) { return d.id; });',
+    '    nodeSel.exit().remove();',
+    '    var ne = nodeSel.enter().append("g")',
+    '      .attr("class", function(d) { return getNodeCSSClass(d); })',
+    '      .attr("transform", function(d) {',
+    '        return "translate(" + (d.x - d.w/2) + "," + (d.y - d.h/2) + ")";',
+    '      })',
+    '      .on("mouseenter", showTooltip).on("mouseleave", hideTooltip);',
+    '    ne.append("rect").attr("class", "nr-node-body").attr("rx", 5).attr("ry", 5)',
+    '      .attr("fill", function(d) { return getNodeColor(d.type); });',
+    '    ne.append("text").attr("text-anchor", "middle").attr("font-size", 10)',
+    '      .attr("fill", "#333").attr("dy", "0.35em");',
+    '    nodeSel.merge(ne).each(function(d) {',
+    '      var g = d3.select(this);',
+    '      g.attr("class", getNodeCSSClass(d));',
+    '      g.select("rect").attr("width", d.w).attr("height", d.h)',
+    '        .attr("fill", getNodeColor(d.type));',
+    '      g.select("text").attr("x", d.w/2).attr("y", d.h/2)',
+    '        .text((d.name || d.type).substring(0, 20));',
+    '      if (d.inputs > 0 && g.select(".nr-port-input").empty()) {',
+    '        g.append("rect").attr("class", "nr-port-input")',
+    '          .attr("x", -5).attr("y", d.h/2 - 4).attr("width", 8).attr("height", 8)',
+    '          .attr("rx", 2).attr("fill", "#999");',
+    '      }',
+    '      g.selectAll(".nr-port-output").remove();',
+    '      for (var i = 0; i < (d.outputs || 0); i++) {',
+    '        var py = d.h/2 - ((d.outputs - 1)/2)*13 + 13*i - 4;',
+    '        g.append("rect").attr("class", "nr-port-output")',
+    '          .attr("x", d.w - 3).attr("y", py).attr("width", 8).attr("height", 8)',
+    '          .attr("rx", 2).attr("fill", "#999");',
+    '      }',
+    '    });',
+    '  }',
+    '',
+    '  function fitToView(bb) {',
+    '    var cw = bb.width || 800, ch = bb.height || 600;',
+    '    var s = Math.min(width / cw, height / ch);',
+    '    // Clamp: never smaller than 25%, never larger than 100%',
+    '    s = Math.max(0.25, Math.min(1.0, s));',
+    '    var tx = (width - cw * s) / 2 - (bb.minX || 0) * s;',
+    '    var ty = (height - ch * s) / 2 - (bb.minY || 0) * s;',
+    '    svg.transition().duration(400).call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(s));',
+    '  }',
+    '',
+    '  function switchTab(tabId) {',
+    '    if (tabId === currentTabId) return;',
+    '    currentTabId = tabId;',
+    '    var data = buildTabData(ALL_FLOWS, tabId, DIRTY_NODE_IDS);',
+    '    var els = tabBar.querySelectorAll(".nr-tab");',
+    '    for (var i = 0; i < els.length; i++) {',
+    '      els[i].classList.toggle("active", els[i].getAttribute("data-tab-id") === tabId);',
+    '    }',
+    '    groupLayer.selectAll("*").remove();',
+    '    linkLayer.selectAll("*").remove();',
+    '    nodeLayer.selectAll("*").remove();',
+    '    render(data);',
+    '    if (zoomState[tabId]) {',
+    '      svg.transition().duration(200).call(zoom.transform, zoomState[tabId]);',
+    '    } else {',
+    '      fitToView(data.bb);',
+    '    }',
+    '  }',
+    '',
+    '  function refreshCurrentTab() {',
+    '    if (!currentTabId) return;',
+    '    var data = buildTabData(ALL_FLOWS, currentTabId, DIRTY_NODE_IDS);',
+    '    render(data);',
+    '  }',
+    '',
+    '  function refreshTabDirtyIndicators() {',
+    '    var els = tabBar.querySelectorAll(".nr-tab");',
+    '    for (var i = 0; i < els.length; i++) {',
+    '      var tid = els[i].getAttribute("data-tab-id");',
+    '      var data = buildTabData(ALL_FLOWS, tid, DIRTY_NODE_IDS);',
+    '      var hasDirty = data.nodes.some(function(n) { return n.dirty; });',
+    '      els[i].classList.toggle("dirty", hasDirty);',
+    '    }',
+    '  }',
+    '',
+    '  function showTooltip(event, d) {',
+    '    tooltip.style.display = "block";',
+    '    tooltip.innerHTML =',
+    '      "<div class=\\"tt-name\\">" + escapeHtml(d.name || d.type) + "</div>" +',
+    '      "<div>Type: " + escapeHtml(d.type) + "</div>" +',
+    '      "<div>ID: " + escapeHtml(d.id) + "</div>" +',
+    '      (d.dirty ? "<div class=\\"tt-dirty\\">\u26a1 Un-deployed changes</div>" : "") +',
+    '      (d.d ? "<div>\u26d4 Disabled</div>" : "");',
+    '    tooltip.style.left = (event.pageX + 12) + "px";',
+    '    tooltip.style.top = (event.pageY - 10) + "px";',
+    '  }',
+    '',
+    '  function hideTooltip() { tooltip.style.display = "none"; }',
+    '',
+    '  // ---- WebSocket ----',
+    '  var WS_URL = (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/staging-ws";',
+    '  var ws = null, reconnectDelay = 3000, reconnectTimer = null;',
+    '',
+    '  function connectWS() {',
+    '    try { ws = new WebSocket(WS_URL); } catch(e) { scheduleReconnect(); return; }',
+    '    ws.onopen = function() { banner.classList.remove("visible"); reconnectDelay = 3000; };',
+    '    ws.onmessage = function(event) {',
+    '      try {',
+    '        var msg = JSON.parse(event.data);',
+    '        if (msg.type === "staging-update") {',
+    '          ALL_FLOWS = msg.flows || [];',
+    '          DIRTY_NODE_IDS = new Set(msg.dirtyNodeIds || []);',
+    '          tabs = extractTabs(ALL_FLOWS);',
+    '          if (tabs.length <= 1) {',
+    '            hasTabs = false;',
+    '            if (tabs.length === 0 && ALL_FLOWS.length > 0) {',
+    '              var ntn2 = ALL_FLOWS.filter(function(n) {',
+    '                return n.type !== "tab" && n.type !== "group" && n.type !== "junction";',
+    '              });',
+    '              if (ntn2.length > 0) tabs = [{ id: ntn2[0].z || "__default__", name: "Flow", disabled: false }];',
+    '            }',
+    '          } else { hasTabs = true; }',
+    '          buildTabBar();',
+    '          var exists = tabs.some(function(t) { return t.id === currentTabId; });',
+    '          if (!exists && tabs.length > 0) { switchTab(tabs[0].id); }',
+    '          else { refreshCurrentTab(); }',
+    '          refreshTabDirtyIndicators();',
+    '        }',
+    '      } catch(err) { console.warn("WS parse error:", err); }',
+    '    };',
+    '    ws.onclose = function() { banner.classList.add("visible"); scheduleReconnect(); };',
+    '    ws.onerror = function() {};',
+    '  }',
+    '',
+    '  function scheduleReconnect() {',
+    '    if (reconnectTimer) return;',
+    '    reconnectTimer = setTimeout(function() {',
+    '      reconnectTimer = null;',
+    '      connectWS();',
+    '      reconnectDelay = Math.min(reconnectDelay * 1.5, 30000);',
+    '    }, reconnectDelay);',
+    '  }',
+    '',
+    '  // ---- Init ----',
+    '  buildTabBar();',
+    '  if (tabs.length > 0) { switchTab(tabs[0].id); }',
+    '  else { currentTabId = "__empty__"; emptyLabel.style("display", "block"); }',
+    '  connectWS();',
+    '})();',
+    '</script>',
+    '</body>',
+    '</html>'
+  ].join('\n');
 
-(function() {
-  const banner = document.getElementById('banner');
-  const tooltip = document.getElementById('tooltip');
-  const legend = document.getElementById('legend');
-  const canvas = document.getElementById('canvas');
-
-  // ── D3 Setup ──
-  const width = canvas.clientWidth;
-  const height = canvas.clientHeight;
-
-  const svg = d3.select('#canvas')
-    .append('svg')
-    .attr('width', width)
-    .attr('height', height);
-
-  // Grid pattern
-  const defs = svg.append('defs');
-  defs.append('pattern')
-    .attr('id', 'grid')
-    .attr('width', 20)
-    .attr('height', 20)
-    .attr('patternUnits', 'userSpaceOnUse')
-    .append('path')
-    .attr('d', 'M 20 0 L 0 0 0 20')
-    .attr('fill', 'none')
-    .attr('stroke', '#e0e0e0')
-    .attr('stroke-width', 0.5);
-
-  // Content group — all transforms applied here for zoom/pan
-  const contentGroup = svg.append('g');
-
-  // Background grid
-  contentGroup.append('rect')
-    .attr('width', 8000)
-    .attr('height', 8000)
-    .attr('fill', 'url(#grid)');
-
-  // Layer groups (ordered like Node-RED editor)
-  const groupLayer = contentGroup.append('g').attr('class', 'group-layer');
-  const linkLayer = contentGroup.append('g').attr('class', 'link-layer');
-  const nodeLayer = contentGroup.append('g').attr('class', 'node-layer');
-
-  // ── Zoom/Pan ──
-  const zoom = d3.zoom()
-    .scaleExtent([0.1, 2])
-    .on('zoom', (event) => {
-      contentGroup.attr('transform', event.transform);
-    });
-  svg.call(zoom);
-
-  // ── Render function (called on initial load and WebSocket updates) ──
-  function render(data) {
-    const { nodes, groups, links } = data;
-
-    // Show/hide legend
-    legend.style.display = nodes.some(n => n.dirty) ? 'block' : 'none';
-
-    // Groups
-    const groupSel = groupLayer.selectAll('.nr-group')
-      .data(groups, d => d.id);
-
-    groupSel.exit().remove();
-
-    const groupEnter = groupSel.enter().append('g').attr('class', 'nr-group');
-    groupEnter.append('rect').attr('class', 'nr-group-rect').attr('rx', 4).attr('ry', 4);
-    groupEnter.append('text').attr('font-size', 10).attr('fill', '#999');
-
-    groupSel.merge(groupEnter).each(function(d) {
-      const g = d3.select(this);
-      g.select('rect')
-        .attr('x', d.x).attr('y', d.y)
-        .attr('width', d.w).attr('height', d.h);
-      g.select('text')
-        .attr('x', d.x + 5).attr('y', d.y + 15)
-        .text(d.name || 'Group');
-    });
-
-    // Links
-    const linkSel = linkLayer.selectAll('.nr-link')
-      .data(links, d => d.source.id + ':' + d.sourcePort + ':' + d.target.id);
-
-    linkSel.exit().remove();
-
-    linkSel.enter().append('path')
-      .attr('class', 'nr-link')
-      .merge(linkSel)
-      .attr('d', d => {
-        const numOut = d.source.outputs || 1;
-        const portY = -((numOut - 1) / 2) * 13 + 13 * d.sourcePort;
-        return generateLinkPath(
-          d.source.x + d.source.w / 2,
-          d.source.y + portY,
-          d.target.x - d.target.w / 2,
-          d.target.y,
-          1
-        );
-      })
-      .classed('nr-link-disabled', d => d.source.d || d.target.d);
-
-    // Nodes
-    const nodeSel = nodeLayer.selectAll('.nr-node')
-      .data(nodes, d => d.id);
-
-    nodeSel.exit().remove();
-
-    const nodeEnter = nodeSel.enter().append('g')
-      .attr('class', d => getNodeCSSClass(d))
-      .attr('transform', d => 'translate(' + (d.x - d.w / 2) + ',' + (d.y - d.h / 2) + ')')
-      .on('mouseenter', showTooltip)
-      .on('mouseleave', hideTooltip);
-
-    nodeEnter.append('rect')
-      .attr('class', 'nr-node-body')
-      .attr('rx', 5).attr('ry', 5)
-      .attr('fill', d => getNodeColor(d.type));
-
-    nodeEnter.append('text')
-      .attr('text-anchor', 'middle')
-      .attr('font-size', 10)
-      .attr('fill', '#333')
-      .attr('dy', '0.35em');
-
-    nodeSel.merge(nodeEnter).each(function(d) {
-      const g = d3.select(this);
-      g.attr('class', getNodeCSSClass(d));
-      g.select('rect')
-        .attr('width', d.w).attr('height', d.h)
-        .attr('fill', getNodeColor(d.type));
-      g.select('text')
-        .attr('x', d.w / 2).attr('y', d.h / 2)
-        .text((d.name || d.type).substring(0, 20));
-
-      // Input port indicator
-      if (d.inputs > 0) {
-        if (!g.select('.nr-port-input').size()) {
-          g.append('rect')
-            .attr('class', 'nr-port-input')
-            .attr('x', -5).attr('y', d.h / 2 - 4)
-            .attr('width', 8).attr('height', 8)
-            .attr('rx', 2).attr('fill', '#999');
-        }
-      }
-
-      // Output port indicators
-      const numOut = d.outputs || 0;
-      g.selectAll('.nr-port-output').remove();
-      for (let i = 0; i < numOut; i++) {
-        const py = d.h / 2 - ((numOut - 1) / 2) * 13 + 13 * i - 4;
-        g.append('rect')
-          .attr('class', 'nr-port-output')
-          .attr('x', d.w - 3).attr('y', py)
-          .attr('width', 8).attr('height', 8)
-          .attr('rx', 2).attr('fill', '#999');
-      }
-    });
-  }
-
-  // ── Tooltip helpers ──
-  function showTooltip(event, d) {
-    tooltip.style.display = 'block';
-    tooltip.innerHTML =
-      '<div class="tt-name">' + escapeHtml(d.name || d.type) + '</div>' +
-      '<div>Type: ' + escapeHtml(d.type) + '</div>' +
-      '<div>ID: ' + escapeHtml(d.id) + '</div>' +
-      (d.dirty ? '<div class="tt-dirty">⚡ Un-deployed changes</div>' : '') +
-      (d.d ? '<div>⛔ Disabled</div>' : '');
-    tooltip.style.left = (event.pageX + 12) + 'px';
-    tooltip.style.top = (event.pageY - 10) + 'px';
-  }
-
-  function hideTooltip() {
-    tooltip.style.display = 'none';
-  }
-
-  // ── WebSocket live refresh ──
-  const WS_URL = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/staging-ws';
-  let ws = null;
-  let reconnectDelay = 3000;
-  let reconnectTimer = null;
-
-  function connectWS() {
-    try {
-      ws = new WebSocket(WS_URL);
-    } catch (e) {
-      scheduleReconnect();
-      return;
-    }
-
-    ws.onopen = () => {
-      banner.classList.remove('visible');
-      reconnectDelay = 3000;
-    };
-
-    ws.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(event.data);
-        if (msg.type === 'staging-update') {
-          // Rebuild IR from the received flows
-          const freshData = buildIRFromFlows(msg.flows, msg.dirtyNodeIds);
-          render(freshData);
-        }
-      } catch (err) {
-        console.warn('Failed to parse WebSocket message:', err);
-      }
-    };
-
-    ws.onclose = () => {
-      banner.classList.add('visible');
-      scheduleReconnect();
-    };
-
-    ws.onerror = () => {
-      // onclose will fire after this
-    };
-  }
-
-  function scheduleReconnect() {
-    if (reconnectTimer) return;
-    reconnectTimer = setTimeout(() => {
-      reconnectTimer = null;
-      connectWS();
-      reconnectDelay = Math.min(reconnectDelay * 1.5, 30000);
-    }, reconnectDelay);
-  }
-
-  // ── Initial render ──
-  render(INITIAL_DATA);
-
-  // Auto-fit: compute bounding box and set initial view
-  const bb = INITIAL_DATA.bb;
-  const contentWidth = bb.width || 800;
-  const contentHeight = bb.height || 600;
-  const scale = Math.min(0.9, Math.min(width / contentWidth, height / contentHeight));
-  const tx = (width - contentWidth * scale) / 2 - (bb.minX || 0) * scale;
-  const ty = (height - contentHeight * scale) / 2 - (bb.minY || 0) * scale;
-  svg.transition().duration(500).call(
-    zoom.transform,
-    d3.zoomIdentity.translate(tx, ty).scale(scale)
-  );
-
-  // ── Start WebSocket after initial render ──
-  connectWS();
-
-  // ── Utility functions (embedded so the HTML is self-contained) ──
-  function getNodeColor(type) {
-    const colors = ${JSON.stringify(getNodeColor)}; // fallback: use the function
-    const map = ${JSON.stringify({
-      'inject': '#a6bbcf', 'debug': '#87a980', 'function': '#fdd0a2',
-      'switch': '#d8bfd8', 'change': '#e2d6b8', 'range': '#d8bfd8',
-      'template': '#d8bfd8', 'delay': '#fdd0a2', 'trigger': '#fdd0a2',
-      'exec': '#fdd0a2', 'complete': '#c0c0c0', 'catch': '#c0c0c0',
-      'status': '#c0c0c0', 'comment': '#ffffff', 'unknown': '#c0c0c0',
-      'link in': '#c0c0c0', 'link out': '#c0c0c0', 'link call': '#c0c0c0',
-      'mqtt in': '#d8bfd8', 'mqtt out': '#d8bfd8',
-      'http in': '#d8bfd8', 'http response': '#d8bfd8', 'http request': '#e2d6b8',
-      'split': '#d8bfd8', 'join': '#d8bfd8', 'batch': '#d8bfd8', 'sort': '#d8bfd8',
-      'csv': '#d8bfd8', 'html': '#d8bfd8', 'json': '#d8bfd8', 'xml': '#d8bfd8', 'yaml': '#d8bfd8',
-      'file in': '#87a980', 'file out': '#87a980', 'file': '#87a980', 'watch': '#87a980',
-      'rbe': '#fdd0a2',
-    })};
-    return map[type] || '#cccccc';
-  }
-
-  function getNodeCSSClass(d) {
-    const classes = ['nr-node'];
-    if (d.dirty) classes.push('nr-node-dirty');
-    if (d.d) classes.push('nr-node-disabled');
-    return classes.join(' ');
-  }
-
-  function buildIRFromFlows(flows, dirtyNodeIds) {
-    const dirtySet = new Set(dirtyNodeIds || []);
-    const allFlowNodes = flows.filter(n => n.type !== 'group' && n.type !== 'tab' && n.type !== 'junction');
-    const groups = flows.filter(n => n.type === 'group');
-    const nodeIdSet = new Set(allFlowNodes.map(n => n.id));
-
-    const nodes = allFlowNodes.map(n => ({
-      id: n.id, type: n.type, name: n.name || n.type,
-      x: n.x || 0, y: n.y || 0, w: n.w || 100, h: n.h || 30,
-      inputs: n.inputs ?? 0, outputs: n.outputs ?? 0,
-      d: n.d === true, dirty: dirtySet.has(n.id),
-      wires: n.wires || [],
-    }));
-
-    const irGroups = groups.map(g => ({
-      id: g.id, name: g.name || 'Group',
-      x: g.x || 0, y: g.y || 0, w: g.w || 40, h: g.h || 40,
-      style: g.style || {}, nodes: (g.nodes || []).filter(mid => nodeIdSet.has(mid)),
-    }));
-
-    const links = [];
-    for (const node of nodes) {
-      if (!node.wires || node.wires.length === 0) continue;
-      node.wires.forEach((targets, portIndex) => {
-        if (!Array.isArray(targets)) return;
-        for (const targetId of targets) {
-          const targetNode = nodes.find(n => n.id === targetId);
-          if (targetNode) {
-            links.push({ source: node, sourcePort: portIndex, target: targetNode });
-          }
-        }
-      });
-    }
-
-    return { nodes, groups: irGroups, links, bb: computeBBox(nodes, irGroups) };
-  }
-
-  function computeBBox(nodes, groups) {
-    if (nodes.length === 0 && groups.length === 0) {
-      return { minX: 0, minY: 0, maxX: 400, maxY: 200, width: 400, height: 200 };
-    }
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    for (const n of nodes) {
-      if (n.x - n.w/2 < minX) minX = n.x - n.w/2;
-      if (n.x + n.w/2 > maxX) maxX = n.x + n.w/2;
-      if (n.y - n.h/2 < minY) minY = n.y - n.h/2;
-      if (n.y + n.h/2 > maxY) maxY = n.y + n.h/2;
-    }
-    for (const g of groups) {
-      if (g.x < minX) minX = g.x;
-      if (g.y < minY) minY = g.y;
-      if (g.x + g.w > maxX) maxX = g.x + g.w;
-      if (g.y + g.h > maxY) maxY = g.y + g.h;
-    }
-    const p = 60;
-    return { minX: minX - p, minY: minY - p, maxX: maxX + p, maxY: maxY + p,
-      width: maxX - minX + 2*p, height: maxY - minY + 2*p };
-  }
-
-  function generateLinkPath(origX, origY, destX, destY, sc, hasStatus) {
-    // Simplified bezier for browser (same algorithm as server-side geometry.js)
-    const dy = destY - origY, dx = destX - origX;
-    const delta = Math.sqrt(dy*dy + dx*dx);
-    const NODE_W = 100, NODE_H = 30;
-    let scale = 0.75;
-    if (dx * sc > 0) {
-      if (delta < NODE_W) scale = 0.75 - 0.75 * ((NODE_W - delta) / NODE_W);
-    } else {
-      scale = 0.4 - 0.2 * (Math.max(0, (NODE_W - Math.min(Math.abs(dx), Math.abs(dy))) / NODE_W));
-    }
-    if (dx * sc > 0) {
-      const cp = [[origX + sc * NODE_W * scale, origY], [destX - sc * scale * NODE_W, destY]];
-      return 'M ' + origX + ' ' + origY + ' C ' + cp[0][0] + ' ' + cp[0][1] + ' ' + cp[1][0] + ' ' + cp[1][1] + ' ' + destX + ' ' + destY;
-    }
-    // Fallback: simple curve
-    const midX = (origX + destX) / 2;
-    return 'M ' + origX + ' ' + origY + ' C ' + midX + ' ' + origY + ' ' + midX + ' ' + destY + ' ' + destX + ' ' + destY;
-  }
-
-  function escapeHtml(str) {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
-  }
-})();
-</script>
-</body>
-</html>`;
+  return html;
 }

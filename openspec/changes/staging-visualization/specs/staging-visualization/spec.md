@@ -182,3 +182,38 @@ The Mermaid output format SHALL mark dirty nodes with a `:::dirty` CSS class suf
 #### Scenario: Mermaid diagram with dirty nodes
 - **WHEN** a flow has nodes A (dirty) → B (clean) → C (dirty)
 - **THEN** the Mermaid output includes `A[Node A]:::dirty`, `C[Node C]:::dirty`, and a `classDef dirty stroke:#ff8c00,stroke-width:3px` declaration
+
+### Requirement: Tabbed flow navigation in HTML
+The HTML output format SHALL render flows in a tabbed interface when multiple flow tabs exist, matching the Node-RED editor's tab bar convention. Each tab SHALL display the flow's label (from the tab node's `label` property, falling back to `name`, then `id`). Selecting a tab SHALL render only the nodes belonging to that flow (via the `z` property). The tab bar SHALL be docked at the top of the viewport, above the canvas. Zoom and pan state SHALL be preserved independently per tab.
+
+#### Scenario: Multiple flows render with tab bar
+- **WHEN** the staging workspace contains two or more flow tabs (type: `"tab"`)
+- **THEN** the HTML output displays a horizontal tab bar at the top with one tab per flow, and only the first flow's nodes are initially visible in the canvas
+
+#### Scenario: Click tab switches flow
+- **WHEN** the user clicks on a different tab in the tab bar
+- **THEN** the canvas clears and renders only the nodes belonging to the selected flow, with auto-fit zoom applied on first view of that tab
+
+#### Scenario: Single flow has no tab bar
+- **WHEN** the staging workspace contains only one flow tab (or zero tabs)
+- **THEN** the HTML output renders all nodes directly without displaying a tab bar
+
+#### Scenario: Tab label from flow node
+- **WHEN** a flow tab node has `label: "Main Pipeline"`
+- **THEN** the corresponding tab in the HTML displays "Main Pipeline"
+
+#### Scenario: Active tab visually distinct
+- **WHEN** a tab is selected
+- **THEN** its background is white, text is bold, and it has an orange bottom border, while inactive tabs have a grey background
+
+#### Scenario: Zoom/pan preserved per tab
+- **WHEN** the user zooms and pans on flow A, switches to flow B, then switches back to flow A
+- **THEN** flow A's previous zoom and pan position is restored
+
+#### Scenario: WebSocket update refreshes current tab
+- **WHEN** a `staging-update` message arrives via WebSocket while viewing flow A
+- **THEN** only flow A's canvas re-renders; other tabs' state remains cached
+
+#### Scenario: Flows without tab nodes fall back
+- **WHEN** the staging workspace contains nodes but no nodes of type `"tab"`
+- **THEN** all non-group, non-junction nodes are treated as belonging to a single default view with no tab bar
