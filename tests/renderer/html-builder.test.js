@@ -108,4 +108,25 @@ describe('buildHTML', () => {
     expect(html).toContain('tab-bar');
     expect(html).toContain('with-tabs');
   });
+
+  describe('refresh button confirmation dialog', () => {
+    it('includes confirmation check for dirty nodes before refresh', () => {
+      const html = buildHTML(flowsWithTwoTabs, { highlightDirty: true, dirtyNodeIds: new Set(['n1']) });
+      expect(html).toContain('DIRTY_NODE_IDS.size > 0');
+      expect(html).toContain('confirm(');
+    });
+
+    it('contains the warning message in English', () => {
+      const html = buildHTML(flowsWithTwoTabs);
+      expect(html).toContain('Warning: You have un-deployed changes.');
+      expect(html).toContain('Refreshing will permanently discard all pending changes.');
+      expect(html).toContain('Are you sure you want to continue?');
+    });
+
+    it('cancels refresh when user declines the confirmation', () => {
+      const html = buildHTML(flowsWithTwoTabs);
+      expect(html).toMatch(/if\s*\(\s*!\s*confirm\s*\(/);
+      expect(html).toContain('return;');
+    });
+  });
 });
