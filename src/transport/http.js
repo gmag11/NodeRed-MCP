@@ -72,6 +72,25 @@ export async function startHttpTransport(serverFactory, port, initialStaging) {
     }
   });
 
+  // ── Staging refresh endpoint (re-fetches from Node-RED backend) ───
+
+  app.post('/staging-refresh', async (_req, res) => {
+    try {
+      if (!activeStaging) {
+        res.status(503).json({ error: 'No staging session active yet' });
+        return;
+      }
+      await activeStaging.invalidate();
+      await activeStaging.ensureLoaded();
+      const flows = await activeStaging.getFlows();
+      const dirtyNodeIds = [...activeStaging.getDirtyNodeIds()];
+      const dirtyFlowIds = [...activeStaging.getDirtyFlowIds()];
+      res.json({ flows, dirtyNodeIds, dirtyFlowIds });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // ── Staging visualization HTML endpoint ───────────────────────────
 
   app.get('/staging', async (_req, res) => {
