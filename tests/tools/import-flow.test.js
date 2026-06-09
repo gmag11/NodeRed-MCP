@@ -4,6 +4,7 @@ import {
   regenerateIds,
   mergeFlows,
   applyTargetFlow,
+  repositionNodes,
   summarizeImport,
   handleImportFlow,
 } from '../../src/tools/import-flow.js';
@@ -110,25 +111,25 @@ describe('mergeFlows', () => {
 
   // Task 3.8: regenerate strategy produces no conflicts
   it('regenerate strategy produces no conflicts and appends nodes', () => {
-    const { mergedFlows, conflicts } = mergeFlows(EXISTING, [newTab, newNode], 'regenerate');
+    const { updatedFlows, conflicts } = mergeFlows(EXISTING, [newTab, newNode], 'regenerate');
     expect(conflicts).toBe(0);
-    expect(mergedFlows).toHaveLength(EXISTING.length + 2);
-    expect(mergedFlows.map((n) => n.id)).toContain('new-tab');
+    expect(updatedFlows).toHaveLength(EXISTING.length + 2);
+    expect(updatedFlows.map((n) => n.id)).toContain('new-tab');
   });
 
   // Task 3.9: overwrite strategy replaces existing nodes by ID
   it('overwrite strategy replaces existing nodes by ID', () => {
     const updatedFunc = { ...FUNC_NODE, func: 'return null;' };
-    const { mergedFlows, conflicts } = mergeFlows(EXISTING, [updatedFunc], 'overwrite');
+    const { updatedFlows, conflicts } = mergeFlows(EXISTING, [updatedFunc], 'overwrite');
     expect(conflicts).toBe(1);
-    const replaced = mergedFlows.find((n) => n.id === 'n1');
+    const replaced = updatedFlows.find((n) => n.id === 'n1');
     expect(replaced.func).toBe('return null;');
   });
 
   it('overwrite strategy appends brand-new nodes', () => {
-    const { mergedFlows, conflicts } = mergeFlows(EXISTING, [newNode], 'overwrite');
+    const { updatedFlows, conflicts } = mergeFlows(EXISTING, [newNode], 'overwrite');
     expect(conflicts).toBe(0);
-    expect(mergedFlows.map((n) => n.id)).toContain('new-n1');
+    expect(updatedFlows.map((n) => n.id)).toContain('new-n1');
   });
 
   it('throws on unknown strategy', () => {
@@ -196,6 +197,80 @@ describe('applyTargetFlow', () => {
   it('returns empty array when all nodes are tabs', () => {
     const result = applyTargetFlow([TAB1, TAB2], 'some-tab');
     expect(result).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// repositionNodes
+// ---------------------------------------------------------------------------
+
+describe('repositionNodes', () => {
+  it('offsets imported nodes to the right of existing nodes', () => {
+    const existing = [
+      { id: 'e1', type: 'inject', z: 'tab1', x: 200, y: 200, wires: [] },
+      { id: 'e2', type: 'debug', z: 'tab1', x: 500, y: 200, wires: [] },
+    ];
+    const imported = [
+      { id: 'i1', type: 'inject', z: 'tab1', x: 120, y: 80, wires: [] },
+      { id: 'i2', type: 'debug', z: 'tab1', x: 420, y: 80, wires: [] },
+    ];
+
+    const result = repositionNodes(existing, imported);
+
+    // Existing rightmost = 500, imported leftmost = 120 → offsetX = 500 - 120 + 200 = 580
+    // Existing minY = 200, imported minY = 80 → offsetY = 200 - 80 = 120
+    expect(result[0].x).toBe(120 + 580); // 700
+    expect(result[0].y).toBe(80 + 120);  // 200
+    expect(result[1].x).toBe(420 + 580); // 1000
+    expect(result[1].y).toBe(80 + 120);  // 200
+  });
+
+  it('keeps relative distances between imported nodes intact', () => {
+    const existing = [{ id: 'e1', type: 'inject', z: 'tab1', x: 200, y: 200 }];
+    const imported = [
+      { id: 'i1', type: 'inject', z: 'tab1', x: 100, y: 100 },
+      { id: 'i2', type: 'debug', z: 'tab1', x: 400, y: 100 },
+    ];
+
+    const result = repositionNodes(existing, imported);
+    // Relative distance between imported nodes should be preserved
+    expect(result[1].x - result[0].x).toBe(300); // 400 - 100
+    expect(result[1].y - result[0].y).toBe(0);   // 100 - 100
+  });
+
+  it('handles nodes without explicit positions by using defaults', () => {
+    const existing = [{ id: 'e1', type: 'inject', z: 'tab1', x: 300, y: 150 }];
+    const imported = [
+      { id: 'i1', type: 'inject', z: 'tab1' }, // no x, y
+    ];
+
+    const result = repositionNodes(existing, imported);
+    // offsetX = 300 - 120 + 200 = 380; node.x = (undefined ?? 120) + 380 = 500
+    // offsetY = 150 - 80 = 70;       node.y = (undefined ?? 80) + 70 = 150
+    expect(result[0].x).toBe(500);
+    expect(result[0].y).toBe(150);
+  });
+
+  it('handles empty existing nodes gracefully', () => {
+    const imported = [
+      { id: 'i1', type: 'inject', z: 'tab1', x: 120, y: 80 },
+    ];
+
+    const result = repositionNodes([], imported);
+    // No existing nodes → existingMaxX = 0, existingMinY = 80 (default)
+    // offsetX = 0 - 120 + 200 = 80
+    // offsetY = 80 - 80 = 0
+    expect(result[0].x).toBe(200); // 120 + 80
+    expect(result[0].y).toBe(80);  // 80 + 0
+  });
+
+  it('does not mutate original imported nodes', () => {
+    const existing = [{ id: 'e1', type: 'inject', z: 'tab1', x: 200, y: 200 }];
+    const imported = [{ id: 'i1', type: 'inject', z: 'tab1', x: 100, y: 100 }];
+
+    repositionNodes(existing, imported);
+    expect(imported[0].x).toBe(100);
+    expect(imported[0].y).toBe(100);
   });
 });
 

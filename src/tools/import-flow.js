@@ -102,12 +102,12 @@ export function regenerateIds(nodes) {
  * @param {object[]} existing - Current flows array from GET /flows
  * @param {object[]} imported - Imported nodes (already strategy-processed)
  * @param {'regenerate'|'overwrite'} strategy
- * @returns {{ mergedFlows: object[], conflicts: number }}
+ * @returns {{ updatedFlows: object[], conflicts: number }}
  */
 export function mergeFlows(existing, imported, strategy) {
   if (strategy === 'regenerate') {
     // IDs are all fresh — no possible conflicts, just append
-    return { mergedFlows: [...existing, ...imported], conflicts: 0 };
+    return { updatedFlows: [...existing, ...imported], conflicts: 0 };
   }
 
   if (strategy === 'overwrite') {
@@ -127,7 +127,7 @@ export function mergeFlows(existing, imported, strategy) {
     const existingIds = new Set(existing.map((n) => n.id));
     const brandNew = imported.filter((n) => !existingIds.has(n.id));
 
-    return { mergedFlows: [...kept, ...brandNew], conflicts };
+    return { updatedFlows: [...kept, ...brandNew], conflicts };
   }
 
   throw new Error(`Unknown conflictStrategy '${strategy}'. Use "regenerate" or "overwrite"`);
@@ -145,6 +145,57 @@ export function applyTargetFlow(nodes, targetFlowId) {
   return nodes
     .filter((n) => n.type !== 'tab' && n.type !== 'subflow')
     .map((n) => ({ ...n, z: targetFlowId }));
+}
+
+/**
+ * Reposition imported nodes into a free area of the target flow, avoiding
+ * overlap with existing nodes.
+ *
+ * Strategy: place the imported nodes to the right of the existing nodes,
+ * preserving the internal relative layout of the imported group.
+ *
+ * @param {object[]} existingNodes - Nodes already in the target flow
+ * @param {object[]} importedNodes - Nodes being imported (already remapped)
+ * @returns {object[]} Imported nodes with adjusted x, y positions
+ */
+export function repositionNodes(existingNodes, importedNodes) {
+  // Filter to only regular nodes (not tabs/subflows/config nodes)
+  const regularExisting = existingNodes.filter(
+    (n) => n.x !== undefined && n.y !== undefined,
+  );
+
+  // Find rightmost position of existing nodes
+  let existingMaxX = 0;
+  let existingMinY = Infinity;
+  for (const node of regularExisting) {
+    if (node.x > existingMaxX) existingMaxX = node.x;
+    if (node.y < existingMinY) existingMinY = node.y;
+  }
+  // Default if no existing nodes with positions
+  if (!isFinite(existingMinY)) existingMinY = 80;
+
+  // Find leftmost position of imported nodes (for relative offset)
+  let importedMinX = Infinity;
+  let importedMinY = Infinity;
+  for (const node of importedNodes) {
+    if (node.x !== undefined && node.x < importedMinX) importedMinX = node.x;
+    if (node.y !== undefined && node.y < importedMinY) importedMinY = node.y;
+  }
+  // Default if imported nodes have no positions
+  if (!isFinite(importedMinX)) importedMinX = 120;
+  if (!isFinite(importedMinY)) importedMinY = 80;
+
+  // Gap between existing rightmost edge and imported leftmost edge
+  const HORIZONTAL_GAP = 200;
+
+  const offsetX = existingMaxX - importedMinX + HORIZONTAL_GAP;
+  const offsetY = existingMinY - importedMinY;
+
+  return importedNodes.map((node) => ({
+    ...node,
+    x: (node.x ?? importedMinX) + offsetX,
+    y: (node.y ?? importedMinY) + offsetY,
+  }));
 }
 
 /**
@@ -236,6 +287,10 @@ export async function handleImportFlow(staging, client, params) {
       if (targetTab.locked) {
         throw new Error(`Target flow '${targetFlowId}' is locked`);
       }
+
+      // Reposition imported nodes to avoid overlap with existing nodes in the target tab
+      const existingInTarget = existing.filter((n) => n.z === targetFlowId);
+      nodesToMerge = repositionNodes(existingInTarget, nodesToMerge);
     }
 
     return mergeFlows(existing, nodesToMerge, mergeStrategy);
