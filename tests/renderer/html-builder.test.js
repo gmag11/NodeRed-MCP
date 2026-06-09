@@ -100,4 +100,12 @@ describe('buildHTML', () => {
     expect(html).toContain('<!DOCTYPE html>');
     expect(html).toContain('ALL_FLOWS');
   });
+
+  it('shows tab bar with a single tab', () => {
+    const html = buildHTML(flowsWithOneTab);
+    // Single tab should still show the tab bar
+    expect(html).toContain('Only');
+    expect(html).toContain('tab-bar');
+    expect(html).toContain('with-tabs');
+  });
 });
