@@ -88,26 +88,26 @@
 
 ## 12. Tabbed HTML interface
 
-- [ ] 12.1 Update `src/renderer/html-builder.js` to accept raw flows and organize them by flow tabs (`type: 'tab'`), producing a tabbed HTML interface
-- [ ] 12.2 Implement tab bar CSS: horizontal bar at top, active/inactive tab styles matching Node-RED editor conventions
-- [ ] 12.3 Implement tab switching JS: extract tabs from flows, group nodes by `z`, re-render canvas on tab click
-- [ ] 12.4 Implement per-tab zoom/pan state preservation using a `Map<tabId, transform>`
-- [ ] 12.5 Handle single-tab or zero-tab flows (no tab bar, direct render — backward compatible)
-- [ ] 12.6 Update `src/renderer/index.js` to pass raw flows to `buildHTML` instead of pre-built IR
-- [ ] 12.7 Update `src/transport/http.js` `/staging` endpoint to pass raw flows to `buildHTML`
-- [ ] 12.8 Ensure WebSocket live refresh re-renders only the current tab, not all tabs
+- [x] 12.1 Update `src/renderer/html-builder.js` to accept raw flows and organize them by flow tabs (`type: 'tab'`), producing a tabbed HTML interface
+- [x] 12.2 Implement tab bar CSS: horizontal bar at top, active/inactive tab styles matching Node-RED editor conventions
+- [x] 12.3 Implement tab switching JS: extract tabs from flows, group nodes by `z`, re-render canvas on tab click
+- [x] 12.4 Implement per-tab zoom/pan state preservation using a `Map<tabId, transform>`
+- [x] 12.5 Handle single-tab or zero-tab flows (no tab bar, direct render — backward compatible)
+- [x] 12.6 Update `src/renderer/index.js` to pass raw flows to `buildHTML` instead of pre-built IR
+- [x] 12.7 Update `src/transport/http.js` `/staging` endpoint to pass raw flows to `buildHTML`
+- [x] 12.8 Ensure WebSocket live refresh re-renders only the current tab, not all tabs
 
 ## 13. Tests
 
-- [ ] 13.1 Unit test `src/renderer/geometry.js`: verify `generateLinkPath()` produces valid SVG path strings for horizontal, vertical, and angled connections
-- [ ] 13.2 Unit test `src/renderer/colors.js`: verify known types get correct colors, unknown types get fallback grey
-- [ ] 13.3 Unit test `src/renderer/svg-builder.js`: verify SVG string contains expected elements for a simple flow (inject → debug)
-- [ ] 13.4 Unit test `src/renderer/mermaid-builder.js`: verify Mermaid output includes dirty classDef when dirty nodes present
-- [ ] 13.5 Unit test `src/renderer/html-builder.js`: verify HTML string contains tab bar when multiple flows exist, single flow has no tab bar, and WebSocket client code is present
-- [ ] 13.6 Unit test `src/transport/ws-server.js`: verify WebSocket handshake, broadcast to multiple clients, initial state on connect, coalescing of rapid events
-- [ ] 13.7 Unit test `StagingStore` events: verify `staging:changed` emitted after `applyMutation()`, not emitted for no-op mutations, emitted after `deploy()` with empty dirty sets
-- [ ] 13.8 Integration test `src/tools/render-staging.js`: verify tool returns SVG/HTML/Mermaid output for a staging store with known flows
-- [ ] 13.9 Integration test: verify `GET /staging-snapshot` returns correct JSON with dirty node IDs
-- [ ] 13.10 Integration test: verify WebSocket clients receive `staging-update` messages after mutations
-- [ ] 13.11 Integration test: verify `get-flow-diagram` still returns valid Mermaid after migration to shared renderer
-- [ ] 13.12 Visual smoke test: manually generate HTML for a complex flow with multiple tabs, open in browser, verify tabs switch correctly, and confirm WebSocket live refresh works when editing flows via MCP
+- [x] 13.1 Unit test `src/renderer/geometry.js`: verify `generateLinkPath()` produces valid SVG path strings for horizontal, vertical, and angled connections
+- [x] 13.2 Unit test `src/renderer/colors.js`: verify known types get correct colors, unknown types get fallback grey
+- [x] 13.3 Unit test `src/renderer/svg-builder.js`: verify SVG string contains expected elements for a simple flow (inject → debug)
+- [x] 13.4 Unit test `src/renderer/mermaid-builder.js`: verify Mermaid output includes dirty classDef when dirty nodes present
+- [x] 13.5 Unit test `src/renderer/html-builder.js`: verify HTML string contains tab bar when multiple flows exist, single flow has no tab bar, and WebSocket client code is present
+- [x] 13.6 Unit test `src/transport/ws-server.js`: verify WebSocket handshake, broadcast to multiple clients, initial state on connect, coalescing of rapid events
+- [x] 13.7 Unit test `StagingStore` events: verify `staging:changed` emitted after `applyMutation()`, not emitted for no-op mutations, emitted after `deploy()` with empty dirty sets
+- [x] 13.8 Integration test `src/tools/render-staging.js`: verify tool returns SVG/HTML/Mermaid output for a staging store with known flows
+- [x] 13.9 Integration test: verify `GET /staging-snapshot` returns correct JSON with dirty node IDs
+- [x] 13.10 Integration test: verify WebSocket clients receive `staging-update` messages after mutations
+- [x] 13.11 Integration test: verify `get-flow-diagram` still returns valid Mermaid after migration to shared renderer
+- [x] 13.12 Visual smoke test: manually generate HTML for a complex flow with multiple tabs, open in browser, verify tabs switch correctly, and confirm WebSocket live refresh works when editing flows via MCP
