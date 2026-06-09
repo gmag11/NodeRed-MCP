@@ -188,7 +188,7 @@ export function buildHTML(flows, options = {}) {
     '    });',
     '    var nodeIdSet = new Set(tabNodes.map(function(n) { return n.id; }));',
     '    var nodes = tabNodes.map(function(n) {',
-    '      var outs = n.outputs != null ? n.outputs : 0;',
+    '      var outs = n.outputs != null ? n.outputs : (Array.isArray(n.wires) ? n.wires.length : 0);',
     '      var ins = n.inputs != null ? n.inputs : 0;',
     '      var portH = Math.max(outs, ins, 1) * 13 + 8;',
     '      var nodeH = Math.max(n.h || DEFAULT_H, portH);',

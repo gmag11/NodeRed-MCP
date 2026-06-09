@@ -83,9 +83,18 @@ export function buildMermaid(ir) {
   for (const link of links) {
     const { source, sourcePort, target } = link;
     if (!nodeIds.has(target.id)) continue;
-    const multiOutput = (source.outputs || 1) > 1;
-    const edgeLabel = multiOutput ? `|out${sourcePort + 1}|` : '';
+    const edgeLabel = source.outputs > 1 ? `|out${sourcePort + 1}|` : '';
     lines.push(`  ${source.id} -->${edgeLabel} ${target.id}`);
+  }
+
+  // Group style definitions
+  for (const g of groups) {
+    if (g.style && Object.keys(g.style).length > 0) {
+      const styleProps = Object.entries(g.style)
+        .map(([k, v]) => `${k}:${v}`)
+        .join(',');
+      lines.push(`  style ${g.id} ${styleProps}`);
+    }
   }
 
   // Class definitions

@@ -100,22 +100,25 @@ export function buildIR(flows, options = {}) {
   const nodeIdSet = new Set(allFlowNodes.map((n) => n.id));
 
   // Convert to IR nodes
-  const nodes = allFlowNodes.map((n) => ({
-    id: n.id,
-    type: n.type,
-    name: n.name || n.type,
-    x: n.x || 0,
-    y: n.y || 0,
-    w: n.w || DEFAULT_W,
-    h: n.h || DEFAULT_H,
-    inputs: n.inputs ?? 0,
-    outputs: n.outputs ?? 0,
-    d: n.d === true,
-    dirty: highlightDirty ? dirtyNodeIds.has(n.id) : false,
-    z: n.z,
-    g: n.g,
-    wires: n.wires || [],
-  }));
+  const nodes = allFlowNodes.map((n) => {
+    const numWires = Array.isArray(n.wires) ? n.wires.length : 0;
+    return {
+      id: n.id,
+      type: n.type,
+      name: n.name || n.type,
+      x: n.x || 0,
+      y: n.y || 0,
+      w: n.w || DEFAULT_W,
+      h: n.h || DEFAULT_H,
+      inputs: n.inputs ?? 0,
+      outputs: n.outputs ?? numWires,
+      d: n.d === true,
+      dirty: highlightDirty ? dirtyNodeIds.has(n.id) : false,
+      z: n.z,
+      g: n.g,
+      wires: n.wires || [],
+    };
+  });
 
   // Convert groups
   const irGroups = groups.map((g) => ({
