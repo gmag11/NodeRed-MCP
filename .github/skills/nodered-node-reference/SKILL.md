@@ -174,6 +174,64 @@ Most node types also have type-specific properties documented in the sections be
 - For numeric ranges, use `lte`/`gte`/`lt`/`gt` operators in descending or ascending order, ensuring no overlaps when `checkall: "false"`.
 - For `btwn` (between), provide both `v`/`vt` (lower bound) and `v2`/`vt2` (upper bound).
 
+### Full Node Configuration Examples
+
+These are the `properties` objects you pass to `create-node` or `update-node`. Extracted from real Node-RED nodes.
+
+**Minimal example — single rule, single output:**
+
+```json
+{
+  "type": "switch",
+  "name": "",
+  "property": "payload",
+  "propertyType": "msg",
+  "rules": [
+    { "t": "eq", "v": "pass", "vt": "str" }
+  ],
+  "checkall": "true",
+  "repair": false,
+  "outputs": 1
+}
+```
+
+**Full example — 6 rules, all outputs labeled and wired:**
+
+```json
+{
+  "type": "switch",
+  "name": "Switch example",
+  "property": "payload",
+  "propertyType": "msg",
+  "rules": [
+    { "t": "eq", "v": "pass", "vt": "str" },
+    { "t": "eq", "v": "fail", "vt": "str" },
+    { "t": "gt", "v": "1", "vt": "str" },
+    { "t": "lt", "v": "-1", "vt": "str" },
+    { "t": "null" },
+    { "t": "cont", "v": "text", "vt": "str" }
+  ],
+  "checkall": "false",
+  "repair": false,
+  "outputs": 6,
+  "outputLabels": ["pass", "fail", "gt 1", "lt -1", "null", "cont text"],
+  "info": "Doc"
+}
+```
+
+**What each rule does in this example (with `checkall: "false"` — first match wins):**
+
+| Output | Rule | Matches when |
+|--------|------|-------------|
+| 0 | `eq "pass"` | `msg.payload === "pass"` |
+| 1 | `eq "fail"` | `msg.payload === "fail"` |
+| 2 | `gt 1` | `msg.payload > 1` (string-compared, use `vt: "num"` for numeric) |
+| 3 | `lt -1` | `msg.payload < -1` |
+| 4 | `null` | `msg.payload` is `null` or `undefined` |
+| 5 | `cont "text"` | `msg.payload` contains substring `"text"` |
+
+> **⚠️ vt types matter:** The examples use `vt: "str"` for string comparison. For numeric comparisons, use `vt: "num"`. The operator `null` has no `v`/`vt` fields — just `{ "t": "null" }`.
+
 ### change
 `type: "change"` — Set, change, delete, or move message properties.
 
