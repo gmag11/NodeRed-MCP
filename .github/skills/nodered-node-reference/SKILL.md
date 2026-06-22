@@ -172,10 +172,78 @@ Most node types also have type-specific properties documented in the sections be
 ### change
 `type: "change"` — Set, change, delete, or move message properties.
 
+**⚠️ Legacy fields:** `action`, `property`, `from`, `to`, and `reg` appear in Node-RED API responses (always empty string or `false`). These are **deprecated** — do NOT set them. Only `rules` and `name`/`info` matter.
+
 | Property | Type | Description |
 |----------|------|-------------|
 | `name` | string | Label |
-| `rules` | array | Array of `{ t: "set" \| "change" \| "delete" \| "move", p: <property>, pt: "msg" \| "flow" \| "global" \| "env", to: <value>, tot: <valueType> }`. For `tot`, common types: `"str"`, `"num"`, `"json"`, `"bool"`, `"template"`, `"jsonata"`. |
+| `rules` | array | Array of rule objects. Each rule has its own fields depending on `t` (type). See table below. |
+| `info` | string | **Description** field in the Node-RED editor UI. Optional. |
+
+**Rule types and their fields:**
+
+| `t` (type) | Required fields | Optional fields | Description |
+|-------------|----------------|-----------------|-------------|
+| `"set"` | `p`, `pt`, `to`, `tot` | — | Set a property to a value |
+| `"change"` | `p`, `pt`, `from`, `fromt`, `to`, `tot` | — | Search and replace within a string property. Set `fromt: "re"` to treat `from` as a regex pattern. |
+| `"delete"` | `p`, `pt` | — | Delete a property from the message |
+| `"move"` | `p`, `pt`, `to`, `tot` | — | Move (rename) a property |
+
+**Common rule fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `t` | string | Rule type: `"set"`, `"change"`, `"delete"`, or `"move"` |
+| `p` | string | Target property name (e.g., `"payload"`, `"topic"`, `"headers.x-auth"`) |
+| `pt` | string | Property scope: `"msg"`, `"flow"`, `"global"`, `"env"` |
+| `to` | string | Value to set/move to (for `set` and `move`) |
+| `tot` | string | Value type of `to`: `"str"`, `"num"`, `"json"`, `"bool"`, `"template"`, `"jsonata"` |
+| `from` | string | Search string (for `change` — replaces occurrences of this) |
+| `fromt` | string | Type of `from`: `"str"`, `"num"`, `"re"` (regex pattern) |
+| `reg` | boolean | **⚠️ DEPRECATED — do NOT use.** The top-level `reg` field is a legacy leftover. Regex search/replace is controlled by `fromt: "re"` on the individual rule. |
+
+### Full Node Configuration Examples
+
+These are the `properties` objects you pass to `create-node` or `update-node`. Extracted from real Node-RED nodes.
+
+**Minimal example — set payload to a string:**
+
+```json
+{
+  "type": "change",
+  "name": "",
+  "rules": [
+    { "t": "set", "p": "payload", "pt": "msg", "to": "123", "tot": "str" }
+  ]
+}
+```
+
+> **Note:** `name` can be `""` (empty string). The legacy fields (`action`, `property`, `from`, `to`, `reg`) are shown by the API but can be omitted in `create-node`.
+
+**Full example — set, change, delete, regex change, with documentation:**
+
+```json
+{
+  "type": "change",
+  "name": "Change example",
+  "rules": [
+    { "t": "set", "p": "payload", "pt": "msg", "to": "123", "tot": "str" },
+    { "t": "change", "p": "payload", "pt": "msg", "from": "45", "fromt": "str", "to": "54", "tot": "str" },
+    { "t": "delete", "p": "topic", "pt": "msg" },
+    { "t": "change", "p": "payload", "pt": "msg", "from": "\\d+", "fromt": "re", "to": "#", "tot": "str" }
+  ],
+  "info": "Documentation"
+}
+```
+
+**What each rule does in this example:**
+
+| Rule # | Action | Detail |
+|--------|--------|--------|
+| 1 | **set** | Sets `msg.payload` to the string `"123"` |
+| 2 | **change** | Replaces all occurrences of `"45"` with `"54"` in `msg.payload` |
+| 3 | **delete** | Removes `msg.topic` from the message |
+| 4 | **change (regex)** | Replaces all digit sequences (`\d+`) in `msg.payload` with `#`. Regex mode is activated by `fromt: "re"`. |
 
 ### range
 `type: "range"` — Scale a numeric value from one range to another.
