@@ -63,10 +63,15 @@ Most node types also have type-specific properties documented in the sections be
 | Property | Type | Description |
 |----------|------|-------------|
 | `name` | string | Label |
-| `targetType` | string | `"full"` (entire msg) or `"msg"` (specific property) |
-| `complete` | string | Property path when targetType is `"msg"` (e.g., `"payload"`) |
-| `console` | boolean | Also log to Node-RED console |
 | `active` | boolean | Enable/disable debug output |
+| `complete` | string | `"false"` = full message object (default). Or a property path like `"payload"` to show only that property. |
+| `tosidebar` | boolean | Also send to debug sidebar |
+| `console` | boolean | Also log to Node-RED console |
+| `tostatus` | boolean | Also show on node status (under the node) |
+| `statusVal` | string | Property to show in status (when `tostatus` is true) |
+| `statusType` | string | Status type: `"auto"` (auto-detect type), `"msg"` (message property) |
+
+> **Note:** `complete: "false"` (the string `"false"`, not boolean `false`) means "show full message object". Set it to `"payload"` or any other property path to show only that property.
 
 ### complete
 `type: "complete"` — Triggers when another node completes (error-free). Used for sequential flows.

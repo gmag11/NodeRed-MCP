@@ -39,13 +39,18 @@ export function buildNewNode(type, flowId, properties, x, y) {
   // Pass null for node since this is a new node (no existing credentials).
   const normalizedProperties = normalizeCredentials(safeProperties, null);
 
+  // Nodes that have no output ports by default get wires: [].
+  // All other nodes default to 1 output port: wires: [[]].
+  const zeroOutputTypes = new Set(['debug', 'comment']);
+  const defaultWires = zeroOutputTypes.has(type) ? [] : [[]];
+
   return {
     id: randomUUID(),
     type,
     z: flowId,
     x,
     y,
-    wires: [[]],
+    wires: defaultWires,
     ...normalizedProperties,
   };
 }
