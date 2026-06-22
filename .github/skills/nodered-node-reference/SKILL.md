@@ -47,15 +47,86 @@ Most node types also have type-specific properties documented in the sections be
 ### inject
 `type: "inject"` — Manually or periodically triggers a message into a flow.
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `name` | string | Label on the node |
-| `payload` | string | Value to inject (string, number, JSON, timestamp, etc.) |
-| `payloadType` | string | `"str"`, `"num"`, `"json"`, `"bool"`, `"date"`, `"null"`, `"flow"`, `"global"` |
-| `topic` | string | msg.topic value |
-| `repeat` | string | Cron or interval string (empty = manual only) |
-| `once` | boolean | Inject once on start (only with repeat) |
-| `crontab` | string | Cron expression (alternative to repeat interval) |
+> **⚠️ CRITICAL — ALL fields below are mandatory in `create-node`.**
+> Omitting any of these fields causes **red triangle errors** in the Node-RED editor.
+> Even fields with empty defaults (`""`, `false`, `[]`) MUST be explicitly set.
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `name` | string | `""` | Label on the node |
+| `payload` | string | `""` | Value to inject (string, number, JSON, timestamp, etc.) |
+| `payloadType` | string | `"str"` | `"str"`, `"num"`, `"json"`, `"bool"`, `"date"`, `"null"`, `"flow"`, `"global"` |
+| `topic` | string | `""` | msg.topic value |
+| `repeat` | string | `""` | Cron or interval string (empty = manual only) |
+| `once` | boolean | `false` | Inject once on start (only with repeat) |
+| `onceDelay` | string | `""` | Delay in seconds before first inject |
+| `crontab` | string | `""` | Cron expression (alternative to repeat interval) |
+| `props` | array | `[{p:"payload"},{p:"topic",vt:"str"}]` | Property schema for the inject dialog. Must be present. |
+
+### Full Node Configuration Examples
+
+These are the `properties` objects you pass to `create-node` or `update-node`. Extracted from real Node-RED nodes.
+
+**Minimal example — manual trigger with string payload, all required defaults:**
+
+```json
+{
+  "type": "inject",
+  "name": "",
+  "payload": "",
+  "payloadType": "str",
+  "topic": "",
+  "repeat": "",
+  "once": false,
+  "onceDelay": "",
+  "crontab": "",
+  "props": [
+    { "p": "payload" },
+    { "p": "topic", "vt": "str" }
+  ]
+}
+```
+
+> **⚠️ Note:** The 6 fields after `payloadType` (`topic`, `repeat`, `once`, `onceDelay`, `crontab`, `props`) are NOT optional. Every one of them must be present, even with empty defaults. Omitting any causes a red triangle error in the editor.
+
+**Full example — JSON payload, scheduled every 5 minutes, with docs:**
+
+```json
+{
+  "type": "inject",
+  "name": "Sensor trigger",
+  "payload": "{\"sensor\":\"temp\",\"value\":22.5}",
+  "payloadType": "json",
+  "topic": "sensors/temperature",
+  "repeat": "300",
+  "once": true,
+  "onceDelay": "0.5",
+  "crontab": "",
+  "props": [
+    { "p": "payload" },
+    { "p": "topic", "vt": "str" },
+    { "p": "payloadType" },
+    { "p": "repeat" },
+    { "p": "crontab" },
+    { "p": "once" },
+    { "p": "onceDelay" }
+  ],
+  "info": "Injects a temperature reading every 5 minutes. Fires once on deploy after 0.5s delay."
+}
+```
+
+**What each field does in this example:**
+
+| Field | Value | Effect |
+|-------|-------|--------|
+| `payload` | `'{"sensor":"temp",...}'` | JSON object string sent on each inject |
+| `payloadType` | `"json"` | Node-RED parses payload into a JS object before sending |
+| `repeat` | `"300"` | Triggers every 300 seconds (5 min) |
+| `once` | `true` | Triggers once on deploy, then starts the repeat cycle |
+| `onceDelay` | `"0.5"` | First inject fires 0.5 seconds after deploy |
+| `props` | (array of 7 objects) | Defines the fields shown in the inject dialog in the editor |
+
+> **`props` explained:** Each `{ p: "fieldname" }` entry adds a row to the inject node's edit dialog. The entry `{ p: "topic", vt: "str" }` sets the value type selector for that field. For `create-node`, you only need the minimum set `[{p:"payload"},{p:"topic",vt:"str"}]` — the Node-RED editor may expand it on save.
 
 ### debug
 `type: "debug"` — Outputs messages to the debug sidebar (readable via `read-debug-messages`).
@@ -235,7 +306,15 @@ These are the `properties` objects you pass to `create-node` or `update-node`. E
 ### change
 `type: "change"` — Set, change, delete, or move message properties.
 
-**⚠️ Legacy fields:** `action`, `property`, `from`, `to`, and `reg` appear in Node-RED API responses (always empty string or `false`). These are **deprecated** — do NOT set them. Only `rules` and `name`/`info` matter.
+**⚠️ Legacy fields — still REQUIRED by `create-node`:** `action`, `property`, `from`, `to`, and `reg` appear in Node-RED API responses. Although the editor ignores them for runtime behavior, they are **mandatory for `create-node`** — the Node-RED editor will show a red triangle on the node if ANY of these fields are absent. Set them to their default values:
+
+| Legacy field | Required default value |
+|-------------|----------------------|
+| `action` | `""` (empty string) |
+| `property` | `""` (empty string) |
+| `from` | `""` (empty string) |
+| `to` | `""` (empty string) |
+| `reg` | `false` |
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -729,7 +808,22 @@ These are the `properties` objects you pass to `create-node` or `update-node`. T
 }
 ```
 
-> **Note:** Even a "bare" function node returned by the API includes `timeout: 0`, `noerr: 0`, `initialize: ""`, `finalize: ""`, and `libs: []`. These are Node-RED defaults — you can omit them in `create-node` and they will be filled in. The `func` field contains the JavaScript body as a plain string, with `\n` for line breaks. A newline at the start is normal (editor artifact).
+> **⚠️ CRITICAL — do NOT omit default fields.** Even though these are Node-RED defaults, the MCP `create-node` does NOT auto-populate them. You MUST set them explicitly, or the Node-RED editor will show red triangle errors on the node.
+>
+> **Minimum `create-node` properties for a function node with 1 output:**
+> ```js
+> {
+>   name: "myFunction",
+>   func: "return msg;",
+>   outputs: 1,
+>   noerr: 0,
+>   initialize: "",
+>   finalize: "",
+>   libs: []
+> }
+> ```
+>
+> **Minimum for 2 outputs:** same, with `outputs: 2`.
 
 **Full example — all available properties:**
 
