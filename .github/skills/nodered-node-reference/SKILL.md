@@ -578,6 +578,63 @@ properties: { outputs: 3 }
 
 > **Tip:** Use `get-node-detail` to read a function node's current code. It returns the full `func` field.
 
+### Full Node Configuration Examples
+
+These are the `properties` objects you pass to `create-node` or `update-node`. They represent **real, working** node configurations as exposed by the Node-RED API.
+
+**Minimal example — single output, pass-through:**
+
+```json
+{
+  "type": "function",
+  "name": "function 1",
+  "func": "\nreturn msg;",
+  "outputs": 1,
+  "timeout": 0,
+  "noerr": 0,
+  "initialize": "",
+  "finalize": "",
+  "libs": []
+}
+```
+
+> **Note:** Even a "bare" function node returned by the API includes `timeout: 0`, `noerr: 0`, `initialize: ""`, `finalize: ""`, and `libs: []`. These are Node-RED defaults — you can omit them in `create-node` and they will be filled in. The `func` field contains the JavaScript body as a plain string, with `\n` for line breaks. A newline at the start is normal (editor artifact).
+
+**Full example — all available properties:**
+
+```json
+{
+  "type": "function",
+  "name": "Function example",
+  "func": "const output1 = 1;\nconst output2 = \"text\";\nconst msg1 = {\n    \"payload\": output1\n};\nconst msg2 = {\n    \"payload\": output2\n};\nreturn [msg1, msg2];",
+  "outputs": 2,
+  "timeout": 0,
+  "noerr": 0,
+  "initialize": "// Code added here will be run once\n// whenever the node is started.\n// This is optional\nnode.warn(\"this is the start\");",
+  "finalize": "// Code added here will be run when the\n// node is being stopped or re-deployed.\n// This is optional\nnode.warn(\"this is the end\");",
+  "libs": [{ "var": "uuidv4", "module": "uuidv4" }],
+  "inputLabels": ["input label"],
+  "outputLabels": ["output 1 label", "output 2 label"],
+  "info": "This is the documentation of this function node"
+}
+```
+
+**Optional fields explained:**
+
+| Field | Type | Optional | Description |
+|-------|------|----------|-------------|
+| `name` | string | Yes | Display label on the node |
+| `func` | string | **No** | JavaScript body. Plain string, `\n` for line breaks. |
+| `outputs` | number | **No** | Number of output ports. Must match array length in `return [a, b, ...]`. |
+| `timeout` | number | Yes | Seconds before the function is killed (0 = no timeout). |
+| `noerr` | number | Yes | If `1`, errors thrown inside `func` are NOT caught by catch nodes (0 = caught). |
+| `initialize` | string | Yes | Code run once when the node starts. Use for setup (connections, config loading). |
+| `finalize` | string | Yes | Code run when the node stops or re-deploys. Use for cleanup (close connections). |
+| `libs` | array | Yes | Array of `{ "var": "<name>", "module": "<npm-package>" }`. Loads npm modules into the function scope. Node-RED must have the package installed. |
+| `inputLabels` | array | Yes | Labels for input ports shown in the editor. One string per input. |
+| `outputLabels` | array | Yes | Labels for output ports shown in the editor. One string per output. |
+| `info` | string | Yes | **Description** field in the Node-RED editor UI. Rich text documentation for the node. |
+
 ### Available Globals
 
 Inside the function body, these globals are available:
