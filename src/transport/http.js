@@ -5,9 +5,12 @@
 import express from 'express';
 import http from 'node:http';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { requireBearerAuth } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js';
+import { mcpAuthRouter, getOAuthProtectedResourceMetadataUrl } from '@modelcontextprotocol/sdk/server/auth/router.js';
 import { randomUUID } from 'node:crypto';
 import { WSServer } from './ws-server.js';
 import { buildHTML } from '../renderer/html-builder.js';
+import { createCompositeVerifier } from '../auth/composite-verifier.js';
 
 /**
  * Start the MCP server using Streamable HTTP transport via Express.
@@ -15,15 +18,46 @@ import { buildHTML } from '../renderer/html-builder.js';
  * @param {() => import('@modelcontextprotocol/sdk/server/mcp.js').McpServer} serverFactory
  * @param {number} port
  * @param {import('../staging-store.js').StagingStore} [initialStaging] - eagerly-loaded staging for the viewer/WS
+ * @param {object} [authOptions] - Authentication configuration
+ * @param {string|null} [authOptions.apiKey] - API key for Bearer token auth
+ * @param {import('../auth/oauth-provider.js').OAuthProvider} [authOptions.oauthProvider] - OAuth provider (when OAuth is enabled)
+ * @param {string} [authOptions.oauthIssuerUrl] - Base issuer URL for OAuth
  */
-export async function startHttpTransport(serverFactory, port, initialStaging) {
+export async function startHttpTransport(serverFactory, port, initialStaging, authOptions) {
   const app = express();
   app.use(express.json());
 
   // Map of sessionId -> transport
   const transports = {};
 
-  // Log every incoming request
+  // ── Authentication middleware ─────────────────────────────────────
+
+  const hasAuth = !!(authOptions?.apiKey || authOptions?.oauthProvider);
+
+  if (hasAuth) {
+    // Build the composite verifier: API key first, then OAuth
+    const verifier = createCompositeVerifier({
+      apiKey: authOptions.apiKey,
+      oauthVerifier: authOptions.oauthProvider || null,
+    });
+
+    // Determine resource metadata URL for WWW-Authenticate header
+    const resourceMetadataUrl = authOptions.oauthProvider && authOptions.oauthIssuerUrl
+      ? getOAuthProtectedResourceMetadataUrl(new URL('/mcp', authOptions.oauthIssuerUrl))
+      : undefined;
+
+    const authMiddleware = requireBearerAuth({
+      verifier,
+      requiredScopes: [],
+      resourceMetadataUrl,
+    });
+
+    // Apply auth BEFORE the logging middleware so unauthorized requests
+    // are rejected early. The SDK middleware handles 401/403 responses.
+    app.use('/mcp', authMiddleware);
+  }
+
+  // Log every incoming request (runs after auth middleware if active)
   app.use('/mcp', (req, _res, next) => {
     const sid = req.headers['mcp-session-id'] || '(none)';
     const accept = req.headers['accept'] || '(none)';
@@ -108,6 +142,26 @@ export async function startHttpTransport(serverFactory, port, initialStaging) {
       res.status(500).type('html').send(`<html><body><h2>Error</h2><pre>${err.message}</pre></body></html>`);
     }
   });
+
+  // ── OAuth 2.0 authorization server (optional) ─────────────────────
+
+  if (authOptions?.oauthProvider && authOptions?.oauthIssuerUrl) {
+    const issuerUrl = new URL(authOptions.oauthIssuerUrl);
+
+    // Mount the full OAuth authorization server router
+    const authRouter = mcpAuthRouter({
+      provider: authOptions.oauthProvider,
+      issuerUrl,
+      baseUrl: issuerUrl, // Authorization server is at the same origin
+      scopesSupported: ['*'],
+      resourceName: 'Node-RED MCP Server',
+    });
+
+    app.use(authRouter);
+
+    console.error(`[nodered-mcp] OAuth authorization server mounted at ${issuerUrl.href}`);
+    console.error(`[nodered-mcp] OAuth discovery: ${issuerUrl.href}.well-known/oauth-authorization-server`);
+  }
 
   // ── WebSocket server ──────────────────────────────────────────────
 
