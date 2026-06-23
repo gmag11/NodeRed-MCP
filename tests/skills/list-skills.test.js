@@ -5,11 +5,12 @@
 import { describe, it, expect } from 'vitest';
 
 describe('list-skills tool (logic)', () => {
-  /** Simulates the list-skills handler: Map → JSON array of { name, description } */
+  /** Simulates the list-skills handler: Map → JSON array of { name, description, uri } */
   function buildSkillList(skillsMap) {
     return [...skillsMap].map(([name, s]) => ({
       name,
       description: s.description,
+      uri: `nodered://skills/${name}`,
     }));
   }
 
@@ -22,8 +23,8 @@ describe('list-skills tool (logic)', () => {
     const result = buildSkillList(skills);
 
     expect(result).toHaveLength(2);
-    expect(result[0]).toEqual({ name: 'nodered-fundamentals', description: 'Core vocabulary' });
-    expect(result[1]).toEqual({ name: 'nodered-patterns', description: 'Recipe book' });
+    expect(result[0]).toEqual({ name: 'nodered-fundamentals', description: 'Core vocabulary', uri: 'nodered://skills/nodered-fundamentals' });
+    expect(result[1]).toEqual({ name: 'nodered-patterns', description: 'Recipe book', uri: 'nodered://skills/nodered-patterns' });
   });
 
   it('returns empty array when no skills exist', () => {
@@ -51,9 +52,10 @@ describe('list-skills tool (logic)', () => {
 
     expect(result[0]).toHaveProperty('name');
     expect(result[0]).toHaveProperty('description');
+    expect(result[0]).toHaveProperty('uri', 'nodered://skills/nodered-flow-builder');
     expect(result[0]).not.toHaveProperty('content');
     expect(result[0]).not.toHaveProperty('path');
-    expect(Object.keys(result[0])).toHaveLength(2);
+    expect(Object.keys(result[0])).toHaveLength(3);
   });
 
   it('JSON.stringify produces valid JSON', () => {
