@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 /**
  * Entry point for the Node-RED MCP server.
  *

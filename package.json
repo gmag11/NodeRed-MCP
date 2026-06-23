@@ -1,9 +1,12 @@
 {
   "name": "@gmag11/nodered-mcp-server",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "MCP server for controlling Node-RED instances via the Admin API",
   "type": "module",
   "main": "index.js",
+  "bin": {
+    "nodered-mcp-server": "index.js"
+  },
   "scripts": {
     "start:stdio": "node index.js --transport=stdio",
     "start:http": "node index.js --transport=http",
