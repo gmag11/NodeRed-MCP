@@ -9,6 +9,12 @@ schema: spec-driven
 #     We use conventional commits
 #     Domain: e-commerce platform
 
+context: |
+  Language: All OpenSpec artifacts (proposal.md, design.md, specs/*.md, tasks.md)
+  MUST be written in English. Do not use Spanish or any other language in artifact
+  files, regardless of the language used in the conversation. Code identifiers,
+  UI labels, and commit messages also follow this rule.
+
 # Per-artifact rules (optional)
 # Add custom rules for specific artifacts.
 # Example:
@@ -18,3 +24,18 @@ schema: spec-driven
 #       - Always include a "Non-goals" section
 #     tasks:
 #       - Break tasks into chunks of max 2 hours
+
+rules:
+  proposal:
+    - Write in English
+    - Keep proposals concise (1-2 pages)
+  design:
+    - Write in English
+    - Focus on architecture and rationale, not line-by-line implementation
+  specs:
+    - Write in English
+    - Use SHALL/MUST for normative requirements
+  tasks:
+    - Write in English
+    - Tasks must be small enough to complete in one session
+    - Use checkbox format `- [ ] X.Y` for tracking
