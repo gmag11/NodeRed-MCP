@@ -15,6 +15,7 @@ import { CommsClient } from './src/nodered/comms-client.js';
 import { createMcpServer } from './src/server.js';
 import { startStdioTransport } from './src/transport/stdio.js';
 import { startHttpTransport } from './src/transport/http.js';
+import { loadAuthConfig } from './src/auth/config.js';
 
 // --- Parse CLI arguments ---
 
@@ -54,7 +55,11 @@ async function main() {
   });
 
   await authManager.init();
-  console.error(`[nodered-mcp] Connected to ${baseUrl} (auth mode: ${authManager.mode})`);
+  console.error(`[nodered-mcp] Connected to ${baseUrl} (Node-RED auth mode: ${authManager.mode})`);
+
+  // Load MCP server authentication configuration
+  const { config: authConfig, mode: authMode } = loadAuthConfig();
+  console.error(`[nodered-mcp] MCP server auth: ${authMode}`);
 
   // Create Node-RED client and MCP server
   const nodeRedClient = createNodeRedClient(baseUrl, authManager);
@@ -81,10 +86,36 @@ async function main() {
     : args.port;
 
   if (args.transport === 'http') {
+    // Build auth options for the HTTP transport
+    /** @type {object|undefined} */
+    let authOptions;
+
+    if (authConfig.apiKey || authConfig.oauthEnabled) {
+      authOptions = {
+        apiKey: authConfig.apiKey,
+        oauthProvider: null,
+        oauthIssuerUrl: authConfig.oauthIssuerUrl,
+      };
+
+      // Set up OAuth if enabled
+      if (authConfig.oauthEnabled) {
+        const { createClientsStore } = await import('./src/auth/oauth-clients-store.js');
+        const { createTokenStore } = await import('./src/auth/oauth-token-store.js');
+        const { createOAuthProvider } = await import('./src/auth/oauth-provider.js');
+
+        const clientsStore = await createClientsStore(authConfig.oauthClientsFile);
+        const tokenStore = await createTokenStore(authConfig.oauthTokensFile);
+        authOptions.oauthProvider = createOAuthProvider({ clientsStore, tokenStore });
+
+        console.error(`[nodered-mcp] OAuth clients store: ${authConfig.oauthClientsFile || 'oauth-clients.json'}`);
+        console.error(`[nodered-mcp] OAuth tokens store: ${authConfig.oauthTokensFile || 'oauth-tokens.json'}`);
+      }
+    }
+
     // Eagerly create one MCP server to load staging for the viewer/WS
     const bootstrapServer = await createMcpServer(nodeRedClient, commsClient);
     const staging = bootstrapServer.__staging;
-    await startHttpTransport(() => createMcpServer(nodeRedClient, commsClient), port, staging);
+    await startHttpTransport(() => createMcpServer(nodeRedClient, commsClient), port, staging, authOptions);
   } else if (args.transport === 'stdio') {
     const mcpServer = await createMcpServer(nodeRedClient, commsClient);
     await startStdioTransport(mcpServer);
