@@ -35,3 +35,10 @@ The system SHALL NOT expose a `get-skill` MCP tool.
 - **WHEN** the client lists available MCP tools
 - **THEN** `get-skill` does not appear in the tool list
 
+### Requirement: Skill metadata SHALL include category
+The skill metadata contract (as returned by `loadSkills()` and exposed via `get-skill` and `list-skills`) SHALL include a `category` field in addition to `name`, `description`, `content`, and `path`.
+
+#### Scenario: get-skill returns category
+- **WHEN** an agent calls `get-skill` with a valid skill name
+- **THEN** the response SHALL include the skill's `category` in its metadata
+
