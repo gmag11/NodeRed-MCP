@@ -1,6 +1,7 @@
 ---
 name: nodered-flowfuse-dashboard
 version: "1.30.2"
+category: dashboard
 description: >-
   Reference for @flowfuse/node-red-dashboard (Dashboard 2.0) v1.30.2, the officially
   recommended Node-RED dashboard. Covers widget catalog with properties,

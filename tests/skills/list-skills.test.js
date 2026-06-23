@@ -5,26 +5,28 @@
 import { describe, it, expect } from 'vitest';
 
 describe('list-skills tool (logic)', () => {
-  /** Simulates the list-skills handler: Map → JSON array of { name, description, uri } */
+  /** Simulates the list-skills handler: Map → JSON array of { name, description, uri, category, useCase } */
   function buildSkillList(skillsMap) {
     return [...skillsMap].map(([name, s]) => ({
       name,
       description: s.description,
       uri: `nodered://skills/${name}`,
+      category: s.category || name,
+      useCase: s.useCase || s.description,
     }));
   }
 
-  it('returns an array of { name, description } objects when skills exist', () => {
+  it('returns an array of { name, description, uri, category, useCase } objects when skills exist', () => {
     const skills = new Map([
-      ['nodered-fundamentals', { name: 'nodered-fundamentals', description: 'Core vocabulary', content: '...' }],
-      ['nodered-patterns', { name: 'nodered-patterns', description: 'Recipe book', content: '...' }],
+      ['nodered-fundamentals', { name: 'nodered-fundamentals', description: 'Core vocabulary', content: '...', category: 'nodered-fundamentals', useCase: 'Core vocabulary' }],
+      ['nodered-patterns', { name: 'nodered-patterns', description: 'Recipe book', content: '...', category: 'nodered-patterns', useCase: 'Recipe book' }],
     ]);
 
     const result = buildSkillList(skills);
 
     expect(result).toHaveLength(2);
-    expect(result[0]).toEqual({ name: 'nodered-fundamentals', description: 'Core vocabulary', uri: 'nodered://skills/nodered-fundamentals' });
-    expect(result[1]).toEqual({ name: 'nodered-patterns', description: 'Recipe book', uri: 'nodered://skills/nodered-patterns' });
+    expect(result[0]).toEqual({ name: 'nodered-fundamentals', description: 'Core vocabulary', uri: 'nodered://skills/nodered-fundamentals', category: 'nodered-fundamentals', useCase: 'Core vocabulary' });
+    expect(result[1]).toEqual({ name: 'nodered-patterns', description: 'Recipe book', uri: 'nodered://skills/nodered-patterns', category: 'nodered-patterns', useCase: 'Recipe book' });
   });
 
   it('returns empty array when no skills exist', () => {
@@ -53,9 +55,11 @@ describe('list-skills tool (logic)', () => {
     expect(result[0]).toHaveProperty('name');
     expect(result[0]).toHaveProperty('description');
     expect(result[0]).toHaveProperty('uri', 'nodered://skills/nodered-flow-builder');
+    expect(result[0]).toHaveProperty('category');
+    expect(result[0]).toHaveProperty('useCase');
     expect(result[0]).not.toHaveProperty('content');
     expect(result[0]).not.toHaveProperty('path');
-    expect(Object.keys(result[0])).toHaveLength(3);
+    expect(Object.keys(result[0])).toHaveLength(5);
   });
 
   it('JSON.stringify produces valid JSON', () => {

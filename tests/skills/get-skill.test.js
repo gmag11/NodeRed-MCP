@@ -5,7 +5,7 @@
 import { describe, it, expect } from 'vitest';
 
 describe('get-skill tool (logic)', () => {
-  /** Simulates the get-skill handler: Map lookup → { name, description, content } or error */
+  /** Simulates the get-skill handler: Map lookup → { name, description, category, useCase, content } or error */
   function getSkill(skillsMap, name) {
     const skill = skillsMap.get(name);
     if (!skill) {
@@ -18,6 +18,8 @@ describe('get-skill tool (logic)', () => {
     return {
       name: skill.name,
       description: skill.description,
+      category: skill.category || name,
+      useCase: skill.useCase || skill.description,
       content: skill.content,
     };
   }
@@ -36,6 +38,8 @@ describe('get-skill tool (logic)', () => {
     expect(result).toEqual({
       name: 'nodered-flow-builder',
       description: 'Step-by-step guide',
+      category: 'nodered-flow-builder',
+      useCase: 'Step-by-step guide',
       content: '# Flow Builder\n\nGuide content here.',
     });
     expect(result).not.toHaveProperty('error');
@@ -74,6 +78,8 @@ describe('get-skill tool (logic)', () => {
     expect(result).toEqual({
       name: 'nodered-empty',
       description: 'Empty skill',
+      category: 'nodered-empty',
+      useCase: 'Empty skill',
       content: '',
     });
   });
@@ -92,10 +98,12 @@ describe('get-skill tool (logic)', () => {
 
     expect(result).toHaveProperty('name');
     expect(result).toHaveProperty('description');
+    expect(result).toHaveProperty('category');
+    expect(result).toHaveProperty('useCase');
     expect(result).toHaveProperty('content');
     expect(result).not.toHaveProperty('uri');
     expect(result).not.toHaveProperty('path');
-    expect(Object.keys(result)).toHaveLength(3);
+    expect(Object.keys(result)).toHaveLength(5);
   });
 
   it('JSON.stringify produces valid JSON', () => {

@@ -764,6 +764,8 @@ export async function createMcpServer(nodeRedClient, commsClient) {
           text: JSON.stringify({
             name: skill.name,
             description: skill.description,
+            category: skill.category,
+            useCase: skill.useCase,
             content: skill.content,
           }),
         }],
@@ -774,22 +776,50 @@ export async function createMcpServer(nodeRedClient, commsClient) {
   // Register: list-skills tool
   server.tool(
     'list-skills',
-    'List all available Node-RED skills with names, descriptions, and resource URIs. ' +
+    'List all available Node-RED skills, grouped by category, with names, descriptions, resource URIs, and use-case hints. ' +
     'Call this first to discover what skill guides exist, then use get-skill to read full content.',
     {},
     async () => {
-      const skillList = [...skills].map(([name, s]) => ({
-        name,
-        description: s.description,
-        uri: `nodered://skills/${name}`,
-      }));
+      // Group skills by category
+      const categoriesMap = new Map();
+      for (const [name, s] of skills) {
+        const cat = s.category || 'uncategorized';
+        if (!categoriesMap.has(cat)) {
+          categoriesMap.set(cat, []);
+        }
+        categoriesMap.get(cat).push({
+          name,
+          description: s.description,
+          uri: `nodered://skills/${name}`,
+          useCase: s.useCase || s.description,
+        });
+      }
+
+      // Build structured categories array
+      const categories = [...categoriesMap].map(([name, skills]) => ({ name, skills }));
+
+      // Build Markdown table grouped by category (concise: Skill | Use Case)
+      let markdown = '';
+      for (const cat of categories) {
+        markdown += `## ${cat.name}\n\n`;
+        markdown += '| Skill | Use Case |\n';
+        markdown += '|-------|----------|\n';
+        for (const s of cat.skills) {
+          const uc = s.useCase.replace(/\n/g, ' ').replace(/\|/g, '\\|');
+          markdown += `| ${s.name} | ${uc} |\n`;
+        }
+        markdown += '\n';
+      }
+
       return {
         content: [{
           type: 'text',
-          text: JSON.stringify(skillList),
+          text: markdown.trim() || '(no skills available)',
         }],
+        structuredContent: { categories },
       };
     },
+    { outputSchema: SkillListResponseSchema },
   );
 
   // ── Render-staging tool ────────────────────────────────────────────
