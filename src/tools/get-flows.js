@@ -63,12 +63,12 @@ export async function handleGetFlows(staging) {
   const flows = await staging.getFlows();
   const result = transformFlows({ flows });
 
-  return formatSuccess(result);
+  return formatSuccess({ flows: result });
 }
 
 export const getFlowsDefinition = {
   name: 'get-flows',
   annotations: ANN_READONLY,
-  outputSchema: z.array(FlowSummarySchema),
+  outputSchema: z.object({ flows: z.array(FlowSummarySchema) }),
   handler: handleGetFlows,
 };

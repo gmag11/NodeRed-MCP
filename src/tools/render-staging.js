@@ -39,10 +39,12 @@ export function handleRenderStaging(staging) {
       case 'svg':
         return {
           content: [{ type: 'text', text: result.svg }],
+          structuredContent: { format, flowId: flowId || null, highlightDirty },
         };
       case 'html':
         return {
           content: [{ type: 'text', text: result.html }],
+          structuredContent: { format, flowId: flowId || null, highlightDirty },
         };
       case 'mermaid':
         return {
@@ -52,6 +54,7 @@ export function handleRenderStaging(staging) {
               text: `\`\`\`mermaid\n${result.mermaid}\n\`\`\``,
             },
           ],
+          structuredContent: { format, flowId: flowId || null, highlightDirty },
         };
       default:
         throw new Error(`Unknown format: ${format}. Use one of: "svg" (static diagram), "html" (interactive page), or "mermaid" (topology diagram).`);

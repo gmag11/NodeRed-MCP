@@ -94,12 +94,12 @@ export async function handleGetSubflows(staging) {
   const flows = await staging.getFlows();
   const subflows = transformSubflows({ flows });
 
-  return formatSuccess(subflows);
+  return formatSuccess({ subflows });
 }
 
 export const getSubflowsDefinition = {
   name: 'get-subflows',
   annotations: ANN_READONLY,
-  outputSchema: z.array(SubflowSummarySchema),
+  outputSchema: z.object({ subflows: z.array(SubflowSummarySchema) }),
   handler: handleGetSubflows,
 };
