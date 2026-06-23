@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<evaluation>
+  <!-- ============================================================
+       Category: Flow Construction (Q1-Q3)
+       Tests: create-flow, create-node, connect-nodes, deploy,
+              inject-message, read-debug-messages
+       ============================================================ -->
+
+  <qa_pair id="Q1" category="flow-construction">
+    <question>
+      First, reset Node-RED to a clean state: call get-flows and get-subflows to list existing tabs and subflows, then call delete-flow and delete-subflow to remove each one. After the reset, create a flow tab named "eval-q1-flow", add an inject node (payload=21, type=number),
+      a function node (code: msg.payload = msg.payload * 2; return msg;), and a debug node.
+      Connect them in series (inject → function → debug). Deploy the flow.
+      Inject a message from the inject node and verify via debug output that
+      the function node transformed the payload to 42.
+    </question>
+    <answer>42</answer>
+  </qa_pair>
+
+  <qa_pair id="Q2" category="flow-construction">
+    <question>
+      First, reset Node-RED to a clean state: call get-flows and get-subflows to list existing tabs and subflows, then call delete-flow and delete-subflow to remove each one. After the reset, create a flow tab named "eval-q2-flow", add an inject node (payload="hello"),
+      a change node (set msg.topic to "evaluation-test"), and a debug node.
+      Connect them in series (inject → change → debug). Deploy. Inject a message
+      and verify the debug output contains msg.topic set to "evaluation-test".
+    </question>
+    <answer>evaluation-test</answer>
+  </qa_pair>
+
+  <qa_pair id="Q3" category="flow-construction">
+    <question>
+      First, reset Node-RED to a clean state: call get-flows and get-subflows to list existing tabs and subflows, then call delete-flow and delete-subflow to remove each one. After the reset, create a flow tab named "eval-q3-flow", add an inject node (payload=1, type=number),
+      a switch node (route by msg.payload: value 1 → output 1, value 2 → output 2),
+      and two debug nodes. Connect: inject → switch, switch[0] → debug1, switch[1] → debug2.
+      Deploy. Inject with payload=1, verify debug1 receives the message.
+      Inject with payload=2, verify debug2 receives the message.
+    </question>
+    <answer>2</answer>
+  </qa_pair>
+
+  <!-- ============================================================
+       Category: Flow Inspection (Q4-Q6)
+       Tests: get-flows, get-flow-nodes, get-flow-diagram
+       ============================================================ -->
+
+  <qa_pair id="Q4" category="flow-inspection">
+    <question>
+      First, reset Node-RED to a clean state: call get-flows and get-subflows to list existing tabs and subflows, then call delete-flow and delete-subflow to remove each one. After the reset, create a flow tab named "eval-q4-flow", add an inject node and a debug
+      node connected in series. Deploy. Then use get-flows to list the tabs,
+      pick "eval-q4-flow", and use get-flow-nodes on it. Verify that the
+      returned nodes count equals 2 (the inject and the debug). The tab
+      itself is not included as a child of itself.
+    </question>
+    <answer>2</answer>
+  </qa_pair>
+
+  <qa_pair id="Q5" category="flow-inspection">
+    <question>
+      First, reset Node-RED to a clean state: call get-flows and get-subflows to list existing tabs and subflows, then call delete-flow and delete-subflow to remove each one. After the reset, create a flow tab named "eval-q5-flow" with at least one inject node and one debug node connected in series. Then, using get-flows, find that flow and use get-flow-diagram on it
+      to generate a Mermaid diagram. Verify the diagram is a non-empty string
+      that starts with "flowchart" or "graph" (Mermaid format).
+    </question>
+    <answer>true</answer>
+  </qa_pair>
+
+  <qa_pair id="Q6" category="flow-inspection">
+    <question>
+      First, reset Node-RED to a clean state: call get-flows and get-subflows to list existing tabs and subflows, then call delete-flow and delete-subflow to remove each one. After the reset, use get-flows to list all flow tabs and sum the nodeCount value of each
+      tab. Then, for each tab, use get-flow-nodes to fetch its nodes and sum
+      the actual node counts. Verify that both sums are equal (consistency
+      check between get-flows.nodeCount and get-flow-nodes totals).
+    </question>
+    <answer>true</answer>
+  </qa_pair>
+
+  <!-- ============================================================
+       Category: Debug &amp; Diagnostics (Q7-Q8)
+       Tests: inject-message, read-debug-messages
+       ============================================================ -->
+
+  <qa_pair id="Q7" category="debug-diagnostics">
+    <question>
+      First, reset Node-RED to a clean state: call get-flows and get-subflows to list existing tabs and subflows, then call delete-flow and delete-subflow to remove each one. After the reset, create a flow "eval-q7-flow" with inject (payload="debug-test-7", type=string)
+      → debug. Deploy. Inject the message. Use read-debug-messages to find the
+      most recent debug message and verify its payload is "debug-test-7".
+    </question>
+    <answer>debug-test-7</answer>
+  </qa_pair>
+
+  <qa_pair id="Q8" category="debug-diagnostics">
+    <question>
+      First, reset Node-RED to a clean state: call get-flows and get-subflows to list existing tabs and subflows, then call delete-flow and delete-subflow to remove each one. After the reset, create a flow "eval-q8-flow" with inject (payload="alpha", type=string)
+      → debug. Deploy. Inject twice: once with "alpha", once with "beta".
+      Use read-debug-messages with keyword filter "alpha" to verify only
+      messages containing "alpha" are returned.
+    </question>
+    <answer>true</answer>
+  </qa_pair>
+
+  <!-- ============================================================
+       Category: Subflows &amp; Config (Q9-Q10)
+       Tests: get-subflows, get-subflow-detail, get-config-nodes
+       ============================================================ -->
+
+  <qa_pair id="Q9" category="subflows-config">
+    <question>
+      First, reset Node-RED to a clean state: call get-flows and get-subflows to list existing tabs and subflows, then call delete-flow and delete-subflow to remove each one. After the reset, use get-subflows to list all subflow definitions. If subflows exist, pick
+      the first one and use get-subflow-detail to inspect its internal nodes.
+      Verify the returned internalNodeCount matches the actual length of the
+      internalNodes array.
+    </question>
+    <answer>true</answer>
+  </qa_pair>
+
+  <qa_pair id="Q10" category="subflows-config">
+    <question>
+      First, reset Node-RED to a clean state: call get-flows and get-subflows to list existing tabs and subflows, then call delete-flow and delete-subflow to remove each one. After the reset, use get-config-nodes to list all configuration nodes. Count how many
+      config nodes exist of each type. Verify that the total count of config
+      nodes across all types equals the number of items in the config nodes list.
+    </question>
+    <answer>true</answer>
+  </qa_pair>
+</evaluation>
