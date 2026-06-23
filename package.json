@@ -1,6 +1,6 @@
 {
   "name": "nodered-mcp-server",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "MCP server for controlling Node-RED instances via the Admin API",
   "type": "module",
   "main": "index.js",
@@ -8,7 +8,8 @@
     "start:stdio": "node index.js --transport=stdio",
     "start:http": "node index.js --transport=http",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "prepublishOnly": "npm test"
   },
   "keywords": [
     "mcp",
@@ -16,7 +17,21 @@
     "model-context-protocol",
     "automation"
   ],
-  "license": "MIT",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gmag11/NodeRed-MCP.git"
+  },
+  "bugs": {
+    "url": "https://github.com/gmag11/NodeRed-MCP/issues"
+  },
+  "homepage": "https://github.com/gmag11/NodeRed-MCP#readme",
+  "files": [
+    "index.js",
+    "src/",
+    "README.md",
+    "LICENSE"
+  ],
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1",
     "dotenv": "^16.5.0",
