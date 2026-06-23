@@ -108,7 +108,7 @@ export async function handleExportFlowJson(staging, params) {
   if (exportMode === 'nodes') {
     // nodes mode: requires a non-empty nodeIds array
     if (!nodeIds || nodeIds.length === 0) {
-      throw new Error('exportMode "nodes" requires a non-empty nodeIds array');
+      throw new Error('exportMode "nodes" requires a non-empty nodeIds array. Provide a list of node IDs to export, or use exportMode: "flow" to export an entire flow tab.');
     }
 
     const selectedNodes = collectSelectedNodes(allNodes, nodeIds);
@@ -126,7 +126,7 @@ export async function handleExportFlowJson(staging, params) {
       // Single flow export
       const tabNode = allNodes.find((n) => n.id === flowId && n.type === 'tab');
       if (!tabNode) {
-        throw new Error(`Flow '${flowId}' not found`);
+        throw new Error(`Flow '${flowId}' not found. Use get-flows to list available flow tabs.`);
       }
 
       const flowNodes = collectFlowNodes(allNodes, flowId);

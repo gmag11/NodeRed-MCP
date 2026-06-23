@@ -5,6 +5,13 @@
  * Generates a UUID for the node ID, assembles the node object, appends it to the
  * flows, and deploys. Returns nodeId and currentState.
  *
+ * ⚠️ INJECT NODE GOTCHA: The inject node in Node-RED 5.x requires ALL fields
+ * (repeat, crontab, once, onceDelay, topic, props) to be explicitly set in
+ * `properties`, even if their value is the default empty/false. Omitting any
+ * of these fields causes the Node-RED editor to display a red-triangle error
+ * on the node, even though the inject works functionally. See
+ * nodered-node-reference skill for the complete field set.
+ *
  * Credential handling (via normalizeCredentials from flow-utils.js):
  * When creating configuration nodes (e.g. mqtt-broker, http-proxy),
  * credential fields like `username`, `password`, `key`, `token`, etc.
@@ -74,12 +81,12 @@ export function applyCreateNode(rawResponse, type, flowId, properties, x, y) {
     (n) => (n.type === 'tab' || n.type === 'subflow') && n.id === flowId,
   );
   if (!targetFlow) {
-    throw new Error(`Flow '${flowId}' not found`);
+    throw new Error(`Flow '${flowId}' not found. Use get-flows to list available flow tabs and subflows.`);
   }
 
   // Reject locked flows
   if (targetFlow.locked) {
-    throw new Error(`Flow '${flowId}' is locked`);
+    throw new Error(`Flow '${flowId}' is locked. This flow is locked (read-only). Use get-flow-nodes to inspect its nodes without modifying them.`);
   }
 
   const newNode = buildNewNode(type, flowId, properties, x, y);

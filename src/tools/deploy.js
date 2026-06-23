@@ -59,7 +59,7 @@ export function handleDeploy(staging) {
         throw new Error(
           'Deploy failed: version mismatch. The flows have been modified externally ' +
           '(e.g., via the Node-RED editor). Your staged changes have been discarded. ' +
-          'Re-run your reads to get the latest state, then re-apply your changes.',
+          'Call refresh-staging to sync with the latest server state, then re-apply your changes and deploy again.',
         );
       }
       throw err;

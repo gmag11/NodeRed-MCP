@@ -258,9 +258,21 @@ export const SubflowDetailResponseSchema = z.object({
   mermaid: z.string(),
 });
 
-export const SkillListResponseSchema = z.array(
-  z.object({ name: z.string(), description: z.string() })
-);
+export const SkillListResponseSchema = z.object({
+  categories: z.array(
+    z.object({
+      name: z.string(),
+      skills: z.array(
+        z.object({
+          name: z.string(),
+          description: z.string(),
+          uri: z.string(),
+          useCase: z.string(),
+        })
+      ),
+    })
+  ),
+});
 
 export const SuccessResponseSchema = z.object({
   success: z.boolean(),

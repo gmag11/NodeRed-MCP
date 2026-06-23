@@ -67,6 +67,8 @@ describe('loadSkills', () => {
     expect(skill.description).toBe('A test skill');
     expect(skill.content).toBe('# Test Skill\n\nThis is test content.');
     expect(skill.path).toContain('SKILL.md');
+    expect(skill.category).toBe('test-skill'); // inferred from directory name
+    expect(skill.useCase).toBe('A test skill'); // derived from description
   });
 
   it('parses multiple skills', () => {
@@ -121,5 +123,23 @@ describe('loadSkills', () => {
     createSkill('no-desc');
     const result = loadSkills(tmpDir);
     expect(result.get('no-desc').description).toBe('');
+  });
+
+  it('uses explicit category from frontmatter when present', () => {
+    createSkill('db-skill', { description: 'Dashboard guide', category: 'dashboard' }, 'Content');
+    const result = loadSkills(tmpDir);
+    expect(result.get('db-skill').category).toBe('dashboard');
+  });
+
+  it('infers category from directory name when not in frontmatter', () => {
+    createSkill('nodered-patterns', { description: 'Patterns guide' }, 'Content');
+    const result = loadSkills(tmpDir);
+    expect(result.get('nodered-patterns').category).toBe('nodered-patterns');
+  });
+
+  it('sets useCase from description', () => {
+    createSkill('use-case-test', { description: 'How to build flows' }, 'Content');
+    const result = loadSkills(tmpDir);
+    expect(result.get('use-case-test').useCase).toBe('How to build flows');
   });
 });

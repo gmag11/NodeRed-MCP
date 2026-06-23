@@ -38,7 +38,8 @@ export function createNodeRedClient(baseUrl, authManager) {
         const retryBody = await safeReadBody(retryRes);
         throw new Error(
           `Node-RED API error after re-auth: ${method} ${path} returned ${retryRes.status}` +
-            (retryBody ? ` — ${retryBody}` : '')
+          (retryBody ? ` — ${retryBody}` : '') +
+          '. Check your Node-RED credentials, instance URL, and that the Node-RED server is running.'
         );
       }
 
@@ -49,7 +50,8 @@ export function createNodeRedClient(baseUrl, authManager) {
       const errorBody = await safeReadBody(res);
       throw new Error(
         `Node-RED API error: ${method} ${path} returned ${res.status}` +
-          (errorBody ? ` — ${errorBody}` : '')
+          (errorBody ? ` — ${errorBody}` : '') +
+          '. Check your Node-RED connection and credentials. If the error persists, try refresh-staging to ensure you are working with the latest server state.'
       );
     }
 
@@ -152,14 +154,16 @@ export function createNodeRedClient(baseUrl, authManager) {
         const retryBody = await safeReadBody(res);
         throw new Error(
           `Node-RED API error after re-auth: ${method} ${path} returned ${res.status}` +
-          (retryBody ? ` — ${retryBody}` : '')
+          (retryBody ? ` — ${retryBody}` : '') +
+          '. Check your Node-RED credentials, instance URL, and that the Node-RED server is running.'
         );
       }
     } else if (!res.ok) {
       const errorBody = await safeReadBody(res);
       throw new Error(
         `Node-RED API error: ${method} ${path} returned ${res.status}` +
-        (errorBody ? ` — ${errorBody}` : '')
+        (errorBody ? ` — ${errorBody}` : '') +
+        '. Check your Node-RED connection and credentials. If the error persists, try refresh-staging to ensure you are working with the latest server state.'
       );
     }
 

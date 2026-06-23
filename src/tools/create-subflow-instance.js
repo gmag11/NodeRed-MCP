@@ -60,7 +60,7 @@ export function applyCreateSubflowInstance(rawResponse, subflowId, flowId, name,
     (n) => n.type === 'subflow' && n.id === subflowId,
   );
   if (!subflow) {
-    throw new Error(`Subflow '${subflowId}' not found`);
+    throw new Error(`Subflow '${subflowId}' not found. Use get-subflows to list available subflow definitions.`);
   }
 
   // Validate target flow tab exists
@@ -68,12 +68,12 @@ export function applyCreateSubflowInstance(rawResponse, subflowId, flowId, name,
     (n) => n.type === 'tab' && n.id === flowId,
   );
   if (!targetFlow) {
-    throw new Error(`Flow '${flowId}' not found`);
+    throw new Error(`Flow '${flowId}' not found. Use get-flows to list available flow tabs.`);
   }
 
   // Reject locked flows
   if (targetFlow.locked) {
-    throw new Error(`Flow '${flowId}' is locked`);
+    throw new Error(`Flow '${flowId}' is locked. This flow is locked (read-only). Use get-flow-nodes to inspect its nodes without modifying them.`);
   }
 
   const outputCount = Array.isArray(subflow.out) ? subflow.out.length : 0;

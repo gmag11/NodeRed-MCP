@@ -274,7 +274,7 @@ describe('filterMessages', () => {
     const messages = makeMessages(10);
     const result = filterMessages(messages, { last: 5, limit: 10 });
     expect(result.messages).toBeUndefined();
-    expect(result.error).toBe('last and limit are mutually exclusive — use one or the other');
+    expect(result.error).toBe('last and limit are mutually exclusive — use one or the other. Use last to get the most recent N messages (tail mode), or limit to get the first N matches (head mode, default 50).');
   });
 
   // --- Additional: explicit limit works ---

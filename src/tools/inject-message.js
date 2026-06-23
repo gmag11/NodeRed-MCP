@@ -21,14 +21,14 @@ import { InjectMessageResponseSchema } from '../schemas/responses.js';
 export function resolveInjectNode(allNodes, { nodeId, name, flowId } = {}) {
   // Must have at least one identifier
   if (!nodeId && !name) {
-    throw new Error('Provide either nodeId or name');
+    throw new Error('Provide either nodeId or name. Use nodeId to target a specific inject node by UUID, or name with optional flowId to search by label.');
   }
 
   // If nodeId is given, find directly
   if (nodeId) {
     const node = allNodes.find((n) => n.id === nodeId);
     if (!node) {
-      throw new Error(`Inject node not found: no node with id "${nodeId}"`);
+      throw new Error(`Inject node not found: no node with id "${nodeId}". Use search-nodes with type: "inject" to find available inject nodes.`);
     }
     return { nodeId: node.id, name: node.name };
   }
@@ -45,7 +45,7 @@ export function resolveInjectNode(allNodes, { nodeId, name, flowId } = {}) {
   if (candidates.length === 0) {
     const scope = flowId ? ` in flow "${flowId}"` : '';
     throw new Error(
-      `Inject node not found: no inject node named "${name}"${scope}`,
+      `Inject node not found: no inject node named "${name}"${scope}. Use search-nodes with type: "inject" to find available inject nodes by name.`,
     );
   }
 

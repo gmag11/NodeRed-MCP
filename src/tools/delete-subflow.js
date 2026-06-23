@@ -24,11 +24,11 @@ export function collectSubflowState(flows, subflowId) {
   );
 
   if (!definition) {
-    throw new Error(`Subflow '${subflowId}' not found`);
+    throw new Error(`Subflow '${subflowId}' not found. Use get-subflows to list available subflow definitions.`);
   }
 
   if (definition.locked) {
-    throw new Error(`Subflow '${subflowId}' is locked`);
+    throw new Error(`Subflow '${subflowId}' is locked. This subflow is locked (read-only). Use get-subflow-detail to inspect it without modifying.`);
   }
 
   const internalNodes = flows.filter(

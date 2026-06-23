@@ -50,7 +50,7 @@ export function applyNodeUpdate(rawResponse, nodeId, properties, credentialKeys 
   // Find the target node
   const nodeIndex = flows.findIndex((n) => n.id === nodeId);
   if (nodeIndex === -1) {
-    throw new Error(`Node '${nodeId}' not found`);
+    throw new Error(`Node '${nodeId}' not found. Use search-nodes with the node name or get-flow-nodes to list nodes in the parent flow.`);
   }
 
   const node = flows[nodeIndex];
@@ -62,7 +62,7 @@ export function applyNodeUpdate(rawResponse, nodeId, properties, credentialKeys 
       (n) => (n.type === 'tab' || n.type === 'subflow') && n.id === parentFlowId,
     );
     if (parentFlow?.locked) {
-      throw new Error(`Flow '${parentFlowId}' is locked`);
+      throw new Error(`Flow '${parentFlowId}' is locked. This flow is locked (read-only). Use get-flow-nodes to inspect its nodes without modifying them.`);
     }
   }
 

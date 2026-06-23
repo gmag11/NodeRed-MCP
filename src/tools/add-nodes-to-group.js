@@ -43,10 +43,10 @@ export function applyAddNodesToGroup(rawResponse, flowId, nodeIds, options = {})
     (n) => (n.type === 'tab' || n.type === 'subflow') && n.id === flowId,
   );
   if (!targetFlow) {
-    throw new Error(`Flow '${flowId}' not found`);
+    throw new Error(`Flow '${flowId}' not found. Use get-flows to list available flow tabs and subflows.`);
   }
   if (targetFlow.locked) {
-    throw new Error(`Flow '${flowId}' is locked`);
+    throw new Error(`Flow '${flowId}' is locked. This flow is locked (read-only). Use get-flow-nodes to inspect its nodes without modifying them.`);
   }
 
   // Resolve all target nodes, validating existence and flow membership
@@ -54,10 +54,10 @@ export function applyAddNodesToGroup(rawResponse, flowId, nodeIds, options = {})
   for (const nid of nodeIds) {
     const node = flows.find((n) => n.id === nid);
     if (!node) {
-      throw new Error(`Node '${nid}' not found`);
+      throw new Error(`Node '${nid}' not found. Use search-nodes with the node name or get-flow-nodes to list nodes in the flow.`);
     }
     if (node.z !== flowId) {
-      throw new Error(`All nodes must belong to flow '${flowId}'`);
+      throw new Error(`All nodes must belong to flow '${flowId}'. Use get-flow-nodes to verify which flow each node belongs to.`);
     }
     nodes.push(node);
   }
@@ -72,7 +72,7 @@ export function applyAddNodesToGroup(rawResponse, flowId, nodeIds, options = {})
       (n) => n.type === 'group' && n.id === groupId,
     );
     if (groupIndex === -1) {
-      throw new Error(`Group '${groupId}' not found`);
+      throw new Error(`Group '${groupId}' not found. Use get-flow-nodes to list groups in the flow, or search-nodes with type: "group" to find it.`);
     }
     targetGroupId = groupId;
   } else {

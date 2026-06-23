@@ -227,7 +227,7 @@ export class CommsClient extends EventEmitter {
   constructor({ baseUrl, username, password, token } = {}) {
     super();
     if (!baseUrl) {
-      throw new Error('CommsClient requires a baseUrl');
+      throw new Error('CommsClient requires a baseUrl. Set the NODERED_URL environment variable or provide baseUrl in the server configuration.');
     }
     this.#baseUrl = baseUrl;
     this.#username = username || null;

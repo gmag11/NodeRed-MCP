@@ -47,7 +47,7 @@ export function findNodeType(rawResponse, typeName) {
     }
   }
 
-  throw new Error(`Node type '${typeName}' not found`);
+  throw new Error(`Node type '${typeName}' not found. Use get-palette-nodes to list all installed node types, or install-node to add a missing package.`);
 }
 
 /**

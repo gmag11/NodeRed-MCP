@@ -29,7 +29,7 @@ export function normalizeFlowJson(input) {
   try {
     parsed = JSON.parse(input);
   } catch {
-    throw new Error('Invalid flowJson: not valid JSON');
+    throw new Error('Invalid flowJson: not valid JSON. Provide a JSON string representing a Node-RED flow array or an object with a "nodes" array.');
   }
 
   let nodes;
@@ -38,11 +38,11 @@ export function normalizeFlowJson(input) {
   } else if (parsed && typeof parsed === 'object' && Array.isArray(parsed.nodes)) {
     nodes = parsed.nodes;
   } else {
-    throw new Error('Invalid flowJson: expected a JSON array or an object with a "nodes" array');
+    throw new Error('Invalid flowJson: expected a JSON array or an object with a "nodes" array. Example: [{"id":"...","type":"debug"}] or {"nodes":[...]}');
   }
 
   if (nodes.length === 0) {
-    throw new Error('flowJson is empty — nothing to import');
+    throw new Error('flowJson is empty — nothing to import. Provide at least one node in the JSON array.');
   }
 
   return nodes;
@@ -130,7 +130,7 @@ export function mergeFlows(existing, imported, strategy) {
     return { updatedFlows: [...kept, ...brandNew], conflicts };
   }
 
-  throw new Error(`Unknown conflictStrategy '${strategy}'. Use "regenerate" or "overwrite"`);
+  throw new Error(`Unknown conflictStrategy '${strategy}'. Use "regenerate" (new IDs, no collisions) or "overwrite" (replace existing nodes with matching IDs).`);
 }
 
 /**
@@ -282,10 +282,10 @@ export async function handleImportFlow(staging, client, params) {
         (n) => n.id === targetFlowId && (n.type === 'tab' || n.type === 'subflow'),
       );
       if (!targetTab) {
-        throw new Error(`Target flow '${targetFlowId}' not found`);
+        throw new Error(`Target flow '${targetFlowId}' not found. Use get-flows to list available flow tabs.`);
       }
       if (targetTab.locked) {
-        throw new Error(`Target flow '${targetFlowId}' is locked`);
+        throw new Error(`Target flow '${targetFlowId}' is locked. This flow is locked (read-only). Use get-flow-nodes to inspect its nodes without modifying them.`);
       }
 
       // Reposition imported nodes to avoid overlap with existing nodes in the target tab

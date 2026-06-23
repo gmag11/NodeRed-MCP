@@ -27,20 +27,20 @@ export function applyDeleteFlow(rawResponse, flowId) {
 
   const tabIndex = flows.findIndex((n) => n.type === 'tab' && n.id === flowId);
   if (tabIndex === -1) {
-    throw new Error(`Flow '${flowId}' not found`);
+    throw new Error(`Flow '${flowId}' not found. Use get-flows to list available flow tabs.`);
   }
 
   const tab = flows[tabIndex];
 
   if (tab.locked) {
-    throw new Error(`Flow '${flowId}' is locked`);
+    throw new Error(`Flow '${flowId}' is locked. This flow is locked (read-only). Use get-flow-nodes to inspect its nodes without modifying them.`);
   }
 
   // Guard: Node-RED requires at least one flow tab to exist
   const tabCount = flows.filter((n) => n.type === 'tab').length;
   if (tabCount <= 1) {
     throw new Error(
-      'Cannot delete the last flow — at least one flow tab must exist'
+      'Cannot delete the last flow — at least one flow tab must exist. Use get-flows to confirm how many tabs remain, or create-flow to add a new tab before deleting this one.'
     );
   }
 

@@ -1,3 +1,5 @@
+## Purpose
+Enable LLM clients to discover the set of Node-RED skill guides available on the MCP server, so the model can decide which skill content to retrieve before performing Node-RED work.
 ## Requirements
 ### Requirement: List available skills
 The system SHALL expose a `list-skills` MCP tool that accepts no parameters and returns an array of all available nodered-* skills, each containing its name and description.
@@ -22,11 +24,11 @@ The system SHALL use the `description` field from each skill's YAML frontmatter 
 - **THEN** `list-skills` returns an empty string `""` as the description for that skill
 
 ### Requirement: Tool description guides LLM usage
-The system SHALL provide a tool description for `list-skills` that instructs the LLM to call this tool to discover available skill names and their resource URIs, then read the desired skill resources directly.
+The system SHALL provide a tool description for `list-skills` that instructs the LLM to call this tool to discover available skill names and their resource URIs, then read the desired skill resources directly or use the `get-skill` tool as an alternative for clients without resource support.
 
 #### Scenario: Tool discoverable by LLM
 - **WHEN** the LLM reads the MCP tool list
-- **THEN** the `list-skills` tool description indicates it should be called to discover available skill names and resource URIs, without referencing a `get-skill` tool
+- **THEN** the `list-skills` tool description indicates it should be called to discover available skill names and resource URIs, and references `get-skill` as an alternative retrieval method for clients that do not support MCP Resources
 
 ### Requirement: list-skills returns resource URIs
 The system SHALL include a `uri` field in each entry returned by `list-skills`, containing the resource URI `nodered://skills/{name}` for that skill.

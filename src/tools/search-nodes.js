@@ -61,7 +61,7 @@ export function searchNodes(allNodes, { query, regex = false, flowId, limit = 50
       try {
         pattern = new RegExp(query);
       } catch {
-        throw new Error(`Invalid regex pattern: ${query}`);
+        throw new Error(`Invalid regex pattern: ${query}. Provide a valid JavaScript regular expression, e.g. "debug" for plain text or "/debug\\d+/" for regex.`);
       }
       matches = pattern.test(serialized);
     } else {
@@ -105,7 +105,7 @@ export async function handleSearchNodes(staging, params) {
 
   // Validate query
   if (!query || query.trim() === '') {
-    throw new Error('The "query" parameter is required and must be non-empty');
+    throw new Error('The "query" parameter is required and must be non-empty. Provide a search term to match against node properties (case-insensitive substring).');
   }
 
   // Fetch all flows
@@ -117,7 +117,7 @@ export async function handleSearchNodes(staging, params) {
       (n) => (n.type === 'tab' || n.type === 'subflow') && n.id === flowId,
     );
     if (!flowExists) {
-      throw new Error(`Flow not found: no tab or subflow with id "${flowId}"`);
+      throw new Error(`Flow not found: no tab or subflow with id "${flowId}". Use get-flows to list available flow tabs and subflows.`);
     }
   }
 

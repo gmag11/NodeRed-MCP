@@ -24,7 +24,7 @@ export async function detectAuthMode(baseUrl, apiKey) {
 
   const res = await fetch(`${baseUrl}/auth/login`);
   if (!res.ok) {
-    throw new Error(`Failed to detect auth mode: GET /auth/login returned ${res.status}`);
+    throw new Error(`Failed to detect auth mode: GET /auth/login returned ${res.status}. Check that the Node-RED instance is running and accessible at the configured baseUrl.`);
   }
 
   const body = await res.json();
@@ -40,7 +40,7 @@ export async function detectAuthMode(baseUrl, apiKey) {
 
   throw new Error(
     `Unsupported Node-RED auth type: "${body.type}". ` +
-    `Set NODERED_API_KEY in your environment to authenticate with a static token.`
+    `Set NODERED_API_KEY in your environment to authenticate with a static token, or configure credentials via NODERED_USERNAME and NODERED_PASSWORD.`
   );
 }
 
@@ -66,7 +66,7 @@ export async function getToken(baseUrl, username, password) {
   });
 
   if (!res.ok) {
-    throw new Error(`Failed to obtain Node-RED token: POST /auth/token returned ${res.status}`);
+    throw new Error(`Failed to obtain Node-RED token: POST /auth/token returned ${res.status}. Check that NODERED_USERNAME and NODERED_PASSWORD are correct and that the credentials auth is enabled in Node-RED.`);
   }
 
   const body = await res.json();
@@ -108,7 +108,7 @@ export class AuthManager {
     if (this.#mode === 'credentials') {
       if (!this.#username || !this.#password) {
         throw new Error(
-          'Node-RED requires credentials authentication but NODERED_USERNAME and/or NODERED_PASSWORD are not set.'
+          'Node-RED requires credentials authentication but NODERED_USERNAME and/or NODERED_PASSWORD are not set. Set these environment variables to authenticate, or use NODERED_API_KEY for static token auth.'
         );
       }
       this.#token = await getToken(this.#baseUrl, this.#username, this.#password);

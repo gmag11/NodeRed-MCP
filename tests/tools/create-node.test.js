@@ -28,7 +28,7 @@ describe('buildNewNode', () => {
     expect(node.z).toBe('flow-1');
     expect(node.x).toBe(200);
     expect(node.y).toBe(200);
-    expect(node.wires).toEqual([[]]);
+    expect(node.wires).toEqual([]);
   });
 
   it('generates a unique UUID for id', () => {
@@ -65,7 +65,7 @@ describe('buildNewNode', () => {
   it('silently strips wires from properties', () => {
     const node = buildNewNode('debug', 'flow-1', { wires: [['n99']] }, 200, 200);
 
-    expect(node.wires).toEqual([[]]);
+    expect(node.wires).toEqual([]);
   });
 
   it('uses provided x and y values', () => {
@@ -215,7 +215,7 @@ describe('applyCreateNode', () => {
 
     expect(currentState.id).not.toBe('bad');
     expect(currentState.z).toBe('flow-1');
-    expect(currentState.wires).toEqual([[]]);
+    expect(currentState.wires).toEqual([]);
   });
 });
 
