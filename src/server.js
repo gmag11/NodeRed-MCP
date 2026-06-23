@@ -918,12 +918,47 @@ export async function createMcpServer(nodeRedClient, commsClient) {
     );
   }
 
+  // Register: get-skill tool (fallback for clients that don't support MCP Resources)
+  server.tool(
+    'get-skill',
+    'Retrieve the full content of a specific Node-RED skill by name. ' +
+    'Use list-skills FIRST to discover available skill names. ' +
+    'For MCP clients that support Resources, you can alternatively read the resource directly at ' +
+    '`nodered://skills/{name}`. This tool is provided as a fallback for clients without resource support.',
+    {
+      name: z.string().describe('The skill name to retrieve. Use list-skills to see available values (e.g. "nodered-flow-builder", "nodered-node-reference")'),
+    },
+    async (params) => {
+      const skill = skills.get(params.name);
+      if (!skill) {
+        const available = [...skills.keys()].join(', ');
+        return {
+          content: [{
+            type: 'text',
+            text: `Skill "${params.name}" not found. Available skills: ${available || '(none)'}`,
+          }],
+        };
+      }
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            name: skill.name,
+            description: skill.description,
+            content: skill.content,
+          }),
+        }],
+      };
+    },
+  );
+
   // Register: list-skills tool
   server.tool(
     'list-skills',
     'List all available Node-RED skills with their names, descriptions, and resource URIs. ' +
-    'Call this FIRST to discover what skills exist, then read the skill resource at the provided URI ' +
-    '`nodered://skills/{name}` to retrieve its full content.',
+    'Call this FIRST to discover what skills exist, then use get-skill with the desired skill name ' +
+    'to retrieve its full content. For clients that support MCP Resources, you can also read the ' +
+    'skill resource directly at `nodered://skills/{name}`.',
     {},
     async () => {
       const skillList = [...skills].map(([name, s]) => ({
