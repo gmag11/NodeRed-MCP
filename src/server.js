@@ -194,7 +194,8 @@ export async function createMcpServer(nodeRedClient, commsClient) {
     'Auto-sizes the output wires to match the subflow\'s output port count. ' +
     'Validates that the subflow and target flow exist. ' +
     'Use this to place a reusable subflow into a flow tab. ' +
-    '📐 LAYOUT: For proper positioning of subflow instances relative to other nodes, read the `nodered://skills/nodered-flow-layout` resource (use list-skills to discover available skill URIs). ' +
+    '� BUILD WORKFLOW: For step-by-step flow building, debugging, and testing guidance, read the `nodered://skills/nodered-flow-builder` resource (use list-skills to discover available skill URIs). ' +
+    '�📐 LAYOUT: For proper positioning of subflow instances relative to other nodes, read the `nodered://skills/nodered-flow-layout` resource (use list-skills to discover available skill URIs). ' +
     '⚠️ STAGING: Changes are NOT live until you call `deploy`. Check the `staging` field in the response.',
     {
       subflowId: z.string().describe('ID of the subflow definition to instantiate'),
@@ -400,6 +401,7 @@ export async function createMcpServer(nodeRedClient, commsClient) {
     'Create a new Node-RED flow tab with the given label and optional properties (staged — call `deploy` to apply). ' +
     'Returns the new flow\'s ID and the full current state. ' +
     'Use this to add a new empty flow tab before creating nodes inside it. ' +
+    '📋 BUILD WORKFLOW: For step-by-step flow building, debugging, and testing guidance, read the `nodered://skills/nodered-flow-builder` resource (use list-skills to discover available skill URIs). ' +
     '⚠️ STAGING: Changes are NOT live until you call `deploy`. Check the `staging` field in the response.',
     {
       label: z.string().describe('Display label for the new flow tab'),
@@ -492,7 +494,8 @@ export async function createMcpServer(nodeRedClient, commsClient) {
     'Refuses to wire nodes in a locked flow. ' +
     'BATCH MODE: Provide optional `connections` array with `{ outputPort, toNodeId }` objects to wire multiple ' +
     'output ports in a single call. When `connections` is provided, `outputPort` and `toNodeId` are ignored. ' +
-    'Example batch: `connections: [{ outputPort: 0, toNodeId: "n1" }, { outputPort: 1, toNodeId: "n2" }]`.',
+    'Example batch: `connections: [{ outputPort: 0, toNodeId: "n1" }, { outputPort: 1, toNodeId: "n2" }]`. ' +
+    '📋 BUILD WORKFLOW: For step-by-step flow building, debugging, and testing guidance, read the `nodered://skills/nodered-flow-builder` resource (use list-skills to discover available skill URIs).',
     {
       fromNodeId: z.string().describe('ID of the source node'),
       outputPort: z.number().int().min(0).optional().default(0).describe('Output port index (0-based, default 0) — ignored when `connections` is provided'),
@@ -554,7 +557,9 @@ export async function createMcpServer(nodeRedClient, commsClient) {
     'put credential fields inside a `credentials` object within properties: ' +
     'e.g. `properties: { broker: \"localhost\", port: 1883, credentials: { username: \"user\", password: \"pass\" } }`. ' +
     'The tool auto-detects and nests credential fields correctly even if sent at the top level. ' +
-    '📐 LAYOUT: For proper node positioning and spacing rules (horizontal/vertical gaps, ' +
+    '� BUILD WORKFLOW: For step-by-step flow building, debugging, and testing guidance, read the `nodered://skills/nodered-flow-builder` resource (use list-skills to discover available skill URIs). ' +
+    '📖 NODE REFERENCE: For detailed node type properties, function node API, and credential handling, read the `nodered://skills/nodered-node-reference` resource (use list-skills to discover available skill URIs). ' +
+    '�📐 LAYOUT: For proper node positioning and spacing rules (horizontal/vertical gaps, ' +
     'debug placement, branch-point centering, group layout), read the `nodered://skills/nodered-flow-layout` resource (use list-skills to discover available skill URIs). ' +
     'Always start the first node at (x=120, y=80) unless a group header is present.',
     {
