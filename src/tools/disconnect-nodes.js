@@ -30,7 +30,7 @@ export function applyDisconnect(rawResponse, fromNodeId, outputPort = 0, toNodeI
   // Find source node
   const fromIndex = flows.findIndex((n) => n.id === fromNodeId);
   if (fromIndex === -1) {
-    throw new Error(`Node '${fromNodeId}' not found`);
+    throw new Error(`Node '${fromNodeId}' not found. Use search-nodes with the node name or get-flow-nodes to list nodes in the parent flow.`);
   }
 
   const fromNode = flows[fromIndex];
@@ -42,7 +42,7 @@ export function applyDisconnect(rawResponse, fromNodeId, outputPort = 0, toNodeI
       (n) => (n.type === 'tab' || n.type === 'subflow') && n.id === parentFlowId,
     );
     if (parentFlow?.locked) {
-      throw new Error(`Flow '${parentFlowId}' is locked`);
+      throw new Error(`Flow '${parentFlowId}' is locked. This flow is locked (read-only). Use get-flow-nodes to inspect its nodes without modifying them.`);
     }
   }
 
@@ -57,7 +57,7 @@ export function applyDisconnect(rawResponse, fromNodeId, outputPort = 0, toNodeI
       const portWires = previousWires[port] ?? [];
       if (!portWires.includes(entry.toNodeId)) {
         throw new Error(
-          `Wire from '${fromNodeId}'[${port}] to '${entry.toNodeId}' does not exist`,
+          `Wire from '${fromNodeId}'[${port}] to '${entry.toNodeId}' does not exist. Use get-node-detail to inspect the current wiring of the source node.`,
         );
       }
     }
@@ -99,7 +99,7 @@ export function applyDisconnect(rawResponse, fromNodeId, outputPort = 0, toNodeI
   const portConnections = previousWires[outputPort];
   if (!portConnections || !portConnections.includes(toNodeId)) {
     throw new Error(
-      `Wire from '${fromNodeId}'[${outputPort}] to '${toNodeId}' does not exist`,
+      `Wire from '${fromNodeId}'[${outputPort}] to '${toNodeId}' does not exist. Use get-node-detail to inspect the current wiring of the source node.`,
     );
   }
 

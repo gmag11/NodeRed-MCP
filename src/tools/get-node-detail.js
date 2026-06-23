@@ -26,7 +26,7 @@ export function transformNodeDetail(rawResponse, nodeId) {
   const node = allNodes.find((n) => n.id === nodeId);
 
   if (!node) {
-    throw new Error(`Node '${nodeId}' not found`);
+    throw new Error(`Node '${nodeId}' not found. Use search-nodes with the node name or get-flow-nodes to list nodes in a flow.`);
   }
 
   return node;

@@ -25,7 +25,7 @@ export function collectSubflowExport(allNodes, subflowId) {
   );
 
   if (!subflow) {
-    throw new Error(`Subflow '${subflowId}' not found`);
+    throw new Error(`Subflow '${subflowId}' not found. Use get-subflows to list available subflow definitions.`);
   }
 
   // Collect internal nodes (z === subflowId, with wires property)

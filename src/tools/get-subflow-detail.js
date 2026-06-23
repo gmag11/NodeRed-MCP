@@ -37,7 +37,7 @@ export function transformSubflowDetail(rawResponse, subflowId) {
   );
 
   if (!subflow) {
-    throw new Error(`Subflow '${subflowId}' not found`);
+    throw new Error(`Subflow '${subflowId}' not found. Use get-subflows to list available subflow definitions.`);
   }
 
   // Get internal nodes using the shared flow-utils (validates consistency)

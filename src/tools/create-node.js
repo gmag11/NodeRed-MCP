@@ -74,12 +74,12 @@ export function applyCreateNode(rawResponse, type, flowId, properties, x, y) {
     (n) => (n.type === 'tab' || n.type === 'subflow') && n.id === flowId,
   );
   if (!targetFlow) {
-    throw new Error(`Flow '${flowId}' not found`);
+    throw new Error(`Flow '${flowId}' not found. Use get-flows to list available flow tabs and subflows.`);
   }
 
   // Reject locked flows
   if (targetFlow.locked) {
-    throw new Error(`Flow '${flowId}' is locked`);
+    throw new Error(`Flow '${flowId}' is locked. This flow is locked (read-only). Use get-flow-nodes to inspect its nodes without modifying them.`);
   }
 
   const newNode = buildNewNode(type, flowId, properties, x, y);

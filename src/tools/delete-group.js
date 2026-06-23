@@ -26,7 +26,7 @@ export function applyDeleteGroup(rawResponse, groupId, options = {}) {
     (n) => n.type === 'group' && n.id === groupId,
   );
   if (groupIndex === -1) {
-    throw new Error(`Group '${groupId}' not found`);
+    throw new Error(`Group '${groupId}' not found. Use get-flow-nodes to list groups in the parent flow, or search-nodes with type: "group" to find it.`);
   }
 
   const group = flows[groupIndex];
@@ -37,7 +37,7 @@ export function applyDeleteGroup(rawResponse, groupId, options = {}) {
       (n) => (n.type === 'tab' || n.type === 'subflow') && n.id === group.z,
     );
     if (parentFlow?.locked) {
-      throw new Error(`Flow '${group.z}' is locked`);
+      throw new Error(`Flow '${group.z}' is locked. This flow is locked (read-only). Use get-flow-nodes to inspect its nodes without modifying them.`);
     }
   }
 

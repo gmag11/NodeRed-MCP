@@ -25,10 +25,10 @@ export function applyUpdateGroup(rawResponse, groupId, properties) {
   // Validate the target is a group node
   const groupNode = flows.find((n) => n.id === groupId);
   if (!groupNode) {
-    throw new Error(`Group '${groupId}' not found`);
+    throw new Error(`Group '${groupId}' not found. Use get-flow-nodes to list groups in the parent flow, or search-nodes with type: "group" to find it.`);
   }
   if (groupNode.type !== 'group') {
-    throw new Error(`Node '${groupId}' is not a group`);
+    throw new Error(`Node '${groupId}' is not a group. Use get-flow-nodes to find group nodes or search-nodes with type: "group".`);
   }
 
   // Delegate to update-node's logic

@@ -61,7 +61,7 @@ export function getFlowNodes(allNodes, flowId) {
   );
 
   if (!flowExists) {
-    throw new Error(`Flow not found: no tab or subflow with id "${flowId}"`);
+    throw new Error(`Flow not found: no tab or subflow with id "${flowId}". Use get-flows to list available flow tabs and subflows.`);
   }
 
   return allNodes.filter(
@@ -134,7 +134,7 @@ export function getConnectedSubgraph(nodes, fromNodeId, direction, reverseIndex)
   const nodeIds = new Set(nodes.map((n) => n.id));
 
   if (!nodeIds.has(fromNodeId)) {
-    throw new Error(`Node not found in flow: no node with id "${fromNodeId}"`);
+    throw new Error(`Node not found in flow: no node with id "${fromNodeId}". Use get-flow-nodes to list nodes in the flow or search-nodes to find a node by name.`);
   }
 
   const forwardIndex = buildForwardWireIndex(nodes);

@@ -58,7 +58,7 @@ export async function handleGetContext(client, params) {
 
   // Validate: id is required for node and flow scopes
   if ((scope === 'node' || scope === 'flow') && !id) {
-    throw new Error(`id is required for scope "${scope}"`);
+    throw new Error(`id is required for scope "${scope}". Provide the node or flow UUID to target. For global scope, omit the id parameter.`);
   }
 
   const path = buildGetContextPath(scope, id, key);

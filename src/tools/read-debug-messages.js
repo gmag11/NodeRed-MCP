@@ -51,7 +51,7 @@ export function filterMessages(messages, {
   // Validate: last and limit are mutually exclusive
   if (last !== undefined && limit !== undefined) {
     return {
-      error: 'last and limit are mutually exclusive — use one or the other',
+      error: 'last and limit are mutually exclusive — use one or the other. Use last to get the most recent N messages (tail mode), or limit to get the first N matches (head mode, default 50).',
     };
   }
 

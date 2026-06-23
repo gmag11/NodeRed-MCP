@@ -23,11 +23,11 @@ const ALLOWED_FIELDS = ['name', 'info', 'category', 'color', 'icon', 'in', 'out'
  */
 export function applySubflowUpdate(currentSubflow, updates) {
   if (!updates || Object.keys(updates).length === 0) {
-    throw new Error('No properties to update');
+    throw new Error('No properties to update. Provide at least one of: name, info, category, color, icon, in, out.');
   }
 
   if (currentSubflow.locked) {
-    throw new Error(`Subflow '${currentSubflow.id}' is locked`);
+    throw new Error(`Subflow '${currentSubflow.id}' is locked. This subflow is locked (read-only). Use get-subflow-detail to inspect it without modifying.`);
   }
 
   const filteredUpdates = Object.fromEntries(
@@ -35,7 +35,7 @@ export function applySubflowUpdate(currentSubflow, updates) {
   );
 
   if (Object.keys(filteredUpdates).length === 0) {
-    throw new Error('No valid properties to update');
+    throw new Error('No valid properties to update. Allowed fields are: name, info, category, color, icon, in, out.');
   }
 
   const updatedSubflow = {
@@ -64,7 +64,7 @@ export async function handleUpdateSubflow(staging, client, params) {
       (n) => n.type === 'subflow' && n.id === subflowId,
     );
     if (subflowIndex === -1) {
-      throw new Error(`Subflow '${subflowId}' not found`);
+      throw new Error(`Subflow '${subflowId}' not found. Use get-subflows to list available subflow definitions.`);
     }
     const { updatedSubflow, previousState } = applySubflowUpdate(flows[subflowIndex], updates);
     const updatedFlows = [...flows];

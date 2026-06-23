@@ -21,11 +21,11 @@ const ALLOWED_FIELDS = ['label', 'disabled', 'info', 'env'];
  */
 export function applyFlowUpdate(currentFlow, updates) {
   if (!updates || Object.keys(updates).length === 0) {
-    throw new Error('No properties to update');
+    throw new Error('No properties to update. Provide at least one of: label, disabled, info, env.');
   }
 
   if (currentFlow.locked) {
-    throw new Error(`Flow '${currentFlow.id}' is locked`);
+    throw new Error(`Flow '${currentFlow.id}' is locked. This flow is locked (read-only). Use get-flow-nodes to inspect its nodes without modifying them.`);
   }
 
   const filteredUpdates = Object.fromEntries(
@@ -57,7 +57,7 @@ export function applyUpdateFlow(rawResponse, flowId, updates) {
 
   const tabIndex = flows.findIndex((n) => n.type === 'tab' && n.id === flowId);
   if (tabIndex === -1) {
-    throw new Error(`Flow '${flowId}' not found`);
+    throw new Error(`Flow '${flowId}' not found. Use get-flows to list available flow tabs.`);
   }
 
   const { updatedFlow, previousState } = applyFlowUpdate(flows[tabIndex], updates);

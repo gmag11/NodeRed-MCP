@@ -31,7 +31,7 @@ export function applyConnect(rawResponse, fromNodeId, outputPort = 0, toNodeId, 
   // Find source node
   const fromIndex = flows.findIndex((n) => n.id === fromNodeId);
   if (fromIndex === -1) {
-    throw new Error(`Node '${fromNodeId}' not found`);
+    throw new Error(`Node '${fromNodeId}' not found. Use search-nodes with the node name or get-flow-nodes to list nodes in the parent flow.`);
   }
 
   const fromNode = flows[fromIndex];
@@ -43,7 +43,7 @@ export function applyConnect(rawResponse, fromNodeId, outputPort = 0, toNodeId, 
       (n) => (n.type === 'tab' || n.type === 'subflow') && n.id === parentFlowId,
     );
     if (parentFlow?.locked) {
-      throw new Error(`Flow '${parentFlowId}' is locked`);
+      throw new Error(`Flow '${parentFlowId}' is locked. This flow is locked (read-only). Use get-flow-nodes to inspect its nodes without modifying them.`);
     }
   }
 
@@ -54,7 +54,7 @@ export function applyConnect(rawResponse, fromNodeId, outputPort = 0, toNodeId, 
   for (const entry of entries) {
     const targetExists = flows.some((n) => n.id === entry.toNodeId);
     if (!targetExists) {
-      throw new Error(`Node '${entry.toNodeId}' not found`);
+      throw new Error(`Node '${entry.toNodeId}' not found. Use search-nodes with the node name or get-flow-nodes to list nodes in the parent flow.`);
     }
   }
 

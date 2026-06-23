@@ -54,7 +54,7 @@ export function handleRenderStaging(staging) {
           ],
         };
       default:
-        throw new Error(`Unknown format: ${format}`);
+        throw new Error(`Unknown format: ${format}. Use one of: "svg" (static diagram), "html" (interactive page), or "mermaid" (topology diagram).`);
     }
   };
 }
