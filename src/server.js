@@ -194,7 +194,7 @@ export async function createMcpServer(nodeRedClient, commsClient) {
     'Auto-sizes the output wires to match the subflow\'s output port count. ' +
     'Validates that the subflow and target flow exist. ' +
     'Use this to place a reusable subflow into a flow tab. ' +
-    '📐 LAYOUT: For proper positioning of subflow instances relative to other nodes, see the `nodered-flow-layout` skill. ' +
+    '📐 LAYOUT: For proper positioning of subflow instances relative to other nodes, read the `nodered://skills/nodered-flow-layout` resource (use list-skills to discover available skill URIs). ' +
     '⚠️ STAGING: Changes are NOT live until you call `deploy`. Check the `staging` field in the response.',
     {
       subflowId: z.string().describe('ID of the subflow definition to instantiate'),
@@ -555,7 +555,7 @@ export async function createMcpServer(nodeRedClient, commsClient) {
     'e.g. `properties: { broker: \"localhost\", port: 1883, credentials: { username: \"user\", password: \"pass\" } }`. ' +
     'The tool auto-detects and nests credential fields correctly even if sent at the top level. ' +
     '📐 LAYOUT: For proper node positioning and spacing rules (horizontal/vertical gaps, ' +
-    'debug placement, branch-point centering, group layout), see the `nodered-flow-layout` skill. ' +
+    'debug placement, branch-point centering, group layout), read the `nodered://skills/nodered-flow-layout` resource (use list-skills to discover available skill URIs). ' +
     'Always start the first node at (x=120, y=80) unless a group header is present.',
     {
       type: z.string().describe('Palette node type to create (e.g. "function", "debug", "http in")'),
@@ -894,21 +894,6 @@ export async function createMcpServer(nodeRedClient, commsClient) {
     [...allSkills].filter(([name]) => name.startsWith('nodered-'))
   );
 
-  // Register MCP Prompts — one per skill
-  for (const [skillName, skill] of skills) {
-    server.prompt(
-      skillName,
-      skill.description,
-      {},
-      async () => ({
-        messages: [{
-          role: 'user',
-          content: { type: 'text', text: skill.content },
-        }],
-      }),
-    );
-  }
-
   // Register MCP Resources — one per skill
   for (const [skillName, skill] of skills) {
     server.resource(
@@ -928,50 +913,20 @@ export async function createMcpServer(nodeRedClient, commsClient) {
   // Register: list-skills tool
   server.tool(
     'list-skills',
-    'List all available Node-RED skills with their names and descriptions. ' +
-    'Call this FIRST to discover what skills exist, then use get-skill with the desired skill name ' +
-    'to retrieve its full content.',
+    'List all available Node-RED skills with their names, descriptions, and resource URIs. ' +
+    'Call this FIRST to discover what skills exist, then read the skill resource at the provided URI ' +
+    '`nodered://skills/{name}` to retrieve its full content.',
     {},
     async () => {
       const skillList = [...skills].map(([name, s]) => ({
         name,
         description: s.description,
+        uri: `nodered://skills/${name}`,
       }));
       return {
         content: [{
           type: 'text',
           text: JSON.stringify(skillList),
-        }],
-      };
-    },
-  );
-
-  // Register: get-skill tool
-  server.tool(
-    'get-skill',
-    'MUST call this BEFORE building any Node-RED flows. ' +
-    'Use this tool to retrieve domain-specific guidance, best practices, patterns, ' +
-    'and reference material for building Node-RED flows. ' +
-    'Call it with a skill name (e.g. "nodered-flow-builder") to get the full skill content. ' +
-    'Use list-skills FIRST to discover the available skill names.',
-    {
-      topic: z.string().describe('The skill topic/name to retrieve. Use list-skills to see available values (e.g. "nodered-flow-builder", "nodered-node-reference")'),
-    },
-    async (params) => {
-      const skill = skills.get(params.topic);
-      if (!skill) {
-        const available = [...skills.keys()].join(', ');
-        return {
-          content: [{
-            type: 'text',
-            text: `Skill "${params.topic}" not found. Available skills: ${available || '(none)'}`,
-          }],
-        };
-      }
-      return {
-        content: [{
-          type: 'text',
-          text: skill.content,
         }],
       };
     },

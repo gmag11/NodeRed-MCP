@@ -1,12 +1,5 @@
-# Spec: MCP Skills Integration
+## ADDED Requirements
 
-## Files
-- `src/skills/loader.js`
-- `src/server.js`
-
-## Description
-This specification covers the implementation of a hybrid MCP skill integration. We will create a loader that parses `.github/skills/*/SKILL.md` files for frontmatter and body. Then, in `src/server.js`, we will map these into `server.prompt`, `server.resource`, and a custom `get-skill` tool. This ensures any MCP client can consume these Node-RED skills regardless of its specific capability support.
-## Requirements
 ### Requirement: Tool descriptions reference skill resource URIs
 Tool descriptions in `src/server.js` that reference skills (currently `create-node` and `create-subflow-instance` referencing `nodered-flow-layout`) SHALL point to the `nodered://skills/{name}` resource URI instead of a bare skill name, and SHALL instruct the LLM to read the resource.
 
@@ -32,4 +25,3 @@ The system SHALL load skills from `.github/skills/*/SKILL.md` files and register
 #### Scenario: No get-skill tool registered
 - **WHEN** the server starts
 - **THEN** no `get-skill` tool is registered in the MCP tool list
-
