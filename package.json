@@ -18,6 +18,10 @@
     "automation"
   ],
   "license": "Apache-2.0",
+  "author": {
+    "name": "Germán Martín",
+    "email": "github@gmartin.net"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/gmag11/NodeRed-MCP.git"
