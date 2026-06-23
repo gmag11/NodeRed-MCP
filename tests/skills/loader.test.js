@@ -19,9 +19,9 @@ describe('loadSkills', () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  /** Helper: create a .github/skills/<name>/SKILL.md under tmpDir */
+  /** Helper: create a resources/skills/<name>/SKILL.md under tmpDir */
   function createSkill(skillName, frontmatter = {}, body = '') {
-    const skillDir = path.join(tmpDir, '.github', 'skills', skillName);
+    const skillDir = path.join(tmpDir, 'resources', 'skills', skillName);
     fs.mkdirSync(skillDir, { recursive: true });
 
     let yaml = `name: ${skillName}\n`;
@@ -35,22 +35,22 @@ describe('loadSkills', () => {
     fs.writeFileSync(path.join(skillDir, 'SKILL.md'), content, 'utf-8');
   }
 
-  it('returns an empty Map when .github/skills directory does not exist', () => {
+  it('returns an empty Map when resources/skills directory does not exist', () => {
     const result = loadSkills(tmpDir);
     expect(result).toBeInstanceOf(Map);
     expect(result.size).toBe(0);
   });
 
   it('returns an empty Map when directory exists but has no skill subdirectories', () => {
-    const skillsDir = path.join(tmpDir, '.github', 'skills');
+    const skillsDir = path.join(tmpDir, 'resources', 'skills');
     fs.mkdirSync(skillsDir, { recursive: true });
     const result = loadSkills(tmpDir);
     expect(result.size).toBe(0);
   });
 
   it('returns an empty Map when directory exists but not a directory (e.g., file)', () => {
-    const skillsFile = path.join(tmpDir, '.github', 'skills');
-    fs.mkdirSync(path.join(tmpDir, '.github'), { recursive: true });
+    const skillsFile = path.join(tmpDir, 'resources', 'skills');
+    fs.mkdirSync(path.join(tmpDir, 'resources'), { recursive: true });
     fs.writeFileSync(skillsFile, 'not-a-dir', 'utf-8');
     const result = loadSkills(tmpDir);
     expect(result.size).toBe(0);
@@ -84,7 +84,7 @@ describe('loadSkills', () => {
   });
 
   it('uses directory name as fallback when YAML frontmatter has no name field', () => {
-    const skillDir = path.join(tmpDir, '.github', 'skills', 'fallback-skill');
+    const skillDir = path.join(tmpDir, 'resources', 'skills', 'fallback-skill');
     fs.mkdirSync(skillDir, { recursive: true });
     fs.writeFileSync(
       path.join(skillDir, 'SKILL.md'),
@@ -97,7 +97,7 @@ describe('loadSkills', () => {
   });
 
   it('skips subdirectories without a SKILL.md file', () => {
-    const skillDir = path.join(tmpDir, '.github', 'skills', 'empty-skill');
+    const skillDir = path.join(tmpDir, 'resources', 'skills', 'empty-skill');
     fs.mkdirSync(skillDir, { recursive: true });
     // No SKILL.md created
     const result = loadSkills(tmpDir);
@@ -105,7 +105,7 @@ describe('loadSkills', () => {
   });
 
   it('handles binary SKILL.md files gracefully (does not throw)', () => {
-    const skillDir = path.join(tmpDir, '.github', 'skills', 'binary-skill');
+    const skillDir = path.join(tmpDir, 'resources', 'skills', 'binary-skill');
     fs.mkdirSync(skillDir, { recursive: true });
     // Write binary data — gray-matter treats it as content with no frontmatter
     fs.writeFileSync(path.join(skillDir, 'SKILL.md'), Buffer.from([0xFF, 0xFE, 0x00, 0x01]));

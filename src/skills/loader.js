@@ -1,5 +1,5 @@
 /**
- * Skill Loader — reads and caches skill content from `.github/skills/* /SKILL.md` files.
+ * Skill Loader — reads and caches skill content from `resources/skills/* /SKILL.md` files.
  *
  * Each skill directory contains a SKILL.md file with YAML frontmatter (name, description, etc.)
  * followed by Markdown body content.
@@ -26,16 +26,16 @@ function firstSentence(description) {
 }
 
 /**
- * Load all skills from the GitHub skills directory.
+ * Load all skills from the resources skills directory.
  *
- * Scans `.github/skills/* /SKILL.md`, parses YAML frontmatter, and returns a Map
+ * Scans `resources/skills/* /SKILL.md`, parses YAML frontmatter, and returns a Map
  * keyed by skill name.
  *
  * @param {string} basePath — project root directory (resolved by caller)
  * @returns {Map<string, { name: string, description: string, content: string, path: string, category: string, useCase: string }>}
  */
 export function loadSkills(basePath) {
-  const skillsDir = path.join(basePath, '.github', 'skills');
+  const skillsDir = path.join(basePath, 'resources', 'skills');
   const skills = new Map();
 
   // Handle missing skills directory gracefully — return empty map

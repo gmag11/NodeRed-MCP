@@ -11,8 +11,8 @@ RUN npm ci --omit=dev
 # Copy application source
 COPY index.js ./
 COPY src/ ./src/
-# Copy all skills except openspec-* (excluded via .dockerignore)
-COPY .github/skills/ ./.github/skills/
+# Copy Node-RED skills
+COPY resources/skills/ ./resources/skills/
 
 # Run as non-root
 USER node

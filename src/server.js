@@ -718,10 +718,9 @@ export async function createMcpServer(nodeRedClient, commsClient) {
   const projectRoot = path.resolve(__dirname, '..');
   const allSkills = loadSkills(projectRoot);
 
-  // Only expose Node-RED skills — filter out openspec, workflows, etc.
-  const skills = new Map(
-    [...allSkills].filter(([name]) => name.startsWith('nodered-'))
-  );
+  // Skills are loaded from resources/skills/ which contains only
+  // Node-RED skills — no prefix filtering needed.
+  const skills = allSkills;
 
   // Register MCP Resources — one per skill
   for (const [skillName, skill] of skills) {

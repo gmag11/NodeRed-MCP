@@ -33,6 +33,7 @@
   "files": [
     "index.js",
     "src/",
+    "resources/skills/",
     "README.md",
     "LICENSE"
   ],
