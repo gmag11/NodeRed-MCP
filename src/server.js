@@ -545,6 +545,9 @@ export async function createMcpServer(nodeRedClient, commsClient) {
     'Changes are NOT deployed to Node-RED until you call the `deploy` tool. ' +
     'Generates a unique ID for the node. ' +
     'Use the optional `properties` object to set type-specific configuration fields (e.g. func, url, method). ' +
+    '⚠️ INJECT NODE: must include ALL fields (repeat, crontab, once, onceDelay, topic, props) ' +
+    'even with empty defaults. Omitting any causes red-triangle errors in the Node-RED editor. ' +
+    'See the nodered-node-reference skill for the complete field set. ' +
     'The `id`, `z`, and `wires` fields in `properties` are silently ignored — the tool controls them. ' +
     'Returns nodeId and currentState. ' +
     'IMPORTANT — after creating a node, you MUST wire it manually using connect-nodes and disconnect-nodes. ' +
@@ -558,7 +561,7 @@ export async function createMcpServer(nodeRedClient, commsClient) {
     'e.g. `properties: { broker: \"localhost\", port: 1883, credentials: { username: \"user\", password: \"pass\" } }`. ' +
     'The tool auto-detects and nests credential fields correctly even if sent at the top level. ' +
     '� BUILD WORKFLOW: For step-by-step flow building, debugging, and testing guidance, read the `nodered://skills/nodered-flow-builder` resource (use list-skills to discover available skill URIs). ' +
-    '📖 NODE REFERENCE: For detailed node type properties, function node API, and credential handling, read the `nodered://skills/nodered-node-reference` resource (use list-skills to discover available skill URIs). ' +
+    '📖 NODE REFERENCE: For detailed node type properties (including inject ALL-fields requirement), function node API, and credential handling, read the `nodered://skills/nodered-node-reference` resource (use list-skills to discover available skill URIs). ' +
     '�📐 LAYOUT: For proper node positioning and spacing rules (horizontal/vertical gaps, ' +
     'debug placement, branch-point centering, group layout), read the `nodered://skills/nodered-flow-layout` resource (use list-skills to discover available skill URIs). ' +
     'Always start the first node at (x=120, y=80) unless a group header is present.',
