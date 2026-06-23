@@ -16,6 +16,7 @@ The change is scoped entirely to `src/server.js` lines ~884–980, which contain
 - Keep MCP Resources as the single content delivery mechanism
 - Keep `list-skills` tool for resource URI discovery
 - Update `list-skills` description to reference resources instead of `get-skill`
+- Update all tool descriptions that reference skills to point to `nodered://skills/{name}` resource URIs
 - Keep backward compatibility of `list-skills` response shape
 
 **Non-Goals:**
@@ -54,6 +55,15 @@ The change is scoped entirely to `src/server.js` lines ~884–980, which contain
 **Choice**: Add a `uri` field to each entry in `list-skills` output.
 
 **Rationale**: The LLM needs to know the resource URI to read a skill. Adding `uri: "nodered://skills/{name}"` to each entry makes discovery → retrieval a one-step flow.
+
+### Decision 5: Update tool descriptions to reference resource URIs
+**Choice**: Update `create-node` and `create-subflow-instance` tool descriptions to reference `nodered://skills/nodered-flow-layout` instead of bare skill names.
+
+**Rationale**: Currently these tools say "see the `nodered-flow-layout` skill" with no indication of *how* to access it. After removing prompts and `get-skill`, the only way to consume a skill is via its MCP resource URI. The tool descriptions must tell the LLM exactly what resource to read.
+
+**Affected locations** (in `src/server.js`):
+- `create-subflow-instance` (line ~197): `see the \`nodered-flow-layout\` skill` → `read the \`nodered://skills/nodered-flow-layout\` resource`
+- `create-node` (line ~558): same pattern
 
 ## Risks / Trade-offs
 

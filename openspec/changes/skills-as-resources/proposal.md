@@ -9,6 +9,7 @@ Skills are currently exposed through three redundant mechanisms: MCP Prompts, MC
 - Keep `list-skills` MCP tool for resource discovery
 - Keep skill registration as MCP Resources (`server.resource()` loop) — this becomes the sole content delivery mechanism
 - Update `list-skills` tool description to reference resources instead of `get-skill`
+- Update all tool descriptions that reference skills (e.g. `create-node`, `create-subflow-instance`) to point to `nodered://skills/{name}` resource URIs instead of bare skill names
 - No changes to `src/skills/loader.js` or the SKILL.md files themselves
 
 ## Capabilities
@@ -22,7 +23,7 @@ Skills are currently exposed through three redundant mechanisms: MCP Prompts, MC
 
 ## Impact
 
-- **Code**: `src/server.js` — remove `server.prompt()` loop and `get-skill` tool registration; update `list-skills` tool description
+- **Code**: `src/server.js` — remove `server.prompt()` loop and `get-skill` tool registration; update `list-skills` tool description; update `create-node` and `create-subflow-instance` tool descriptions to reference `nodered://skills/nodered-flow-layout` resource URI
 - **Specs**: `mcp-skills-integration/spec.md` and `tool-list-skills/spec.md` require delta updates
 - **API**: Breaking change for any MCP client that invokes skills via prompts or the `get-skill` tool
 - **Tests**: Update tests that verify prompt registration, `get-skill` tool behavior, and `list-skills` description
