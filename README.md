@@ -157,6 +157,28 @@ NODERED_API_KEY=your-api-key
 - **stdio** (default): `npm run start:stdio` — for local MCP client integration
 - **HTTP**: `npm run start:http` — Streamable HTTP with optional auth, WebSocket staging viewer at `/staging-ws`
 
+See [docs/deployment-guide.md](docs/deployment-guide.md) for a detailed deployment guide covering stdio, HTTP, and Docker Compose.
+
+## Installation
+
+You can configure the MCP in `mcp.json` file by pointing to npm package `@gmag11/nodered-mcp-server` and passing the required environment variables.
+
+```json
+{
+    "servers": {
+        "nodered-mcp": {
+            "command": "npx",
+            "args": ["-y", "@gmag11/nodered-mcp-server", "--transport=stdio"],
+            "env": {
+                "HOME": "/home/your-user",
+                "NODERED_URL": "http://localhost:1880",
+                "NODERED_API_KEY": "your-api-key"
+            }
+        }
+    }
+}
+```
+
 ## License
 
-MIT
+Apache-2.0

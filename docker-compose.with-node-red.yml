@@ -1,4 +1,12 @@
 services:
+  nodered:
+    image: nodered/node-red:latest-24
+    ports:
+      - "1880:1880"
+    volumes:
+      - ../nodered_data:/data
+    restart: unless-stopped
+
   nodered-mcp:
     build: .
     env_file: .env
