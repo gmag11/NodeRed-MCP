@@ -37,11 +37,11 @@ The build workflow SHALL build the Docker image for `linux/amd64` and `linux/arm
 - **THEN** a multi-arch Docker image manifest is produced covering `linux/amd64` and `linux/arm64`
 
 ### Requirement: Image published to GitHub Container Registry
-The build workflow SHALL push the multi-arch image to `ghcr.io/gmag11/nodered-mcp` with two tags: the git tag name (e.g., `v1.2.3`) and `latest`.
+The build workflow SHALL push the multi-arch image to `ghcr.io/gmag11/nodered-mcp`. For a git tag `v1.2.3`, the image SHALL be tagged with `latest`, `1`, `1.2`, and `1.2.3`. Tags SHALL be generated via `docker/metadata-action` using `type=semver` with the tag ref.
 
-#### Scenario: Version tag image published
+#### Scenario: Version tag image published with all tags
 - **WHEN** a tag `v1.2.3` triggers the pipeline and all steps succeed
-- **THEN** the image is available at `ghcr.io/gmag11/nodered-mcp:v1.2.3` AND `ghcr.io/gmag11/nodered-mcp:latest`
+- **THEN** the image is available at `ghcr.io/gmag11/nodered-mcp:latest`, `ghcr.io/gmag11/nodered-mcp:1`, `ghcr.io/gmag11/nodered-mcp:1.2`, and `ghcr.io/gmag11/nodered-mcp:1.2.3`
 
 ### Requirement: Workflow uses GITHUB_TOKEN for authentication
 The build workflow SHALL authenticate to GHCR using the built-in `GITHUB_TOKEN` with `packages: write` permission.
