@@ -8,7 +8,7 @@
  * @module renderer/mermaid-builder
  */
 
-import { getMermaidClass } from './colors.js';
+import { getMermaidClass, JUNCTION_STYLE } from './colors.js';
 
 /**
  * Escape a string for use as a Mermaid node label.
@@ -59,9 +59,14 @@ export function buildMermaid(ir) {
   // Render ungrouped nodes
   for (const node of nodes) {
     if (!ungroupedIds.has(node.id)) continue;
-    const label = escapeMermaidLabel(node.name);
-    const classTag = getMermaidClass(node);
-    lines.push(`  ${node.id}[${label}]${classTag}`);
+    if (node.isJunction) {
+      // Junction: circle node with no label
+      lines.push(`  ${node.id}(()):::junctionClass`);
+    } else {
+      const label = escapeMermaidLabel(node.name);
+      const classTag = getMermaidClass(node);
+      lines.push(`  ${node.id}[${label}]${classTag}`);
+    }
   }
 
   // Render groups as subgraphs
@@ -72,9 +77,13 @@ export function buildMermaid(ir) {
     for (const mid of gMembers) {
       const member = nodes.find((n) => n.id === mid);
       if (!member) continue;
-      const mLabel = escapeMermaidLabel(member.name);
-      const mClass = getMermaidClass(member);
-      lines.push(`    ${mid}[${mLabel}]${mClass}`);
+      if (member.isJunction) {
+        lines.push(`    ${mid}(()):::junctionClass`);
+      } else {
+        const mLabel = escapeMermaidLabel(member.name);
+        const mClass = getMermaidClass(member);
+        lines.push(`    ${mid}[${mLabel}]${mClass}`);
+      }
     }
     lines.push('  end');
   }
@@ -103,6 +112,13 @@ export function buildMermaid(ir) {
   }
   if (hasDisabled) {
     lines.push('  classDef disabled stroke-dasharray:5 5,stroke:#999,color:#999');
+  }
+  // Junction class: small gray circle matching SVG/HTML appearance
+  const hasJunctions = nodes.some((n) => n.isJunction);
+  if (hasJunctions) {
+    lines.push(
+      `  classDef junctionClass fill:${JUNCTION_STYLE.fill},stroke:${JUNCTION_STYLE.stroke},color:${JUNCTION_STYLE.fill}`
+    );
   }
 
   return lines.join('\n');

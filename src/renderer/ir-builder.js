@@ -23,6 +23,7 @@
  * @property {string} [z] - Parent flow ID
  * @property {string} [g] - Parent group ID
  * @property {object[]} [wires] - Outgoing wire connections
+ * @property {boolean} [isJunction] - Whether this is a junction node
  */
 
 /**
@@ -46,9 +47,9 @@
 
 /**
  * @typedef {object} IR
- * @property {IRNode[]} nodes - All flow nodes
+ * @property {IRNode[]} nodes - All flow nodes (including junctions)
  * @property {IRGroup[]} groups - All group nodes
- * @property {IRLink[]} links - All wire connections
+ * @property {IRLink[]} links - All wire connections (junctions are intermediate hops)
  * @property {Set<string>} dirtyNodeIds - IDs of dirty (un-deployed) nodes
  */
 
@@ -91,16 +92,16 @@ export function buildIR(flows, options = {}) {
 
   // Separate nodes, groups, and junctions
   const allFlowNodes = filteredFlows.filter(
-    (n) => n.type !== 'group' && n.type !== 'tab' && n.type !== 'junction'
+    (n) => n.type !== 'group' && n.type !== 'tab'
   );
   const groups = filteredFlows.filter((n) => n.type === 'group');
-  const junctions = filteredFlows.filter((n) => n.type === 'junction');
 
-  // Build node ID set for this flow
+  // Build node ID set for this flow (includes junctions for bounding box)
   const nodeIdSet = new Set(allFlowNodes.map((n) => n.id));
 
   // Convert to IR nodes
   const nodes = allFlowNodes.map((n) => {
+    const isJunction = n.type === 'junction';
     const numWires = Array.isArray(n.wires) ? n.wires.length : 0;
     return {
       id: n.id,
@@ -108,8 +109,8 @@ export function buildIR(flows, options = {}) {
       name: n.name || n.type,
       x: n.x || 0,
       y: n.y || 0,
-      w: n.w || DEFAULT_W,
-      h: n.h || DEFAULT_H,
+      w: isJunction ? 12 : (n.w || DEFAULT_W),
+      h: isJunction ? 12 : (n.h || DEFAULT_H),
       inputs: n.inputs ?? 0,
       outputs: n.outputs ?? numWires,
       d: n.d === true,
@@ -117,6 +118,7 @@ export function buildIR(flows, options = {}) {
       z: n.z,
       g: n.g,
       wires: n.wires || [],
+      isJunction,
     };
   });
 
@@ -132,7 +134,10 @@ export function buildIR(flows, options = {}) {
     nodes: (g.nodes || []).filter((mid) => nodeIdSet.has(mid)),
   }));
 
-  // Build links
+  // Build links. Junctions are included in `nodes[]`, so wires that target
+  // or originate from a junction are resolved as ordinary direct links —
+  // one segment from source to junction, another from junction to its
+  // own targets (junction nodes are processed by this same loop).
   const links = [];
   for (const node of nodes) {
     if (!node.wires || node.wires.length === 0) continue;
@@ -155,7 +160,6 @@ export function buildIR(flows, options = {}) {
     nodes,
     groups: irGroups,
     links,
-    junctions,
     dirtyNodeIds,
   };
 }
