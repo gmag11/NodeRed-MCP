@@ -15,6 +15,6 @@
 
 ## 3. Verification
 
-- [ ] 3.1 Push a test tag (e.g., `v0.0.0-test`) and verify test workflow runs
-- [ ] 3.2 Confirm docker-publish workflow triggers after test success
-- [ ] 3.3 Verify multi-arch image exists at `ghcr.io/gmag11/nodered-mcp` with both tags
+- [x] 3.1 Push a test tag (e.g., `v0.0.0-test`) and verify test workflow runs
+- [x] 3.2 Confirm docker-publish workflow triggers after test success
+- [x] 3.3 Verify multi-arch image exists at `ghcr.io/gmag11/nodered-mcp` with both tags
