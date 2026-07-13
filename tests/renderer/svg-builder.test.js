@@ -87,4 +87,54 @@ describe('buildSVG', () => {
     expect(svg).toContain('stroke-dasharray');
     expect(svg).toContain('G');
   });
+
+  // Junction rendering (6.3)
+
+  it('renders junction as circle element with class nr-junction', () => {
+    const flows = [
+      { id: 'a', type: 'inject', name: 'A', x: 100, y: 100, wires: [['j']] },
+      { id: 'j', type: 'junction', name: '', x: 200, y: 100, wires: [['b']] },
+      { id: 'b', type: 'debug', name: 'B', x: 300, y: 100, wires: [] },
+    ];
+    const ir = buildIR(flows);
+    const svg = buildSVG(ir);
+    expect(svg).toContain('class="nr-junction"');
+    expect(svg).toContain('<circle');
+  });
+
+  it('junction circle has correct fill and stroke from JUNCTION_STYLE', () => {
+    const flows = [
+      { id: 'j', type: 'junction', name: '', x: 200, y: 100, wires: [] },
+    ];
+    const ir = buildIR(flows);
+    const svg = buildSVG(ir);
+    expect(svg).toContain('fill="#999999"');
+    expect(svg).toContain('stroke="#666666"');
+  });
+
+  it('junction has no text label', () => {
+    const flows = [
+      { id: 'a', type: 'inject', name: 'A', x: 100, y: 100, wires: [['j']] },
+      { id: 'j', type: 'junction', name: '', x: 200, y: 100, wires: [['b']] },
+      { id: 'b', type: 'debug', name: 'B', x: 300, y: 100, wires: [] },
+    ];
+    const ir = buildIR(flows);
+    const svg = buildSVG(ir);
+    // Junction circle line should not contain <text>
+    const junctionLine = svg.split('\n').find((l) => l.includes('nr-junction'));
+    expect(junctionLine).not.toContain('<text');
+  });
+
+  it('junction wire segments: node→junction and junction→node both rendered', () => {
+    const flows = [
+      { id: 'a', type: 'inject', name: 'A', x: 100, y: 100, wires: [['j']] },
+      { id: 'j', type: 'junction', name: '', x: 200, y: 100, wires: [['b']] },
+      { id: 'b', type: 'debug', name: 'B', x: 300, y: 100, wires: [] },
+    ];
+    const ir = buildIR(flows);
+    const svg = buildSVG(ir);
+    // Should have at least 2 nr-link paths (a→j and j→b)
+    const linkCount = (svg.match(/class="nr-link"/g) || []).length;
+    expect(linkCount).toBe(2);
+  });
 });

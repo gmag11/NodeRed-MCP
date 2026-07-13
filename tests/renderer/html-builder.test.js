@@ -129,4 +129,52 @@ describe('buildHTML', () => {
       expect(html).toContain('return;');
     });
   });
+
+  // Junction rendering (6.5)
+
+  it('includes junction nodes in ALL_FLOWS data', () => {
+    const flows = [
+      { id: 'tab1', type: 'tab', label: 'F', z: '' },
+      { id: 'a', type: 'inject', name: 'A', x: 100, y: 100, z: 'tab1', wires: [['j']] },
+      { id: 'j', type: 'junction', name: '', x: 200, y: 100, z: 'tab1', wires: [['b']] },
+      { id: 'b', type: 'debug', name: 'B', x: 300, y: 100, z: 'tab1', wires: [] },
+    ];
+    const html = buildHTML(flows);
+    expect(html).toContain('"type":"junction"');
+  });
+
+  it('generates isJunction flag in D3 node data', () => {
+    const flows = [
+      { id: 'tab1', type: 'tab', label: 'F', z: '' },
+      { id: 'a', type: 'inject', name: 'A', x: 100, y: 100, z: 'tab1', wires: [['j']] },
+      { id: 'j', type: 'junction', name: '', x: 200, y: 100, z: 'tab1', wires: [['b']] },
+      { id: 'b', type: 'debug', name: 'B', x: 300, y: 100, z: 'tab1', wires: [] },
+    ];
+    const html = buildHTML(flows);
+    expect(html).toContain('isJunction');
+    expect(html).toContain('isJunction: isJunction');
+  });
+
+  it('renders junction as D3 circle element in entry selection', () => {
+    const flows = [
+      { id: 'tab1', type: 'tab', label: 'F', z: '' },
+      { id: 'j', type: 'junction', name: '', x: 200, y: 100, z: 'tab1', wires: [] },
+    ];
+    const html = buildHTML(flows);
+    // Should have D3 circle append for junction, not rect+text
+    expect(html).toContain('filter(function(d) { return d.isJunction; }).append("circle")');
+  });
+
+  it('junction wire link uses direct lookup not resolution helper', () => {
+    const flows = [
+      { id: 'tab1', type: 'tab', label: 'F', z: '' },
+      { id: 'a', type: 'inject', name: 'A', x: 100, y: 100, z: 'tab1', wires: [['j']] },
+      { id: 'j', type: 'junction', name: '', x: 200, y: 100, z: 'tab1', wires: [['b']] },
+      { id: 'b', type: 'debug', name: 'B', x: 300, y: 100, z: 'tab1', wires: [] },
+    ];
+    const html = buildHTML(flows);
+    // Link building uses .find directly, not resolveTargets
+    expect(html).toContain('tn = nodes.find');
+    expect(html).not.toContain('resolveTargets');
+  });
 });

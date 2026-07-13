@@ -108,3 +108,10 @@ The staging store SHALL provide a `getStagingSummary()` method that returns `{ p
 #### Scenario: Summary when no mutations applied
 - **WHEN** `getStagingSummary()` is called after flows are loaded but no mutations have been applied
 - **THEN** it SHALL return `{ pendingChanges: 0, dirtyNodeIds: [], dirtyFlowIds: [], deployed: true }`
+
+### Requirement: Staging renderer renders junctions as visible circles with resolved wires
+When the staging renderer (via `renderStaging()`) produces a diagram of the staged flows, junction nodes SHALL be rendered as small circles and wire paths through junctions SHALL be resolved so that connectivity is correctly represented.
+
+#### Scenario: Staging visualization preserves junction topology
+- **WHEN** `renderStaging()` is called for flows containing junctions
+- **THEN** the resulting diagram (SVG, Mermaid, or HTML) SHALL show junctions as visible circle elements and correct wire connections that transit through junctions

@@ -102,6 +102,16 @@ const DIRTY_STYLES = {
 const DISABLED_STYLE = 'stroke-dasharray:5,5;opacity:0.5;';
 
 /**
+ * Junction node style definitions.
+ * Matches Node-RED editor junction appearance: small filled circle.
+ */
+const JUNCTION_STYLE = {
+  fill: '#999999',
+  stroke: '#666666',
+  radius: 4,
+};
+
+/**
  * Get the fill color for a node type.
  *
  * @param {string} type - Node type string (e.g., 'inject', 'function')
@@ -158,4 +168,4 @@ export function getMermaidClass(node) {
   return parts.length > 0 ? ':::' + parts.join(':::') : '';
 }
 
-export { NODE_COLORS, DEFAULT_COLOR, DIRTY_STYLES, DISABLED_STYLE };
+export { NODE_COLORS, DEFAULT_COLOR, DIRTY_STYLES, DISABLED_STYLE, JUNCTION_STYLE };

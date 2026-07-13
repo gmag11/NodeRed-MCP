@@ -14,6 +14,7 @@ import {
   getNodeStyle,
   DEFAULT_COLOR,
   DISABLED_STYLE,
+  JUNCTION_STYLE,
 } from './colors.js';
 
 /**
@@ -134,6 +135,14 @@ function buildLinkSVG(link) {
  * @returns {string[]} SVG lines
  */
 function buildNodeSVG(node) {
+  // Junction nodes: render as small filled circle, no label or ports
+  if (node.isJunction) {
+    const r = JUNCTION_STYLE.radius;
+    return [
+      `  <circle class="nr-junction" cx="${node.x}" cy="${node.y}" r="${r}" fill="${JUNCTION_STYLE.fill}" stroke="${JUNCTION_STYLE.stroke}" stroke-width="1.5"/>`,
+    ];
+  }
+
   const lines = [];
   const color = getNodeColor(node.type);
   const style = getNodeStyle(node, color);
