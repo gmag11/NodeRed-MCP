@@ -28,11 +28,11 @@
 
 ## 6. Tests
 
-- [ ] 6.1 Add test fixtures: node→junction→node, junction split (1→N), junction join (N→1), junction→junction chain, circular references
-- [ ] 6.2 Add unit tests in `tests/renderer/ir-builder.test.js` for junction IR node generation (isJunction flag, dimensions) and wire resolution
-- [ ] 6.3 Add unit tests in `tests/renderer/svg-builder.test.js` verifying junction `<circle>` output with correct attributes
-- [ ] 6.4 Add unit tests in `tests/renderer/mermaid-builder.test.js` verifying junction `((...))` syntax
-- [ ] 6.5 Add unit tests in `tests/renderer/html-builder.test.js` for junction circle rendering and wire resolution in D3 output
+- [x] 6.1 Add test fixtures: node→junction→node, junction split (1→N), junction join (N→1), junction→junction chain, circular references
+- [x] 6.2 Add unit tests in `tests/renderer/ir-builder.test.js` for junction IR node generation (isJunction flag, dimensions) and wire resolution
+- [x] 6.3 Add unit tests in `tests/renderer/svg-builder.test.js` verifying junction `<circle>` output with correct attributes
+- [x] 6.4 Add unit tests in `tests/renderer/mermaid-builder.test.js` verifying junction `((...))` syntax
+- [x] 6.5 Add unit tests in `tests/renderer/html-builder.test.js` for junction circle rendering and wire resolution in D3 output
 - [x] 6.6 Verify existing tests still pass (no regressions)
 
 ## 7. Validation

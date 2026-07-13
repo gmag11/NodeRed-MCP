@@ -81,4 +81,54 @@ describe('buildMermaid', () => {
     const diagram = buildMermaid(ir);
     expect(diagram).toContain('%% Empty flow');
   });
+
+  // Junction rendering (6.4)
+
+  it('renders junction as circle node with (()) syntax', () => {
+    const flows = [
+      { id: 'j', type: 'junction', name: '', x: 200, y: 100, wires: [] },
+    ];
+    const ir = buildIR(flows);
+    const diagram = buildMermaid(ir);
+    expect(diagram).toContain('j(())');
+  });
+
+  it('junction circle node has junctionClass', () => {
+    const flows = [
+      { id: 'j', type: 'junction', name: '', x: 200, y: 100, wires: [] },
+    ];
+    const ir = buildIR(flows);
+    const diagram = buildMermaid(ir);
+    expect(diagram).toContain('j(()):::junctionClass');
+  });
+
+  it('junctionClass uses JUNCTION_STYLE colors', () => {
+    const flows = [
+      { id: 'j', type: 'junction', name: '', x: 200, y: 100, wires: [] },
+    ];
+    const ir = buildIR(flows);
+    const diagram = buildMermaid(ir);
+    expect(diagram).toContain('classDef junctionClass');
+    expect(diagram).toContain('fill:#999999');
+    expect(diagram).toContain('stroke:#666666');
+  });
+
+  it('no junctionClass when no junctions present', () => {
+    const flows = [{ id: 'A', type: 'inject', name: 'A', wires: [] }];
+    const ir = buildIR(flows);
+    const diagram = buildMermaid(ir);
+    expect(diagram).not.toContain('junctionClass');
+  });
+
+  it('junction wires rendered as hop segments', () => {
+    const flows = [
+      { id: 'a', type: 'inject', name: 'A', x: 100, y: 100, wires: [['j']] },
+      { id: 'j', type: 'junction', name: '', x: 200, y: 100, wires: [['b']] },
+      { id: 'b', type: 'debug', name: 'B', x: 300, y: 100, wires: [] },
+    ];
+    const ir = buildIR(flows);
+    const diagram = buildMermaid(ir);
+    expect(diagram).toMatch(/a --> j/);
+    expect(diagram).toMatch(/j --> b/);
+  });
 });
