@@ -202,6 +202,21 @@ services:
       - "${MCP_HTTP_PORT:-3000}:${MCP_HTTP_PORT:-3000}"
 ```
 
+### Using a pre-built image
+
+Pre-built images are available at `ghcr.io/gmag11/nodered-mcp` for `linux/amd64` and `linux/arm64`. Instead of building locally, pull the image and replace `build: .` with the registry reference:
+
+```yaml
+services:
+  nodered-mcp:
+    image: ghcr.io/gmag11/nodered-mcp:latest
+    env_file: .env
+    ports:
+      - "${MCP_HTTP_PORT:-3000}:${MCP_HTTP_PORT:-3000}"
+```
+
+Available tags include `latest`, `1` (major), `1.2` (minor), and full semver versions. For example, `ghcr.io/gmag11/nodered-mcp:1.2.3`.
+
 ### Run
 
 ```bash

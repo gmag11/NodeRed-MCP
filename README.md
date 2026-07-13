@@ -152,6 +152,27 @@ NODERED_API_KEY=your-api-key
 | `MCP_OAUTH_CLIENTS_FILE` | No | `./oauth-clients.json` | OAuth client registry |
 | `MCP_OAUTH_TOKENS_FILE` | No | `./oauth-tokens.json` | OAuth token store |
 
+## Docker
+
+Pre-built images are published to GitHub Container Registry at `ghcr.io/gmag11/nodered-mcp`:
+
+```bash
+docker pull ghcr.io/gmag11/nodered-mcp:latest
+```
+
+Run with environment variables:
+
+```bash
+docker run -d \
+  --name nodered-mcp \
+  -p 3000:3000 \
+  -e NODERED_URL=http://host.docker.internal:1880 \
+  -e NODERED_API_KEY=your-api-key \
+  ghcr.io/gmag11/nodered-mcp:latest
+```
+
+Available tags include `latest`, `1` (major), `1.2` (minor), and full semver versions. See [docs/deployment-guide.md](docs/deployment-guide.md) for Docker Compose setup and full configuration.
+
 ## Transports
 
 - **stdio** (default): `npm run start:stdio` — for local MCP client integration
