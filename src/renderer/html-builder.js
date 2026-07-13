@@ -8,6 +8,8 @@
  * @module renderer/html-builder
  */
 
+import { JUNCTION_STYLE } from './colors.js';
+
 /**
  * Default node dimensions if not specified in raw flow data.
  */
@@ -195,7 +197,7 @@ export function buildHTML(flows, options = {}) {
     '      var nodeH = Math.max(n.h || DEFAULT_H, portH);',
     '      return {',
     '        id: n.id, type: n.type, name: n.name || n.type,',
-    '        x: n.x || 0, y: n.y || 0, w: isJunction ? 12 : (n.w || DEFAULT_W), h: isJunction ? 12 : nodeH,',
+    '        x: n.x || 0, y: n.y || 0, w: isJunction ? ' + (JUNCTION_STYLE.radius * 2) + ' : (n.w || DEFAULT_W), h: isJunction ? ' + (JUNCTION_STYLE.radius * 2) + ' : nodeH,',
     '        inputs: ins,',
     '        outputs: outs,',
     '        d: n.d === true,',
@@ -403,7 +405,7 @@ export function buildHTML(flows, options = {}) {
     '      .attr("fill", "#333").attr("dy", "0.35em");',
     '    // Junction circle (only for junction nodes)',
     '    ne.filter(function(d) { return d.isJunction; }).append("circle")',
-    '      .attr("r", 6).attr("fill", "#999").attr("stroke", "#666").attr("stroke-width", 1.5);',
+    '      .attr("r", ' + JUNCTION_STYLE.radius + ').attr("fill", "' + JUNCTION_STYLE.fill + '").attr("stroke", "' + JUNCTION_STYLE.stroke + '").attr("stroke-width", 1.5);',
     '    nodeSel.merge(ne).each(function(d) {',
     '      var g = d3.select(this);',
     '      g.attr("class", getNodeCSSClass(d));',

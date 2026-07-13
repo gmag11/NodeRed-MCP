@@ -108,7 +108,7 @@ const DISABLED_STYLE = 'stroke-dasharray:5,5;opacity:0.5;';
 const JUNCTION_STYLE = {
   fill: '#999999',
   stroke: '#666666',
-  radius: 6,
+  radius: 4,
 };
 
 /**

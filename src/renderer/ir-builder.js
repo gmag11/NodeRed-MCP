@@ -7,6 +7,8 @@
  * @module renderer/ir-builder
  */
 
+import { JUNCTION_STYLE } from './colors.js';
+
 /**
  * @typedef {object} IRNode
  * @property {string} id - Node ID
@@ -109,8 +111,8 @@ export function buildIR(flows, options = {}) {
       name: n.name || n.type,
       x: n.x || 0,
       y: n.y || 0,
-      w: isJunction ? 12 : (n.w || DEFAULT_W),
-      h: isJunction ? 12 : (n.h || DEFAULT_H),
+      w: isJunction ? JUNCTION_STYLE.radius * 2 : (n.w || DEFAULT_W),
+      h: isJunction ? JUNCTION_STYLE.radius * 2 : (n.h || DEFAULT_H),
       inputs: n.inputs ?? 0,
       outputs: n.outputs ?? numWires,
       d: n.d === true,
