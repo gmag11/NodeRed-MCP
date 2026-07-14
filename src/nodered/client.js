@@ -105,6 +105,17 @@ export function createNodeRedClient(baseUrl, authManager) {
     }).then(res => {
       console.error(`[NodeRed-MCP] ← ${res.status} ${method} ${url}`);
       return res;
+    }).catch(err => {
+      // Network-level failures (ECONNREFUSED, ENOTFOUND, ETIMEDOUT, etc.)
+      // provide no useful HTTP status — wrap them with actionable guidance
+      const hint = err.code === 'ECONNREFUSED'
+        ? `Connection refused at ${url}. Is Node-RED running at the configured NODERED_URL?`
+        : err.code === 'ENOTFOUND'
+        ? `DNS lookup failed for ${url}. Check NODERED_URL and network/DNS configuration.`
+        : err.code === 'ETIMEDOUT'
+        ? `Connection timed out to ${url}. Check network connectivity and firewall rules.`
+        : `Network error contacting ${url}: ${err.message}. Verify NODERED_URL is correct and Node-RED is running.`;
+      throw new Error(hint);
     });
   }
 

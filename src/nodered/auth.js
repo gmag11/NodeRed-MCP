@@ -22,7 +22,15 @@ export async function detectAuthMode(baseUrl, apiKey) {
     return 'apikey';
   }
 
-  const res = await fetch(`${baseUrl}/auth/login`);
+  let res;
+  try {
+    res = await fetch(`${baseUrl}/auth/login`);
+  } catch (err) {
+    const hint = err.code === 'ECONNREFUSED'
+      ? `Connection refused at ${baseUrl}/auth/login. Is Node-RED running? Check NODERED_URL.`
+      : `Network error contacting ${baseUrl}/auth/login: ${err.message}. Verify NODERED_URL is correct and Node-RED is reachable.`;
+    throw new Error(hint);
+  }
   if (!res.ok) {
     throw new Error(`Failed to detect auth mode: GET /auth/login returned ${res.status}. Check that the Node-RED instance is running and accessible at the configured baseUrl.`);
   }
@@ -53,17 +61,25 @@ export async function detectAuthMode(baseUrl, apiKey) {
  * @returns {Promise<string>} The access_token
  */
 export async function getToken(baseUrl, username, password) {
-  const res = await fetch(`${baseUrl}/auth/token`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      client_id: 'node-red-admin',
-      grant_type: 'password',
-      scope: '*',
-      username,
-      password,
-    }),
-  });
+  let res;
+  try {
+    res = await fetch(`${baseUrl}/auth/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: 'node-red-admin',
+        grant_type: 'password',
+        scope: '*',
+        username,
+        password,
+      }),
+    });
+  } catch (err) {
+    throw new Error(
+      `Network error contacting ${baseUrl}/auth/token: ${err.message}. ` +
+      'Verify NODERED_URL is correct and Node-RED is reachable.'
+    );
+  }
 
   if (!res.ok) {
     throw new Error(`Failed to obtain Node-RED token: POST /auth/token returned ${res.status}. Check that NODERED_USERNAME and NODERED_PASSWORD are correct and that the credentials auth is enabled in Node-RED.`);
