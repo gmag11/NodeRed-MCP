@@ -221,4 +221,55 @@ describe('buildHTML', () => {
     expect(html).toContain('nr-subflow-badge');
     expect(html).toContain('#7BA7B3');
   });
+
+  // Viewer subflow tabs (5.1)
+  it('contains openSubflowTab, closeSubflowTab, and dblclick wiring for subflow nodes', () => {
+    const html = buildHTML(flowsWithTwoTabs);
+    expect(html).toContain('openSubflowTab');
+    expect(html).toContain('closeSubflowTab');
+    expect(html).toContain('handleNodeDblclick');
+    expect(html).toContain('on("dblclick"');
+    expect(html).toContain('event.stopPropagation()');
+  });
+
+  // Viewer subflow tabs (5.2)
+  it('dblclick only reacts to subflow-typed nodes, not other types', () => {
+    const html = buildHTML(flowsWithTwoTabs);
+    expect(html).toContain('indexOf("subflow:") === 0');
+    expect(html).toContain('handleNodeDblclick');
+    // The handler body is gated; non-subflow nodes hit the no-op branch
+    expect(html).toContain('openSubflowTab(d.type.slice("subflow:".length))');
+  });
+
+  // Viewer subflow tabs (5.3)
+  it('uses reconcileTabs instead of wholesale tabs reassignment on WS/refresh', () => {
+    const html = buildHTML(flowsWithTwoTabs);
+    expect(html).toContain('reconcileTabs');
+    // reconcileTabs is called in both the WS handler and applySnapshot
+    expect(html).toContain('reconcileTabs(freshTabs)');
+    expect(html).toContain('reconcileTabs(freshTabs2)');
+  });
+
+  // Viewer subflow tabs (5.4)
+  it('closeSubflowTab only removes one entry, no cascade-close or parentId logic', () => {
+    const html = buildHTML(flowsWithTwoTabs);
+    expect(html).toContain('closeSubflowTab');
+    expect(html).not.toContain('parentId');
+    // The close function should only splice one entry and not iterate over dependent tabs
+    expect(html).not.toMatch(/closeSubflowTab.*tabs\.filter/);
+  });
+
+  // Viewer subflow tab-bar visibility (1.3)
+  it('tab bar visibility computed dynamically from tabs.length', () => {
+    const html = buildHTML(flowsWithTwoTabs);
+    expect(html).toContain('tabs.length <= 1');
+    expect(html).toContain('with-tabs');
+  });
+
+  // Viewer subflow close button CSS (4.2)
+  it('has nr-tab-close CSS class for subflow tab close buttons', () => {
+    const html = buildHTML(flowsWithTwoTabs);
+    expect(html).toContain('nr-tab-close');
+    expect(html).toContain('\\u00d7');
+  });
 });
