@@ -184,7 +184,8 @@ export async function createMcpServer(nodeRedClient, commsClient) {
   server.tool(
     'create-subflow-instance',
     'Place a reusable subflow instance into a flow tab (staged — deploy to apply). ' +
-    'Auto-sizes output wires to match the subflow definition. Validates subflow and target flow exist.',
+    'Auto-sizes output wires to match the subflow definition. Validates subflow and target flow exist. ' +
+    'After creation, edit the instance with update-node.',
     {
       subflowId: z.string().describe('ID of the subflow definition to instantiate'),
       flowId: z.string().describe('ID of the target flow tab where the instance will be placed'),
@@ -234,7 +235,8 @@ export async function createMcpServer(nodeRedClient, commsClient) {
   // Register: update-subflow
   server.tool(
     'update-subflow',
-    'Update metadata of a subflow definition (staged — deploy to apply). ' +
+    'Update metadata of a subflow definition — does NOT edit subflow instances (staged — deploy to apply). ' +
+    'For subflow instances placed on flow tabs (type: "subflow:..."), use update-node instead. ' +
     'Partial merge — unspecified fields are preserved. Refuses locked subflows.',
     {
       subflowId: z.string().describe('ID of the subflow to update'),
@@ -403,6 +405,7 @@ export async function createMcpServer(nodeRedClient, commsClient) {
   // Register: update-node
   server.tool(
     'update-node',
+    'Works on any node type including subflow instances (type: "subflow:..."). ' +
     'Shallow-merge properties onto an existing node (staged — deploy to apply). ' +
     'Do NOT include wires — use connect-nodes/disconnect-nodes. For credentials, nest in a credentials object.',
     {

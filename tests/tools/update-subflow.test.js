@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { applySubflowUpdate } from '../../src/tools/update-subflow.js';
+import { describe, it, expect, vi } from 'vitest';
+import { applySubflowUpdate, handleUpdateSubflow } from '../../src/tools/update-subflow.js';
 
 describe('applySubflowUpdate', () => {
   const baseSubflow = {
@@ -72,5 +72,49 @@ describe('applySubflowUpdate', () => {
     expect(updatedSubflow.category).toBe('subflow');
     expect(updatedSubflow.color).toBe('#AABBCC');
     expect(updatedSubflow.icon).toBe('icon.svg');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// handleUpdateSubflow — type mismatch detection
+// ---------------------------------------------------------------------------
+
+describe('handleUpdateSubflow', () => {
+  function makeStaging(flowsArray) {
+    return {
+      applyMutation: vi.fn().mockImplementation(async (fn) => {
+        const result = fn({ flows: [...flowsArray] });
+        const { updatedFlows, ...output } = result;
+        return output;
+      }),
+      getStagingSummary: vi.fn().mockReturnValue({
+        pendingChanges: 0, dirtyNodeIds: [], dirtyFlowIds: [], deployed: true,
+      }),
+    };
+  }
+
+  it('throws type-mismatch error when subflowId matches a subflow instance', async () => {
+    const flows = [
+      { id: 'subdef', type: 'subflow', name: 'My Subflow', in: [], out: [] },
+      { id: 'inst1', type: 'subflow:subdef', name: 'Instance 1', z: 'tab1', x: 100, y: 100, wires: [[]] },
+    ];
+    const staging = makeStaging(flows);
+    const client = {};
+
+    await expect(handleUpdateSubflow(staging, client, { subflowId: 'inst1', updates: { name: 'Renamed' } }))
+      .rejects.toThrow("is a subflow instance (type: 'subflow:subdef'), not a subflow definition");
+  });
+
+  it('does NOT throw type-mismatch for a valid subflow definition ID', async () => {
+    const flows = [
+      { id: 'subdef', type: 'subflow', name: 'My Subflow', in: [], out: [] },
+    ];
+    const staging = makeStaging(flows);
+    const client = {};
+
+    const result = await handleUpdateSubflow(staging, client, { subflowId: 'subdef', updates: { name: 'Renamed' } });
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.subflowId).toBe('subdef');
+    expect(parsed.currentState.name).toBe('Renamed');
   });
 });

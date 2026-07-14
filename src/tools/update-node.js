@@ -6,6 +6,9 @@
  * rejected — agents must use connect-nodes / disconnect-nodes instead.
  * Refuses to mutate nodes in locked flows.
  *
+ * Works on any node type: regular flow nodes, subflow instances
+ * (type: "subflow:<uuid>"), and subflow definitions (type: "subflow").
+ *
  * Credential handling (via normalizeCredentials from flow-utils.js):
  * When updating configuration nodes (e.g. mqtt-broker, http-proxy),
  * credential fields like `username`, `password`, `key`, `token`, etc.

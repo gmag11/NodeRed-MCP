@@ -1,10 +1,14 @@
 /**
  * MCP tool: update-subflow
  *
- * Updates metadata fields of an existing subflow definition.
+ * Updates metadata fields of an existing subflow DEFINITION (type: "subflow").
  * Allowed fields: name, info, category, color, icon, in, out.
  * Performs a partial merge — unspecified fields are preserved.
  * Refuses to update a locked subflow.
+ *
+ * IMPORTANT: This tool ONLY edits subflow definitions (templates).
+ * To edit a subflow INSTANCE placed on a flow tab (type: "subflow:<uuid>"),
+ * use update-node instead.
  */
 
 import { formatSuccess } from './response-utils.js';
@@ -60,6 +64,18 @@ export async function handleUpdateSubflow(staging, client, params) {
 
   const { previousState, updatedSubflow: currentState } = await staging.applyMutation((rawResponse) => {
     const flows = rawResponse.flows || [];
+
+    // Detect type mismatch: subflowId matches a subflow instance, not a definition
+    const instanceNode = flows.find(
+      (n) => n.type && n.type.startsWith('subflow:') && n.id === subflowId,
+    );
+    if (instanceNode) {
+      throw new Error(
+        `Node '${subflowId}' is a subflow instance (type: '${instanceNode.type}'), ` +
+        'not a subflow definition. Use update-node to edit subflow instances.',
+      );
+    }
+
     const subflowIndex = flows.findIndex(
       (n) => n.type === 'subflow' && n.id === subflowId,
     );
