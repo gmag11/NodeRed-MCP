@@ -4,7 +4,7 @@ MCP tool that modifies the configuration properties of an existing Node-RED node
 ## Requirements
 
 ### Requirement: update-node MCP tool
-The system SHALL expose an MCP tool named `update-node` that accepts a `nodeId` (required string) and a `properties` (required object) and shallow-merges `properties` onto the existing node's configuration, then deploys the updated flows with `Node-RED-Deployment-Type: flows`.
+The system SHALL expose an MCP tool named `update-node` that accepts a `nodeId` (required string) and a `properties` (required object) and shallow-merges `properties` onto the existing node's configuration, then deploys the updated flows with `Node-RED-Deployment-Type: flows`. This tool works on ANY node type: regular flow nodes, subflow instances (`type: "subflow:<uuid>"`), and subflow definitions (`type: "subflow"`).
 
 #### Scenario: Update a single property
 - **WHEN** `update-node` is invoked with `nodeId: "abc"` and `properties: { name: "New Name" }`
@@ -88,3 +88,18 @@ The tool SHALL modify the local staging store instead of deploying to Node-RED.
 - **WHEN** the tool is executed successfully
 - **THEN** it mutates the staging store
 - **THEN** the response includes a `staging` summary object containing `pendingChanges`, `dirtyNodeIds`, `dirtyFlowIds`, and `deployed`
+
+### Requirement: update-node edits subflow instances
+The `update-node` tool SHALL successfully edit subflow instance nodes (nodes with `type: "subflow:<uuid>"`) using the same shallow-merge mechanism as regular nodes.
+
+#### Scenario: Edit subflow instance name
+- **WHEN** `update-node` is invoked with the `nodeId` of a subflow instance and `properties: { name: "My Instance" }`
+- **THEN** the instance's `name` SHALL be updated and the `type` SHALL remain `"subflow:<uuid>"`
+
+#### Scenario: Edit subflow instance environment variables
+- **WHEN** `update-node` is invoked with the `nodeId` of a subflow instance and `properties: { env: [{ name: "VAR", value: "val", type: "str" }] }`
+- **THEN** the instance's `env` array SHALL be replaced with the new value
+
+#### Scenario: Edit subflow instance position
+- **WHEN** `update-node` is invoked with the `nodeId` of a subflow instance and `properties: { x: 500, y: 300 }`
+- **THEN** the instance's canvas position SHALL be updated
