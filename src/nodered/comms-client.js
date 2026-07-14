@@ -226,6 +226,11 @@ export class CommsClient extends EventEmitter {
    */
   constructor({ baseUrl, username, password, token } = {}) {
     super();
+    // Default no-op error listener prevents Node.js from crashing on
+    // unhandled 'error' events when no consumer registers a listener.
+    // WebSocket errors (ECONNREFUSED, etc.) are transient — the 'close'
+    // handler already schedules reconnection.
+    this.on('error', () => {});
     if (!baseUrl) {
       throw new Error('CommsClient requires a baseUrl. Set the NODERED_URL environment variable or provide baseUrl in the server configuration.');
     }
