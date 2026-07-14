@@ -118,6 +118,9 @@ const JUNCTION_STYLE = {
  * @returns {string} CSS color value
  */
 export function getNodeColor(type) {
+  if (typeof type === 'string' && type.startsWith('subflow:')) {
+    return '#9BC7D4';
+  }
   return NODE_COLORS[type] || DEFAULT_COLOR;
 }
 

@@ -177,4 +177,48 @@ describe('buildHTML', () => {
     expect(html).toContain('tn = nodes.find');
     expect(html).not.toContain('resolveTargets');
   });
+
+  // Subflow instance rendering
+
+  it('includes getSubflowInstanceName function', () => {
+    const flows = [
+      { id: 'tab1', type: 'tab', label: 'F', z: '' },
+      { id: 'sub1', type: 'subflow', name: 'init', in: [], out: [] },
+      { id: 'inst1', type: 'subflow:sub1', name: '', z: 'tab1', x: 100, y: 100, wires: [[]] },
+    ];
+    const html = buildHTML(flows);
+    expect(html).toContain('getSubflowInstanceName');
+  });
+
+  it('subflow instance name is resolved in buildTabData', () => {
+    const flows = [
+      { id: 'tab1', type: 'tab', label: 'F', z: '' },
+      { id: 'sub1', type: 'subflow', name: 'init', in: [], out: [] },
+      { id: 'inst1', type: 'subflow:sub1', name: '', z: 'tab1', x: 100, y: 100, wires: [[]] },
+    ];
+    const html = buildHTML(flows);
+    expect(html).toContain('getSubflowInstanceName(n)');
+  });
+
+  it('subflow instance nodes have subflow-instance CSS class', () => {
+    const flows = [
+      { id: 'tab1', type: 'tab', label: 'F', z: '' },
+      { id: 'sub1', type: 'subflow', name: 'init', in: [], out: [] },
+      { id: 'inst1', type: 'subflow:sub1', name: '', z: 'tab1', x: 100, y: 100, wires: [[]] },
+    ];
+    const html = buildHTML(flows);
+    expect(html).toContain('subflow-instance');
+    expect(html).toContain('startsWith("subflow:")');
+  });
+
+  it('subflow instance has badge rendering in D3 code', () => {
+    const flows = [
+      { id: 'tab1', type: 'tab', label: 'F', z: '' },
+      { id: 'sub1', type: 'subflow', name: 'init', in: [], out: [] },
+      { id: 'inst1', type: 'subflow:sub1', name: '', z: 'tab1', x: 100, y: 100, wires: [[]] },
+    ];
+    const html = buildHTML(flows);
+    expect(html).toContain('nr-subflow-badge');
+    expect(html).toContain('#7BA7B3');
+  });
 });

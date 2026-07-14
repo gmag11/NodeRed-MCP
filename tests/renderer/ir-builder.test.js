@@ -159,3 +159,40 @@ describe('buildIR — junction support', () => {
     expect(group.nodes).toContain('j');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Subflow instance name resolution
+// ---------------------------------------------------------------------------
+
+describe('buildIR — subflow instance name resolution', () => {
+  const subflowDef = { id: 'sub1', type: 'subflow', name: 'My Subflow', in: [], out: [] };
+
+  it('instance with explicit name uses its own name', () => {
+    const flows = [
+      subflowDef,
+      { id: 'inst1', type: 'subflow:sub1', name: 'Custom Name', x: 100, y: 100, wires: [[]] },
+    ];
+    const ir = buildIR(flows);
+    const inst = ir.nodes.find((n) => n.id === 'inst1');
+    expect(inst.name).toBe('Custom Name');
+  });
+
+  it('instance without name falls back to subflow definition name', () => {
+    const flows = [
+      subflowDef,
+      { id: 'inst1', type: 'subflow:sub1', name: '', x: 100, y: 100, wires: [[]] },
+    ];
+    const ir = buildIR(flows);
+    const inst = ir.nodes.find((n) => n.id === 'inst1');
+    expect(inst.name).toBe('My Subflow');
+  });
+
+  it('instance without name and missing definition uses type fallback', () => {
+    const flows = [
+      { id: 'inst1', type: 'subflow:missing', name: '', x: 100, y: 100, wires: [[]] },
+    ];
+    const ir = buildIR(flows);
+    const inst = ir.nodes.find((n) => n.id === 'inst1');
+    expect(inst.name).toBe('subflow:missing');
+  });
+});

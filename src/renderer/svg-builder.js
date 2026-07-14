@@ -164,6 +164,14 @@ function buildNodeSVG(node) {
     );
   }
 
+  // Subflow instance badge
+  if (typeof node.type === 'string' && node.type.startsWith('subflow:')) {
+    lines.push(
+      `    <rect class="nr-subflow-badge" x="${x + node.w - 18}" y="${y + 2}" width="16" height="12" rx="2" fill="#7BA7B3" stroke="#5A8A96" stroke-width="0.5"/>`,
+      `    <text class="nr-subflow-badge-label" x="${x + node.w - 10}" y="${y + 11}" text-anchor="middle" font-size="8" fill="#fff" font-family="sans-serif" font-weight="bold">S</text>`
+    );
+  }
+
   // Node label
   lines.push(
     `    <text x="${node.x}" y="${node.y + 5}" text-anchor="middle" font-size="10" fill="#333" font-family="sans-serif">${label}</text>`

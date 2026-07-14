@@ -10,6 +10,25 @@
 import { JUNCTION_STYLE } from './colors.js';
 
 /**
+ * Resolve the display name for a subflow instance node.
+ * If the instance has an explicit name, use it.
+ * Otherwise, look up the subflow definition in the flows array.
+ *
+ * @param {object} node - Raw flow node
+ * @param {object[]} flows - Full flows array (unfiltered)
+ * @returns {string} Resolved display name
+ */
+function resolveSubflowInstanceName(node, flows) {
+  if (node.name) return node.name;
+  if (typeof node.type === 'string' && node.type.startsWith('subflow:')) {
+    const defId = node.type.slice('subflow:'.length);
+    const def = flows.find((n) => n.type === 'subflow' && n.id === defId);
+    if (def && def.name) return def.name;
+  }
+  return node.type;
+}
+
+/**
  * @typedef {object} IRNode
  * @property {string} id - Node ID
  * @property {string} type - Node type (e.g., 'inject', 'function')
@@ -108,7 +127,7 @@ export function buildIR(flows, options = {}) {
     return {
       id: n.id,
       type: n.type,
-      name: n.name || n.type,
+      name: resolveSubflowInstanceName(n, flows),
       x: n.x || 0,
       y: n.y || 0,
       w: isJunction ? JUNCTION_STYLE.radius * 2 : (n.w || DEFAULT_W),

@@ -131,4 +131,27 @@ describe('buildMermaid', () => {
     expect(diagram).toMatch(/a --> j/);
     expect(diagram).toMatch(/j --> b/);
   });
+
+  // Subflow instance rendering
+
+  it('subflow instance label includes [Subflow] prefix and resolved name', () => {
+    const flows = [
+      { id: 'sub1', type: 'subflow', name: 'init', in: [], out: [] },
+      { id: 'inst1', type: 'subflow:sub1', name: '', x: 100, y: 100, wires: [[]] },
+    ];
+    const ir = buildIR(flows);
+    const diagram = buildMermaid(ir);
+    expect(diagram).toContain('"');
+    expect(diagram).toContain('[Subflow] init');
+  });
+
+  it('subflow instance with explicit name shows name without prefix', () => {
+    const flows = [
+      { id: 'sub1', type: 'subflow', name: 'init', in: [], out: [] },
+      { id: 'inst1', type: 'subflow:sub1', name: 'My Custom', x: 100, y: 100, wires: [[]] },
+    ];
+    const ir = buildIR(flows);
+    const diagram = buildMermaid(ir);
+    expect(diagram).toContain('[Subflow] My Custom');
+  });
 });

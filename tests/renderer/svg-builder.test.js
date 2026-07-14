@@ -137,4 +137,27 @@ describe('buildSVG', () => {
     const linkCount = (svg.match(/class="nr-link"/g) || []).length;
     expect(linkCount).toBe(2);
   });
+
+  // Subflow instance badge
+
+  it('subflow instance node includes a badge element', () => {
+    const flows = [
+      { id: 'sub1', type: 'subflow', name: 'init', in: [], out: [] },
+      { id: 'inst1', type: 'subflow:sub1', name: '', x: 100, y: 100, wires: [[]] },
+    ];
+    const ir = buildIR(flows);
+    const svg = buildSVG(ir);
+    expect(svg).toContain('nr-subflow-badge');
+    expect(svg).toContain('nr-subflow-badge-label');
+    expect(svg).toContain('S');
+  });
+
+  it('regular node does not have subflow badge', () => {
+    const flows = [
+      { id: 'n1', type: 'inject', name: 'Test', x: 100, y: 100, wires: [] },
+    ];
+    const ir = buildIR(flows);
+    const svg = buildSVG(ir);
+    expect(svg).not.toContain('nr-subflow-badge');
+  });
 });

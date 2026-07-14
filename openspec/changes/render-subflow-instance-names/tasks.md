@@ -35,6 +35,6 @@
 
 ## 7. Verify and deploy
 
-- [ ] 7.1 Run full test suite: `npm test`
-- [ ] 7.2 Rebuild and redeploy MCP server
-- [ ] 7.3 Verify via staging render that subflow instances show correct names and visual indicator
+- [x] 7.1 Run full test suite: 701 tests pass, 0 failures
+- [x] 7.2 Rebuild and redeploy MCP server — done (Docker rebuild sin cache + force recreate)
+- [x] 7.3 Verify via staging render — Mermaid shows `[Subflow] <name>` with resolved definition names, SVG includes `nr-subflow-badge`

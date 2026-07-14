@@ -11,6 +11,29 @@
 import { getMermaidClass, JUNCTION_STYLE } from './colors.js';
 
 /**
+ * Check if a node type indicates a subflow instance.
+ *
+ * @param {string} type - Node type
+ * @returns {boolean}
+ */
+function isSubflowInstance(type) {
+  return typeof type === 'string' && type.startsWith('subflow:');
+}
+
+/**
+ * Build the Mermaid label for a node, prefixing subflow instances with [Subflow].
+ *
+ * @param {object} node - IR node
+ * @returns {string} Escaped Mermaid label
+ */
+function buildSubflowLabel(node) {
+  const label = isSubflowInstance(node.type)
+    ? '[Subflow] ' + node.name
+    : node.name;
+  return escapeMermaidLabel(label);
+}
+
+/**
  * Escape a string for use as a Mermaid node label.
  *
  * @param {string} label
@@ -63,7 +86,7 @@ export function buildMermaid(ir) {
       // Junction: circle node with no label
       lines.push(`  ${node.id}(()):::junctionClass`);
     } else {
-      const label = escapeMermaidLabel(node.name);
+      const label = buildSubflowLabel(node);
       const classTag = getMermaidClass(node);
       lines.push(`  ${node.id}[${label}]${classTag}`);
     }
@@ -80,7 +103,7 @@ export function buildMermaid(ir) {
       if (member.isJunction) {
         lines.push(`    ${mid}(()):::junctionClass`);
       } else {
-        const mLabel = escapeMermaidLabel(member.name);
+        const mLabel = buildSubflowLabel(member);
         const mClass = getMermaidClass(member);
         lines.push(`    ${mid}[${mLabel}]${mClass}`);
       }

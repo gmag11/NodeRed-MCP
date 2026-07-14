@@ -42,6 +42,14 @@ describe('getNodeColor', () => {
   it('returns default grey for empty type', () => {
     expect(getNodeColor('')).toBe(DEFAULT_COLOR);
   });
+
+  it('returns distinct color for subflow instance type', () => {
+    expect(getNodeColor('subflow:a1b2c3d4')).toBe('#9BC7D4');
+  });
+
+  it('returns distinct color for any subflow: variant', () => {
+    expect(getNodeColor('subflow:b5468f4.d96887')).toBe('#9BC7D4');
+  });
 });
 
 describe('getNodeCSSClass', () => {
