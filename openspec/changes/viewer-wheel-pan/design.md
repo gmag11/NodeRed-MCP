@@ -43,6 +43,12 @@ svg.call(zoom);
 
 **Rationale:** Match Node-RED editor behavior where 1 wheel tick = 1 pixel pan at current zoom level. Keep it simple; users can adjust later if needed.
 
+### Decision 4: Ctrl+wheel delegates to d3.zoom for zoom
+
+**Rationale:** Ctrl+wheel is the standard browser/desktop zoom gesture. The filter allows Ctrl+wheel through to d3.zoom while blocking plain wheel. The custom wheel handler skips when `event.ctrlKey` is true, avoiding double-handling.
+
+**Alternative considered:** Implement custom Ctrl+wheel zoom math in the wheel handler. Rejected — d3.zoom already has correct zoom-to-cursor behavior; reusing it avoids redundant math and keeps zoom behavior consistent with pinch.
+
 ## Risks / Trade-offs
 
 - **Touchpad two-finger scroll will also pan** instead of zoom. This matches Node-RED editor behavior but differs from the previous viewer. Users who relied on touchpad-scroll-to-zoom will need to use pinch instead. → Acceptable trade-off; pinch is the standard zoom gesture.

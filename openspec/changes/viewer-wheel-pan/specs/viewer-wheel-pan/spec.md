@@ -32,3 +32,14 @@ The viewer SHALL preserve the existing pinch-to-zoom (touch gesture) and click-a
 #### Scenario: Click and drag pans
 - **WHEN** user clicks and drags on the flow viewer background
 - **THEN** the view pans following the cursor movement
+
+### Requirement: Ctrl+wheel zooms the view
+The viewer SHALL zoom in and out when the user rotates the mouse wheel while holding the Ctrl key.
+
+#### Scenario: Ctrl+wheel up zooms in
+- **WHEN** user holds Ctrl and scrolls the mouse wheel up while hovering over the flow viewer
+- **THEN** the view zooms in centered on the cursor position
+
+#### Scenario: Ctrl+wheel down zooms out
+- **WHEN** user holds Ctrl and scrolls the mouse wheel down while hovering over the flow viewer
+- **THEN** the view zooms out centered on the cursor position
