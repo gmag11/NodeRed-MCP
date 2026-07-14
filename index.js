@@ -35,6 +35,44 @@ function parseArgs(argv) {
   return args;
 }
 
+// --- Retry helper ---
+
+/**
+ * Retry an async function with exponential backoff.
+ *
+ * @param {() => Promise<any>} fn - Async function to retry
+ * @param {object} [opts]
+ * @param {number} [opts.maxAttempts=5] - Maximum attempts before giving up
+ * @param {number} [opts.initialDelayMs=2000] - Delay before first retry (ms)
+ * @param {number} [opts.multiplier=2] - Backoff multiplier
+ * @param {string} [opts.label='operation'] - Label for log messages
+ * @returns {Promise<any>} The result of fn()
+ */
+async function retryWithBackoff(fn, {
+  maxAttempts = 5,
+  initialDelayMs = 2000,
+  multiplier = 2,
+  label = 'operation',
+} = {}) {
+  let delay = initialDelayMs;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (attempt === maxAttempts) {
+        throw err;
+      }
+      console.error(
+        `[nodered-mcp] ${label} failed (attempt ${attempt}/${maxAttempts}): ${err.message}`,
+      );
+      console.error(`[nodered-mcp] Retrying in ${delay / 1000}s...`);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      delay *= multiplier;
+    }
+  }
+}
+
 // --- Main ---
 
 async function main() {
@@ -56,7 +94,9 @@ async function main() {
     apiKey: process.env.NODERED_API_KEY,
   });
 
-  await authManager.init();
+  await retryWithBackoff(() => authManager.init(), {
+    label: 'Node-RED auth init',
+  });
   console.error(`[nodered-mcp] Connected to ${baseUrl} (Node-RED auth mode: ${authManager.mode})`);
 
   // Load MCP server authentication configuration
