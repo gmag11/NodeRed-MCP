@@ -28,8 +28,8 @@
 
 ## 6. Manual verification
 
-- [ ] 6.1 Start the dev stack (`docker compose up -d`), open the staging viewer, double-click a subflow instance node, confirm a new closable tab opens to the right of the active tab and renders the subflow's nodes with dirty highlighting
-- [ ] 6.2 Double-click the same subflow instance again (or another instance of it) and confirm the existing tab activates without duplicating or moving
-- [ ] 6.3 Close the subflow tab via the "×" control and confirm fallback to an adjacent tab
-- [ ] 6.4 Trigger a live flow update (deploy or edit) while a subflow tab is open and confirm it stays open in place; delete the subflow and confirm its tab disappears automatically
-- [ ] 6.5 Open a subflow tab, then double-click a subflow instance nested inside it, confirm the nested subflow opens its own closable tab right after the parent; close the parent tab and confirm the nested (child) tab stays open
+- [x] 6.1 Start the dev stack (`docker compose up -d`), open the staging viewer, double-click a subflow instance node, confirm a new closable tab opens to the right of the active tab and renders the subflow's nodes with dirty highlighting
+- [x] 6.2 Double-click the same subflow instance again (or another instance of it) and confirm the existing tab activates without duplicating or moving
+- [x] 6.3 Close the subflow tab via the "×" control and confirm fallback to an adjacent tab
+- [x] 6.4 Trigger a live flow update (deploy or edit) while a subflow tab is open and confirm it stays open in place; delete the subflow and confirm its tab disappears automatically
+- [x] 6.5 Open a subflow tab, then double-click a subflow instance nested inside it, confirm the nested subflow opens its own closable tab right after the parent; close the parent tab and confirm the nested (child) tab stays open
