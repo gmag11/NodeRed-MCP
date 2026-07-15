@@ -19,5 +19,5 @@
 
 ## 4. Repository Configuration (Manual)
 
-- [ ] 4.1 Generate an npm Automation access token at https://www.npmjs.com/settings/<user>/tokens with read-write permission for `@gmag11/nodered-mcp-server`
-- [ ] 4.2 Add `NPM_TOKEN` as a repository secret in GitHub → Settings → Secrets and variables → Actions
+- [x] 4.1 Generate an npm Automation access token at https://www.npmjs.com/settings/<user>/tokens with read-write permission for `@gmag11/nodered-mcp-server`
+- [x] 4.2 Add `NPM_TOKEN` as a repository secret in GitHub → Settings → Secrets and variables → Actions
