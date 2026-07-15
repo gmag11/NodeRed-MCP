@@ -25,6 +25,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
         run: npm ci
@@ -41,4 +42,4 @@ jobs:
           echo "Version check passed: ${TAG_VERSION} == ${PKG_VERSION}"
 
       - name: Publish to npm
-        run: npm publish --access public --provenance --registry https://registry.npmjs.org
+        run: npm publish --access public --provenance
