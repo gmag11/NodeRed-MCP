@@ -27,6 +27,14 @@ jobs:
           node-version: 22
           registry-url: 'https://registry.npmjs.org'
 
+      - name: Upgrade npm for OIDC trusted publishing
+        run: |
+          # Trusted publishing requires npm >= 11.5.1. Node 22 bundles npm 10.x,
+          # which has no OIDC support at all: it silently falls back to token
+          # auth and the publish fails with a 404 on an unauthenticated PUT.
+          npm install --global npm@^11.5.1
+          echo "Using npm $(npm --version) on Node $(node --version)"
+
       - name: Install dependencies
         run: npm ci
 
