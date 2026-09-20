@@ -107,6 +107,37 @@ export function filterMessages(messages, {
 }
 
 /**
+ * Build a human-readable diagnostic when the comms client cannot receive
+ * events, so an empty result is not confused with an idle-but-connected client.
+ *
+ * @param {{ state: string, ready: boolean, authenticated: boolean, subscribed: boolean, lastAuthOutcome: 'ok'|'fail'|null }} connection
+ * @returns {string|undefined}
+ */
+export function buildDiagnostic(connection) {
+  if (!connection || connection.ready) {
+    return undefined;
+  }
+
+  if (connection.lastAuthOutcome === 'fail') {
+    return 'The Node-RED /comms WebSocket rejected authentication, so no debug events can be received. Verify NODERED_API_KEY (or NODERED_USERNAME/NODERED_PASSWORD) is valid for the target instance.';
+  }
+
+  switch (connection.state) {
+    case 'authenticating':
+      return 'The Node-RED /comms WebSocket is authenticating. If this persists, the configured credentials were not accepted.';
+    case 'connecting':
+    case 'open':
+      return 'The Node-RED /comms WebSocket is still connecting, so no debug events have been received yet. Retry shortly.';
+    case 'closed':
+      return 'The Node-RED /comms WebSocket is closed, so no debug events can be received. The client is retrying with backoff; verify the instance is reachable and credentials are valid.';
+    case 'idle':
+      return 'The Node-RED /comms WebSocket has not been connected, so no debug events can be received.';
+    default:
+      return `The Node-RED /comms WebSocket is not ready to receive debug events (state: ${connection.state}).`;
+  }
+}
+
+/**
  * Create a handler for the read-debug-messages MCP tool.
  *
  * @param {import('../nodered/comms-client.js').CommsClient} commsClient
@@ -130,19 +161,30 @@ export function handleReadDebugMessages(commsClient) {
       limit,
     });
 
+    const connection = typeof commsClient.getConnectionState === 'function'
+      ? commsClient.getConnectionState()
+      : { state: 'unknown', ready: true, authenticated: true, subscribed: true, lastAuthOutcome: null };
+
     // Handle filter-level error (e.g. last + limit conflict)
     if (result.error) {
-          const data = {
-              error: result.error,
-            };
-    return formatSuccess(data);
+      return formatSuccess({
+        error: result.error,
+        connection,
+      });
     }
 
-        const data = {
-            messages: result.messages,
-            total: result.total,
-            bufferSize: commsClient.bufferSize,
-          };
+    const data = {
+      messages: result.messages,
+      total: result.total,
+      bufferSize: commsClient.bufferSize,
+      connection,
+    };
+
+    const diagnostic = buildDiagnostic(connection);
+    if (diagnostic) {
+      data.diagnostic = diagnostic;
+    }
+
     return formatSuccess(data);
   };
 }

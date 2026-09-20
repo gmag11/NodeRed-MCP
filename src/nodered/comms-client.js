@@ -1,17 +1,48 @@
 /**
  * Node-RED Comms WebSocket client.
  *
- * Maintains a persistent WebSocket connection to Node-RED's /comms endpoint
- * using the Socket.IO v4 / Engine.IO v4 protocol. Buffers incoming debug
- * messages in a fixed-size ring buffer and supports optional authentication.
+ * Maintains a persistent WebSocket connection to Node-RED's `/comms` endpoint
+ * and buffers incoming debug messages in a fixed-size ring buffer.
  *
- * After connecting, the client subscribes to the "debug" event topic so
- * that Node-RED pushes debug node output to this client.
+ * ── Protocol ────────────────────────────────────────────────────────────
  *
- * The WebSocket URL is derived from the HTTP baseUrl (replacing http(s)://
- * with ws(s)://) and includes the required Engine.IO query parameters
- * (EIO=4, transport=websocket). If an access token is provided, it is
- * also appended as a query parameter.
+ * Node-RED's editor API runs a bare `ws` server over the HTTP upgrade event
+ * and exchanges **plain JSON text frames**. There is no Socket.IO and no
+ * Engine.IO layer — no `EIO`/`transport` query parameters, no `40`/`42[...]`
+ * packet prefixes, and no Engine.IO ping/pong.
+ *
+ * Source: `@node-red/editor-api/lib/editor/comms.js`
+ *
+ * Two server → client frame shapes exist:
+ *
+ *   1. Events — a JSON array of `{ topic, data }` envelopes, flushed at most
+ *      every 50ms with up to 50 envelopes per frame:
+ *        [{"topic":"debug","data":{"id":"...","msg":"..."}}]
+ *
+ *   2. Control — a JSON object whose relevant key is `auth`:
+ *        {"auth":"ok"} / {"auth":"fail"}
+ *
+ * Client → server frames are plain JSON objects. The keys Node-RED acts on:
+ *   - `{"auth": <token>}`           authenticate (required when adminAuth is set)
+ *   - `{"subscribe": <topic>}`      replay retained topics
+ *   - `{"topic": ..., "data": ...}` publish
+ *
+ * ── Authentication ──────────────────────────────────────────────────────
+ *
+ * When Node-RED has `adminAuth` configured, `CommsConnection` sets
+ * `pendingAuth = true`, and a connection is NOT added to the runtime's
+ * `connections[]` until auth completes. `publish()` iterates `connections[]`,
+ * so an unauthenticated connection receives **nothing at all, silently**.
+ *
+ * The token is never read from the query string; it must arrive either as an
+ * HTTP header on the upgrade (proxy setups) or as an in-band `{"auth":...}`
+ * packet. This client uses the in-band packet.
+ *
+ * IMPORTANT: the auth packet is sent ONLY when credentials are configured.
+ * Sending it to an instance without `adminAuth` walks into `handleAuthPacket`,
+ * which calls `Users.tokens()` — a function that is `undefined` unless the
+ * instance defines `config.tokens`. That throws inside a promise chain, i.e. an
+ * unhandled rejection that terminates the Node process on Node >= 15.
  */
 
 import WebSocket from 'ws';
@@ -35,6 +66,29 @@ const MAX_RECONNECT_DELAY = 30000;
 
 /** Reconnect delay multiplier (exponential backoff). */
 const RECONNECT_MULTIPLIER = 2;
+
+/** Event topic whose payloads are buffered as debug messages. */
+const DEBUG_TOPIC = 'debug';
+
+/** Topic subscription requested once the connection is usable. */
+const SUBSCRIBE_TOPIC = 'debug';
+
+/**
+ * Connection lifecycle states.
+ *
+ * idle → connecting → open → (authenticating) → ready → closed
+ *
+ * `ready` means the connection is registered with Node-RED and can receive
+ * events. On an instance without auth, `open` transitions straight to `ready`.
+ */
+export const CommsState = Object.freeze({
+  IDLE: 'idle',
+  CONNECTING: 'connecting',
+  OPEN: 'open',
+  AUTHENTICATING: 'authenticating',
+  READY: 'ready',
+  CLOSED: 'closed',
+});
 
 /**
  * Parse the buffer size from the NODE_RED_DEBUG_BUFFER_SIZE env var.
@@ -71,142 +125,86 @@ function parseBufferSize() {
 }
 
 /**
- * Build the WebSocket URL from an HTTP base URL and optional token.
+ * Build the WebSocket URL from an HTTP base URL.
  *
- * Adds the required Engine.IO v4 / Socket.IO query parameters so the
- * server recognises the connection as a Socket.IO WebSocket transport.
+ * Node-RED expects no Engine.IO query parameters and does not read tokens from
+ * the query string, so the URL is simply the base with the scheme swapped.
  *
  * @param {string} baseUrl - e.g. "http://localhost:1880"
- * @param {string} [token] - Bearer access token
- * @returns {string} e.g. "ws://localhost:1880/comms?EIO=4&transport=websocket&access_token=xxx"
+ * @returns {string} e.g. "ws://localhost:1880/comms"
  */
-function buildWsUrl(baseUrl, token) {
-  // Replace http(s):// with ws(s)://
-  const wsBase = baseUrl.replace(/^http/, 'ws');
-  const params = new URLSearchParams();
-  // Engine.IO v4 + WebSocket transport — required for Socket.IO to
-  // recognise this as a valid WebSocket upgrade
-  params.set('EIO', '4');
-  params.set('transport', 'websocket');
-  if (token) {
-    params.set('access_token', token);
-  }
-  return `${wsBase}/comms?${params.toString()}`;
+export function buildWsUrl(baseUrl) {
+  const wsBase = baseUrl.replace(/^http/, 'ws').replace(/\/+$/, '');
+  return `${wsBase}/comms`;
 }
 
 /**
- * Parse a single Engine.IO v4 / Socket.IO v4 text frame.
+ * Classify a raw text frame from Node-RED's `/comms` endpoint.
  *
- * Engine.IO v4 packet types:
- *  0 — open    (server → client, contains SID + ping config)
- *  1 — close
- *  2 — ping    (bidirectional; responder replies with 3)
- *  3 — pong
- *  4 — message (wraps a Socket.IO packet)
+ * Returns one of:
+ *  - `{ type: 'events', events: Array<{topic, data}> }` for a JSON array
+ *  - `{ type: 'auth', status: 'ok' | 'fail' }` for a control frame
+ *  - `null` for anything else (ignored without closing the socket)
  *
- * Socket.IO v4 packet types (inside Engine.IO message 4):
- *  0 — connect
- *  1 — disconnect
- *  2 — event    (e.g. 42["debug", {...}])
- *  3 — ack
- *  4 — connect_error
+ * Only a top-level JSON array is treated as events, and only an object with an
+ * `auth` key is treated as a control frame — matching what Node-RED actually
+ * sends. Anything else is unrecognized and MUST NOT break the connection.
  *
- * Returns an object with shape:
- *  - { type: 'pong' } when the caller should reply with `3`
- *  - { type: 'connected' } on Socket.IO connect ack (`40`)
- *  - { type: 'event', topic: string, payload: any } on `42[...]`
- *  - { type: 'open', sid: string } on Engine.IO open (`0{...}`)
- *  - null when the frame should be silently dropped
- *
- * @param {string} frame - Raw text frame from WebSocket
- * @returns {{ type: 'pong' } | { type: 'connected' } | { type: 'event', topic: string, payload: any } | { type: 'open', sid: string } | null}
+ * @param {string} frame
+ * @returns {{ type: 'events', events: Array<{topic: string, data: any}> } | { type: 'auth', status: 'ok'|'fail' } | null}
  */
-function parseSocketIOFrame(frame) {
-  // Engine.IO open packet (server sends first)
-  if (frame.startsWith('0') && frame.length > 1) {
-    try {
-      const openData = JSON.parse(frame.substring(1));
-      return { type: 'open', sid: openData.sid || 'unknown' };
-    } catch {
-      // Malformed open packet — ignore
+export function classifyFrame(frame) {
+  if (typeof frame !== 'string' || frame.length === 0) {
+    return null;
+  }
+
+  // Cheap guard: Node-RED frames always begin with a JSON array or object.
+  const first = frame.trimStart()[0];
+  if (first !== '[' && first !== '{') {
+    return null;
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(frame);
+  } catch {
+    return null;
+  }
+
+  if (Array.isArray(parsed)) {
+    const events = [];
+    for (const item of parsed) {
+      if (item === null || typeof item !== 'object' || Array.isArray(item)) continue;
+      if (typeof item.topic !== 'string') continue;
+      events.push({ topic: item.topic, data: item.data });
     }
+    return { type: 'events', events };
   }
 
-  // Engine.IO ping → respond with pong
-  if (frame === '2') {
-    return { type: 'pong' };
-  }
-
-  // Engine.IO message wrapping Socket.IO connect ack
-  if (frame === '40') {
-    return { type: 'connected' };
-  }
-
-  // Engine.IO message wrapping Socket.IO event: 42["topic", data]
-  if (frame.startsWith('42')) {
-    try {
-      const parsed = JSON.parse(frame.substring(2));
-      if (Array.isArray(parsed) && parsed.length >= 1) {
-        return {
-          type: 'event',
-          topic: parsed[0],
-          payload: parsed.length >= 2 ? parsed[1] : null,
-        };
-      }
-    } catch {
-      // Malformed JSON — ignore
+  if (parsed !== null && typeof parsed === 'object') {
+    if (typeof parsed.auth === 'string') {
+      return { type: 'auth', status: parsed.auth === 'ok' ? 'ok' : 'fail' };
     }
+    return null;
   }
 
-  // Plain JSON array of events (Socket.IO v2 raw format):
-  //   [{"topic":"debug","data":{...}}, ...]
-  // Used by some Node-RED configurations where Engine.IO framing
-  // is stripped after the initial handshake.
-  if (frame.startsWith('[')) {
-    try {
-      const parsed = JSON.parse(frame);
-      if (Array.isArray(parsed)) {
-        const events = [];
-        for (const item of parsed) {
-          if (item && typeof item === 'object' && item.topic) {
-            events.push({
-              type: 'event',
-              topic: item.topic,
-              // Node-RED wraps the debug payload inside a `data` property
-              payload: item.data !== undefined ? item.data : item,
-            });
-          }
-        }
-        if (events.length > 0) {
-          // Return first event inline; caller processes the rest via
-          // the returned `_batch` property.
-          const [first, ...rest] = events;
-          first._batch = rest;
-          return first;
-        }
-      }
-    } catch {
-      // Malformed JSON — ignore
-    }
-  }
-
-  // Unknown or unhandled Engine.IO frame type
   return null;
 }
 
 /**
- * Socket.IO v4 / Engine.IO v4 comms client for a single Node-RED instance.
+ * Comms WebSocket client for a single Node-RED instance.
  *
  * Emits the following events:
  *  - 'debug' ({ id, name, msg, format, path, timestamp }) — debug message received
- *  - 'connected' () — WebSocket connection established, handshake complete, and subscribed to debug events
- *  - 'disconnected' () — WebSocket connection lost
+ *  - 'connected' () — connection is usable and subscribed to debug events
+ *  - 'disconnected' () — a previously usable connection was lost
  *  - 'error' (Error) — non-fatal error
  */
 export class CommsClient extends EventEmitter {
   #baseUrl;
   #username;
   #password;
+  #apiToken;
   #token = null;
   #wsUrl;
   #ws = null;
@@ -214,8 +212,15 @@ export class CommsClient extends EventEmitter {
   #maxSize;
   #reconnectDelay = INITIAL_RECONNECT_DELAY;
   #reconnectTimer = null;
+  #subscribed = false;
   #intentionalClose = false;
-  #connected = false;
+
+  /** @type {string} One of CommsState. */
+  #state = CommsState.IDLE;
+  /** @type {'ok'|'fail'|null} Outcome of the last authentication attempt. */
+  #lastAuthOutcome = null;
+  /** Whether the socket is open AND registered (able to receive events). */
+  #ready = false;
 
   /**
    * @param {object} config
@@ -238,9 +243,19 @@ export class CommsClient extends EventEmitter {
     this.#username = username || null;
     this.#password = password || null;
     // Pre-obtained token takes precedence; otherwise will be fetched in connect()
+    this.#apiToken = token || null;
     this.#token = token || null;
-    this.#wsUrl = buildWsUrl(baseUrl, this.#token);
+    this.#wsUrl = buildWsUrl(baseUrl);
     this.#maxSize = parseBufferSize();
+  }
+
+  /**
+   * Whether credentials are configured that warrant an in-band auth packet.
+   *
+   * @returns {boolean}
+   */
+  get #hasCredentials() {
+    return Boolean(this.#token) || Boolean(this.#username && this.#password);
   }
 
   /**
@@ -261,14 +276,16 @@ export class CommsClient extends EventEmitter {
     }
 
     this.#intentionalClose = false;
+    this.#subscribed = false;
+    this.#setState(CommsState.CONNECTING);
 
     // If no pre-obtained token but credentials are provided, fetch one
     if (!this.#token && this.#username && this.#password) {
       try {
         this.#token = await getToken(this.#baseUrl, this.#username, this.#password);
-        this.#wsUrl = buildWsUrl(this.#baseUrl, this.#token);
       } catch (err) {
         console.error(`[CommsClient] Auth token fetch failed: ${err.message}`);
+        this.#setState(CommsState.CLOSED);
         this.emit('error', err);
         this.#scheduleReconnect();
         return;
@@ -279,57 +296,69 @@ export class CommsClient extends EventEmitter {
       this.#ws = new WebSocket(this.#wsUrl);
     } catch (err) {
       console.error(`[CommsClient] WebSocket constructor error: ${err.message}`);
+      this.#setState(CommsState.CLOSED);
       this.#scheduleReconnect();
       return;
     }
 
     this.#ws.on('open', () => {
-      this.#send('40');
+      this.#setState(CommsState.OPEN);
+      // Auth first, when credentials exist. On an instance without adminAuth
+      // the connection is already registered, so `ready` is immediate and NO
+      // auth packet is sent (see the module header for why that matters).
+      if (this.#hasCredentials) {
+        this.#setState(CommsState.AUTHENTICATING);
+        this.#sendJson({ auth: this.#token });
+      } else {
+        this.#becomeReady();
+      }
     });
 
     this.#ws.on('message', (data) => {
       const raw = typeof data === 'string' ? data : data.toString();
-
-      const parsed = parseSocketIOFrame(raw);
-
+      const parsed = classifyFrame(raw);
       if (!parsed) {
         return;
       }
 
       switch (parsed.type) {
-        case 'open':
+        case 'auth':
+          this.#lastAuthOutcome = parsed.status;
+          if (parsed.status === 'ok') {
+            this.#becomeReady();
+          } else {
+            // Node-RED answers {"auth":"fail"} and closes the socket. Report it
+            // and let the backoff timer (not an immediate retry) drive the next
+            // attempt, so a bad token cannot produce a reconnect storm.
+            this.#ready = false;
+            this.#setState(CommsState.AUTHENTICATING);
+            console.error(
+              '[CommsClient] ❌ Node-RED rejected the WebSocket authentication. ' +
+              'Check NODERED_API_KEY (or NODERED_USERNAME/NODERED_PASSWORD) against the target instance.',
+            );
+            this.emit('error', new Error(
+              'Node-RED rejected the /comms WebSocket authentication. ' +
+              'Verify NODERED_API_KEY (or NODERED_USERNAME/NODERED_PASSWORD) is valid for this instance.',
+            ));
+          }
           break;
 
-        case 'pong':
-          this.#send('3');
-          break;
-
-        case 'connected':
-          this.#connected = true;
-          this.#reconnectDelay = INITIAL_RECONNECT_DELAY;
-          this.#send('42["subscribe","debug"]');
-          this.emit('connected');
-          break;
-
-        case 'event':
-          // Process the primary event
-          this.#processEvent(parsed);
-          // Process any batched events (plain JSON array format)
-          if (parsed._batch && Array.isArray(parsed._batch)) {
-            for (const batched of parsed._batch) {
-              this.#processEvent(batched);
-            }
+        case 'events':
+          for (const event of parsed.events) {
+            this.#processEvent(event);
           }
           break;
       }
     });
 
-    this.#ws.on('close', (code, reason) => {
+    this.#ws.on('close', () => {
       this.#ws = null;
-      const wasConnected = this.#connected;
-      this.#connected = false;
+      const wasReady = this.#ready;
+      this.#ready = false;
+      this.#subscribed = false;
+      this.#setState(CommsState.CLOSED);
 
-      if (wasConnected) {
+      if (wasReady) {
         this.emit('disconnected');
       }
 
@@ -366,7 +395,9 @@ export class CommsClient extends EventEmitter {
       this.#ws.close(1000, 'Client disconnect');
       this.#ws = null;
     }
-    this.#connected = false;
+    this.#ready = false;
+    this.#subscribed = false;
+    this.#setState(CommsState.CLOSED);
   }
 
   /**
@@ -388,56 +419,116 @@ export class CommsClient extends EventEmitter {
   }
 
   /**
-   * Whether the WebSocket is currently connected and handshake is complete.
+   * Whether the socket is open and able to receive events.
    *
    * @returns {boolean}
    */
   get isConnected() {
-    return this.#connected;
+    return this.#ready;
+  }
+
+  /**
+   * Whether the connection is usable for receiving events.
+   *
+   * @returns {boolean}
+   */
+  get isReady() {
+    return this.#ready;
+  }
+
+  /**
+   * A snapshot of the connection state, for tool responses.
+   *
+   * @returns {{ state: string, ready: boolean, authenticated: boolean, subscribed: boolean, lastAuthOutcome: 'ok'|'fail'|null }}
+   */
+  getConnectionState() {
+    return {
+      state: this.#state,
+      ready: this.#ready,
+      authenticated: this.#lastAuthOutcome === 'ok',
+      subscribed: this.#subscribed,
+      lastAuthOutcome: this.#lastAuthOutcome,
+    };
   }
 
   // ── Private helpers ──────────────────────────────────────────────
 
   /**
-   * Process a single parsed event.
-   * Routes debug events to the ring buffer; logs non-debug events.
-   *
-   * @param {{ type: 'event', topic: string, payload: any }} parsed
+   * Transition to `ready`, subscribe, and announce the connection once.
    */
-  #processEvent(parsed) {
-    if (parsed.topic === 'debug') {
-      const msg = this.#normalizeDebugMessage(parsed.payload);
+  #becomeReady() {
+    const wasReady = this.#ready;
+    this.#ready = true;
+    this.#setState(CommsState.READY);
+    this.#reconnectDelay = INITIAL_RECONNECT_DELAY;
+
+    if (!this.#subscribed) {
+      this.#subscribed = true;
+      // `subscribe` does not gate live delivery (Node-RED broadcasts to every
+      // registered connection) but it does replay retained topics.
+      this.#sendJson({ subscribe: SUBSCRIBE_TOPIC });
+    }
+
+    if (!wasReady) {
+      this.emit('connected');
+    }
+  }
+
+  /**
+   * Set the lifecycle state.
+   * @param {string} next
+   */
+  #setState(next) {
+    this.#state = next;
+  }
+
+  /**
+   * Process a single event envelope.
+   * Routes debug events to the ring buffer; ignores every other topic.
+   *
+   * @param {{ topic: string, data: any }} event
+   */
+  #processEvent(event) {
+    // `hb` heartbeats and all other topics are deliberately not buffered.
+    if (event.topic === DEBUG_TOPIC) {
+      const msg = this.#normalizeDebugMessage(event.data);
       this.#appendToBuffer(msg);
       this.emit('debug', msg);
     }
   }
 
   /**
-   * Send a raw text frame over the WebSocket.
+   * Serialize and send a JSON frame over the WebSocket.
    * Silently no-ops if the socket is not open.
    *
-   * @param {string} data
+   * @param {object} obj
    */
-  #send(data) {
+  #sendJson(obj) {
     if (this.#ws && this.#ws.readyState === WebSocket.OPEN) {
-      this.#ws.send(data);
+      this.#ws.send(JSON.stringify(obj));
     }
   }
 
   /**
    * Schedule a reconnect attempt with exponential backoff.
    *
-   * On reconnect, the previously-obtained token (if fetched via
-   * credentials flow) is invalidated so a fresh one is acquired.
+   * On reconnect, a token previously obtained through the credentials flow is
+   * invalidated so a fresh one is acquired. A statically configured API key is
+   * kept, since the next attempt should reuse it.
    */
   #scheduleReconnect() {
     if (this.#intentionalClose) {
       return;
     }
 
-    // Invalidate token obtained via credentials flow so a fresh one is fetched
-    if (this.#username && this.#password) {
+    // Invalidate a credentials-derived token so a fresh one is fetched.
+    if (!this.#apiToken && this.#username && this.#password) {
       this.#token = null;
+    }
+
+    // Avoid stacking timers when several failures land together.
+    if (this.#reconnectTimer) {
+      return;
     }
 
     const delay = this.#reconnectDelay;
@@ -458,10 +549,11 @@ export class CommsClient extends EventEmitter {
    * Normalize a raw debug payload into a consistent message object.
    *
    * Node-RED emits:
-   *   { id, name, msg, format, path, timestamp }
+   *   { id, z, path, name, topic, msg, format }
    *
    * We ensure timestamp is a number (ms) and add `_receivedAt` for
-   * ordering guarantees within the buffer.
+   * ordering guarantees within the buffer. Node-RED does not include a
+   * timestamp in debug publishes, so the receipt time is normally used.
    *
    * @param {any} raw
    * @returns {object}

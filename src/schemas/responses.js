@@ -210,9 +210,26 @@ export const InjectMessageResponseSchema = z.object({
   message: z.string().optional(),
 });
 
+/**
+ * Connection state of the Node-RED `/comms` debug stream.
+ *
+ * `ready` distinguishes "connected but nothing has fired yet" from
+ * "not receiving anything at all", which the previous schema could not express.
+ */
+export const CommsConnectionStateSchema = z.object({
+  state: z.enum(['idle', 'connecting', 'open', 'authenticating', 'ready', 'closed']),
+  ready: z.boolean(),
+  authenticated: z.boolean(),
+  subscribed: z.boolean(),
+  lastAuthOutcome: z.enum(['ok', 'fail']).nullable(),
+});
+
 export const DebugMessagesResponseSchema = z.object({
   messages: z.array(z.object({}).passthrough()),
-  count: z.number(),
+  total: z.number(),
+  bufferSize: z.number(),
+  connection: CommsConnectionStateSchema,
+  diagnostic: z.string().optional(),
 });
 
 export const UninstallNodeResponseSchema = z.object({
